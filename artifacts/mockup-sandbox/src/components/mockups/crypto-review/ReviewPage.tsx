@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import {
   Shield, AlertTriangle, Flag, X, CheckCircle,
   Calendar, Eye, User, Search, Menu, ExternalLink,
-  ChevronRight, AlertOctagon, TrendingDown,
-  Clock, ShieldAlert, Zap, Globe, Lock, Scale,
+  ChevronRight, AlertOctagon,
+  Clock, ShieldAlert, Globe, Lock, Scale,
   BookOpen, FileText, ChevronDown, ChevronUp,
-  BarChart2, Microscope, MapPin, Phone, ArrowRight
+  BarChart2, Microscope, MapPin, Phone, ArrowRight,
+  Megaphone, Target, TrendingUp, Siren
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -188,41 +189,127 @@ export function ReviewPage() {
             {/* HOW THIS SCAM WORKS */}
             <section>
               <SectionTitle icon={<Microscope className="h-6 w-6" />}>How This Scam Works</SectionTitle>
-              <p className="text-slate-400 text-sm mb-6">Quantum AI deploys a four-stage confidence scheme targeting retail investors searching for cryptocurrency trading automation.</p>
-              <div className="space-y-5">
-                {[
-                  {
-                    stage: "Stage 1",
-                    title: "Celebrity Impersonation & Geo-Targeted Advertising",
-                    text: "The scam uses 3,076 paid advertisements impersonating 28 celebrities, deployed across 45 countries. Ads feature real figures without consent — Elon Musk, Jeff Bezos, Bill Gates in English-speaking markets; Narayana Murthy and Mukesh Ambani in India; Keir Starmer and Cyril Ramaphosa in their respective countries. Creatives refresh at 42 new ads per 7 days to evade detection.",
-                  },
-                  {
-                    stage: "Stage 2",
-                    title: "The Funnel & Deposit Success",
-                    text: "Victims land on a fake trading dashboard. Account creation is frictionless. The platform displays fake testimonials. To activate trading, victims must deposit capital. Crucially, this initial deposit succeeds — bank transfers, credit cards, and cryptocurrency deposits clear without issue. This instant confirmation is the psychological trap: it creates false legitimacy.",
-                  },
-                  {
-                    stage: "Stage 3",
-                    title: "Fake Profits & Psychological Manipulation",
-                    text: "Over days or weeks, the dashboard displays rising balances — supposedly generating 5–15% returns daily. These are entirely fabricated. Concurrently, the victim receives relentless phone calls and WhatsApp messages from changing numbers claiming to be account managers, using high-pressure tactics: limited-time bonuses, urgent verification demands, exclusive algorithm access.",
-                  },
-                  {
-                    stage: "Stage 4",
-                    title: "The Trap — Withdrawal Lockout & Fee Extraction",
-                    text: "When the victim attempts to withdraw, the platform blocks the transaction. An error appears: account verification incomplete, compliance deposit required, or trading volume threshold not met. The victim is told they must pay an unlock fee of $500–$5,000 in crypto or wire transfer. Some victims pay multiple times. None of these payments result in withdrawals. Support then goes permanently dark.",
-                  },
-                ].map((s, i) => (
-                  <div key={i} className="flex gap-4 p-5 rounded-xl bg-slate-900/50 border border-slate-800">
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-red-600/20 border border-red-600/40 flex items-center justify-center text-red-400 font-black text-sm">
-                      {i + 1}
+              <p className="text-slate-400 text-sm mb-8">
+                Quantum AI deploys a <span className="text-white font-semibold">four-stage confidence scheme</span> targeting retail investors searching for cryptocurrency trading automation. Each stage is designed to advance the victim deeper into the trap.
+              </p>
+
+              <div className="relative">
+                {/* Vertical connector line */}
+                <div className="absolute left-[27px] top-12 bottom-12 w-0.5 bg-gradient-to-b from-orange-600 via-red-600 to-red-900 hidden md:block" />
+
+                <div className="space-y-4">
+                  {[
+                    {
+                      icon: <Megaphone className="h-5 w-5" />,
+                      label: "Stage 1",
+                      title: "Celebrity Impersonation & Geo-Targeted Advertising",
+                      color: "orange",
+                      bgCard: "bg-orange-950/20",
+                      border: "border-orange-800/40",
+                      labelColor: "text-orange-400",
+                      iconBg: "bg-orange-600",
+                      stat: { value: "3,076 ads", sub: "impersonating 28 celebrities" },
+                      bullets: [
+                        "Paid ads featuring Elon Musk, Jeff Bezos, and Bill Gates — without consent",
+                        "Geo-targeted by region: Indian leaders in India, UK politicians in the UK",
+                        "42 new ad creatives deployed every 7 days to evade platform detection",
+                        "Ads promise automated trading returns of 10–50% monthly with zero experience",
+                      ],
+                    },
+                    {
+                      icon: <Target className="h-5 w-5" />,
+                      label: "Stage 2",
+                      title: "The Funnel & Deposit Success",
+                      color: "amber",
+                      bgCard: "bg-amber-950/20",
+                      border: "border-amber-800/40",
+                      labelColor: "text-amber-400",
+                      iconBg: "bg-amber-600",
+                      stat: { value: "Instant", sub: "deposit confirmation" },
+                      bullets: [
+                        "Victims land on a fake trading dashboard — account creation takes under 2 minutes",
+                        "Platform displays fabricated testimonials from 'traders earning thousands daily'",
+                        "Deposits via bank transfer, credit card, or crypto all clear without issue",
+                        "Instant deposit confirmation creates a false sense of legitimacy — the psychological trap",
+                      ],
+                    },
+                    {
+                      icon: <TrendingUp className="h-5 w-5" />,
+                      label: "Stage 3",
+                      title: "Fake Profits & Psychological Manipulation",
+                      color: "red",
+                      bgCard: "bg-red-950/20",
+                      border: "border-red-800/40",
+                      labelColor: "text-red-400",
+                      iconBg: "bg-red-600",
+                      stat: { value: "5–15%", sub: "fake daily returns displayed" },
+                      bullets: [
+                        "Dashboard shows rising balances — entirely fabricated, no real trades occur",
+                        "Relentless calls and WhatsApp messages from rotating phone numbers",
+                        "'Account managers' push limited-time bonuses and urgent verification demands",
+                        "Victims are pressured to deposit more before they can see any 'profits'",
+                      ],
+                    },
+                    {
+                      icon: <Siren className="h-5 w-5" />,
+                      label: "Stage 4",
+                      title: "The Withdrawal Trap & Fee Extraction",
+                      color: "rose",
+                      bgCard: "bg-rose-950/30",
+                      border: "border-rose-700/50",
+                      labelColor: "text-rose-400",
+                      iconBg: "bg-rose-700",
+                      stat: { value: "$500–$5,000", sub: "unlock fees demanded" },
+                      bullets: [
+                        "Withdrawal triggers an error: 'compliance hold', 'KYC pending', or 'verification required'",
+                        "Victims told to pay an unlock fee to access their own funds",
+                        "Some victims pay multiple fees — each payment invents a new requirement",
+                        "Support goes dark: emails stop, phone numbers disconnect, dashboard no longer loads",
+                      ],
+                    },
+                  ].map((stage, i) => (
+                    <div key={i} className={`relative flex gap-0 md:gap-6 rounded-2xl ${stage.bgCard} border ${stage.border} overflow-hidden`}>
+                      {/* Left accent bar */}
+                      <div className={`hidden md:block w-1 shrink-0 ${stage.iconBg} opacity-60`} />
+
+                      <div className="flex-1 p-6">
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+
+                          {/* Icon + number */}
+                          <div className="flex items-center gap-3 sm:flex-col sm:items-center sm:gap-1 shrink-0">
+                            <div className={`w-10 h-10 rounded-xl ${stage.iconBg} flex items-center justify-center text-white shadow-lg shrink-0`}>
+                              {stage.icon}
+                            </div>
+                            <span className={`text-xs font-black uppercase tracking-widest ${stage.labelColor} sm:text-center`}>
+                              {stage.label}
+                            </span>
+                          </div>
+
+                          {/* Main content */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-white text-lg leading-snug mb-4">{stage.title}</h3>
+
+                            <ul className="space-y-2.5 mb-4">
+                              {stage.bullets.map((bullet, bi) => (
+                                <li key={bi} className="flex items-start gap-2.5 text-sm text-slate-300 leading-relaxed">
+                                  <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${stage.iconBg} shrink-0`} />
+                                  {bullet}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Stat callout */}
+                          <div className={`shrink-0 rounded-xl border ${stage.border} bg-slate-950/50 px-4 py-3 text-center min-w-[110px]`}>
+                            <p className={`text-xl font-black ${stage.labelColor} leading-tight`}>{stage.stat.value}</p>
+                            <p className="text-xs text-slate-500 mt-0.5 leading-snug">{stage.stat.sub}</p>
+                          </div>
+
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-red-500 uppercase tracking-widest">{s.stage}</span>
-                      <h3 className="font-bold text-white text-base mt-0.5 mb-2">{s.title}</h3>
-                      <p className="text-slate-400 text-sm leading-relaxed">{s.text}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </section>
 
