@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CryptoKiller Review App"
+version = "1.0.0"
+id = "artifacts/crypto-review"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23178
+
+[services.development]
+run = "pnpm --filter @workspace/crypto-review run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/crypto-review", "run", "build" ]
+publicDir = "artifacts/crypto-review/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23178"
+BASE_PATH = "/"
