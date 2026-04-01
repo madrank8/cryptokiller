@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: reviews
+    description: Scam review operations
+  - name: sync
+    description: CMS sync operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /reviews:
+    get:
+      operationId: listReviews
+      tags: [reviews]
+      summary: List all published reviews
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewSummary"
+
+  /reviews/{slug}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get full review by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewFull"
+        "404":
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sync/review:
+    post:
+      operationId: syncReview
+      tags: [sync]
+      summary: Sync a review from the CMS (webhook)
+      description: Called by the Vercel CMS when a review is published or updated. Requires X-Sync-Secret header.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncReviewPayload"
+      responses:
+        "200":
+          description: Sync successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +111,410 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ReviewSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        platformName:
+          type: string
+        threatScore:
+          type: integer
+        verdict:
+          type: string
+        status:
+          type: string
+        investigationDate:
+          type: string
+        adCreatives:
+          type: integer
+        countriesTargeted:
+          type: integer
+        daysActive:
+          type: integer
+      required:
+        - id
+        - slug
+        - platformName
+        - threatScore
+        - verdict
+        - status
+        - investigationDate
+        - adCreatives
+        - countriesTargeted
+        - daysActive
+
+    FunnelStage:
+      type: object
+      properties:
+        stageNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        statValue:
+          type: string
+        statLabel:
+          type: string
+        bullets:
+          type: array
+          items:
+            type: string
+      required:
+        - stageNumber
+        - title
+        - description
+        - statValue
+        - statLabel
+        - bullets
+
+    RedFlag:
+      type: object
+      properties:
+        emoji:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - emoji
+        - title
+        - description
+        - orderIndex
+
+    FaqItem:
+      type: object
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - question
+        - answer
+        - orderIndex
+
+    KeyFinding:
+      type: object
+      properties:
+        content:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - content
+        - orderIndex
+
+    GeoTarget:
+      type: object
+      properties:
+        region:
+          type: string
+        countryCodes:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - region
+        - countryCodes
+        - orderIndex
+
+    ReviewFull:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        platformName:
+          type: string
+        threatScore:
+          type: integer
+        verdict:
+          type: string
+        status:
+          type: string
+        summary:
+          type: string
+        heroDescription:
+          type: string
+        warningCallout:
+          type: string
+        investigationDate:
+          type: string
+        methodologyText:
+          type: string
+        disclaimerText:
+          type: string
+        wordCount:
+          type: integer
+        readingMinutes:
+          type: integer
+        author:
+          type: string
+        adCreatives:
+          type: integer
+        countriesTargeted:
+          type: integer
+        daysActive:
+          type: integer
+        celebritiesAbused:
+          type: integer
+        weeklyVelocity:
+          type: integer
+        firstDetected:
+          type: string
+        lastActive:
+          type: string
+        funnelStages:
+          type: array
+          items:
+            $ref: "#/components/schemas/FunnelStage"
+        redFlags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedFlag"
+        faqItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/FaqItem"
+        keyFindings:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyFinding"
+        geoTargets:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoTarget"
+      required:
+        - id
+        - slug
+        - platformName
+        - threatScore
+        - verdict
+        - status
+        - summary
+        - heroDescription
+        - warningCallout
+        - investigationDate
+        - methodologyText
+        - disclaimerText
+        - wordCount
+        - readingMinutes
+        - author
+        - adCreatives
+        - countriesTargeted
+        - daysActive
+        - celebritiesAbused
+        - weeklyVelocity
+        - firstDetected
+        - lastActive
+        - funnelStages
+        - redFlags
+        - faqItems
+        - keyFindings
+        - geoTargets
+
+    SyncFunnelStage:
+      type: object
+      properties:
+        stageNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        statValue:
+          type: string
+        statLabel:
+          type: string
+        bullets:
+          type: array
+          items:
+            type: string
+      required:
+        - stageNumber
+        - title
+        - description
+        - statValue
+        - statLabel
+        - bullets
+
+    SyncRedFlag:
+      type: object
+      properties:
+        emoji:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - emoji
+        - title
+        - description
+        - orderIndex
+
+    SyncFaqItem:
+      type: object
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - question
+        - answer
+        - orderIndex
+
+    SyncKeyFinding:
+      type: object
+      properties:
+        content:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - content
+        - orderIndex
+
+    SyncGeoTarget:
+      type: object
+      properties:
+        region:
+          type: string
+        countryCodes:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - region
+        - countryCodes
+        - orderIndex
+
+    SyncReviewPayload:
+      type: object
+      properties:
+        platformName:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+        threatScore:
+          type: integer
+        verdict:
+          type: string
+        summary:
+          type: string
+        heroDescription:
+          type: string
+        warningCallout:
+          type: string
+        investigationDate:
+          type: string
+        methodologyText:
+          type: string
+        disclaimerText:
+          type: string
+        wordCount:
+          type: integer
+        readingMinutes:
+          type: integer
+        author:
+          type: string
+        adCreatives:
+          type: integer
+        countriesTargeted:
+          type: integer
+        daysActive:
+          type: integer
+        celebritiesAbused:
+          type: integer
+        weeklyVelocity:
+          type: integer
+        firstDetected:
+          type: string
+        lastActive:
+          type: string
+        funnelStages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncFunnelStage"
+        redFlags:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncRedFlag"
+        faqItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncFaqItem"
+        keyFindings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncKeyFinding"
+        geoTargets:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncGeoTarget"
+      required:
+        - platformName
+        - slug
+        - status
+        - threatScore
+        - verdict
+        - summary
+        - heroDescription
+        - warningCallout
+        - investigationDate
+        - methodologyText
+        - disclaimerText
+        - wordCount
+        - readingMinutes
+        - author
+        - adCreatives
+        - countriesTargeted
+        - daysActive
+        - celebritiesAbused
+        - weeklyVelocity
+        - firstDetected
+        - lastActive
+        - funnelStages
+        - redFlags
+        - faqItems
+        - keyFindings
+        - geoTargets
+
+    SyncResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        reviewId:
+          type: integer
+        action:
+          type: string
+      required:
+        - ok
+        - reviewId
+        - action

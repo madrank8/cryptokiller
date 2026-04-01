@@ -8,3 +8,151 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface ReviewSummary {
+  id: number;
+  slug: string;
+  platformName: string;
+  threatScore: number;
+  verdict: string;
+  status: string;
+  investigationDate: string;
+  adCreatives: number;
+  countriesTargeted: number;
+  daysActive: number;
+}
+
+export interface FunnelStage {
+  stageNumber: number;
+  title: string;
+  description: string;
+  statValue: string;
+  statLabel: string;
+  bullets: string[];
+}
+
+export interface RedFlag {
+  emoji: string;
+  title: string;
+  description: string;
+  orderIndex: number;
+}
+
+export interface FaqItem {
+  question: string;
+  answer: string;
+  orderIndex: number;
+}
+
+export interface KeyFinding {
+  content: string;
+  orderIndex: number;
+}
+
+export interface GeoTarget {
+  region: string;
+  countryCodes: string;
+  orderIndex: number;
+}
+
+export interface ReviewFull {
+  id: number;
+  slug: string;
+  platformName: string;
+  threatScore: number;
+  verdict: string;
+  status: string;
+  summary: string;
+  heroDescription: string;
+  warningCallout: string;
+  investigationDate: string;
+  methodologyText: string;
+  disclaimerText: string;
+  wordCount: number;
+  readingMinutes: number;
+  author: string;
+  adCreatives: number;
+  countriesTargeted: number;
+  daysActive: number;
+  celebritiesAbused: number;
+  weeklyVelocity: number;
+  firstDetected: string;
+  lastActive: string;
+  funnelStages: FunnelStage[];
+  redFlags: RedFlag[];
+  faqItems: FaqItem[];
+  keyFindings: KeyFinding[];
+  geoTargets: GeoTarget[];
+}
+
+export interface SyncFunnelStage {
+  stageNumber: number;
+  title: string;
+  description: string;
+  statValue: string;
+  statLabel: string;
+  bullets: string[];
+}
+
+export interface SyncRedFlag {
+  emoji: string;
+  title: string;
+  description: string;
+  orderIndex: number;
+}
+
+export interface SyncFaqItem {
+  question: string;
+  answer: string;
+  orderIndex: number;
+}
+
+export interface SyncKeyFinding {
+  content: string;
+  orderIndex: number;
+}
+
+export interface SyncGeoTarget {
+  region: string;
+  countryCodes: string;
+  orderIndex: number;
+}
+
+export interface SyncReviewPayload {
+  platformName: string;
+  slug: string;
+  status: string;
+  threatScore: number;
+  verdict: string;
+  summary: string;
+  heroDescription: string;
+  warningCallout: string;
+  investigationDate: string;
+  methodologyText: string;
+  disclaimerText: string;
+  wordCount: number;
+  readingMinutes: number;
+  author: string;
+  adCreatives: number;
+  countriesTargeted: number;
+  daysActive: number;
+  celebritiesAbused: number;
+  weeklyVelocity: number;
+  firstDetected: string;
+  lastActive: string;
+  funnelStages: SyncFunnelStage[];
+  redFlags: SyncRedFlag[];
+  faqItems: SyncFaqItem[];
+  keyFindings: SyncKeyFinding[];
+  geoTargets: SyncGeoTarget[];
+}
+
+export interface SyncResult {
+  ok: boolean;
+  reviewId: number;
+  action: string;
+}

@@ -5,18 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ErrorResponse,
+  HealthStatus,
+  ReviewFull,
+  ReviewSummary,
+  SyncResult,
+  SyncReviewPayload,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +109,250 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all published reviews
+ */
+export const getListReviewsUrl = () => {
+  return `/api/reviews`;
+};
+
+export const listReviews = async (
+  options?: RequestInit,
+): Promise<ReviewSummary[]> => {
+  return customFetch<ReviewSummary[]>(getListReviewsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListReviewsQueryKey = () => {
+  return [`/api/reviews`] as const;
+};
+
+export const getListReviewsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listReviews>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listReviews>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListReviewsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listReviews>>> = ({
+    signal,
+  }) => listReviews({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listReviews>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListReviewsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listReviews>>
+>;
+export type ListReviewsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all published reviews
+ */
+
+export function useListReviews<
+  TData = Awaited<ReturnType<typeof listReviews>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listReviews>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListReviewsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get full review by slug
+ */
+export const getGetReviewUrl = (slug: string) => {
+  return `/api/reviews/${slug}`;
+};
+
+export const getReview = async (
+  slug: string,
+  options?: RequestInit,
+): Promise<ReviewFull> => {
+  return customFetch<ReviewFull>(getGetReviewUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetReviewQueryKey = (slug: string) => {
+  return [`/api/reviews/${slug}`] as const;
+};
+
+export const getGetReviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReview>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReviewQueryKey(slug);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReview>>> = ({
+    signal,
+  }) => getReview(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getReview>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetReviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReview>>
+>;
+export type GetReviewQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get full review by slug
+ */
+
+export function useGetReview<
+  TData = Awaited<ReturnType<typeof getReview>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetReviewQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Called by the Vercel CMS when a review is published or updated. Requires X-Sync-Secret header.
+ * @summary Sync a review from the CMS (webhook)
+ */
+export const getSyncReviewUrl = () => {
+  return `/api/sync/review`;
+};
+
+export const syncReview = async (
+  syncReviewPayload: SyncReviewPayload,
+  options?: RequestInit,
+): Promise<SyncResult> => {
+  return customFetch<SyncResult>(getSyncReviewUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(syncReviewPayload),
+  });
+};
+
+export const getSyncReviewMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncReview>>,
+    TError,
+    { data: BodyType<SyncReviewPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncReview>>,
+  TError,
+  { data: BodyType<SyncReviewPayload> },
+  TContext
+> => {
+  const mutationKey = ["syncReview"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncReview>>,
+    { data: BodyType<SyncReviewPayload> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return syncReview(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncReviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncReview>>
+>;
+export type SyncReviewMutationBody = BodyType<SyncReviewPayload>;
+export type SyncReviewMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Sync a review from the CMS (webhook)
+ */
+export const useSyncReview = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncReview>>,
+    TError,
+    { data: BodyType<SyncReviewPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncReview>>,
+  TError,
+  { data: BodyType<SyncReviewPayload> },
+  TContext
+> => {
+  return useMutation(getSyncReviewMutationOptions(options));
+};

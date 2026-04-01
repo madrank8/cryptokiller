@@ -14,3 +14,162 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List all published reviews
+ */
+export const ListReviewsResponseItem = zod.object({
+  id: zod.number(),
+  slug: zod.string(),
+  platformName: zod.string(),
+  threatScore: zod.number(),
+  verdict: zod.string(),
+  status: zod.string(),
+  investigationDate: zod.string(),
+  adCreatives: zod.number(),
+  countriesTargeted: zod.number(),
+  daysActive: zod.number(),
+});
+export const ListReviewsResponse = zod.array(ListReviewsResponseItem);
+
+/**
+ * @summary Get full review by slug
+ */
+export const GetReviewParams = zod.object({
+  slug: zod.coerce.string(),
+});
+
+export const GetReviewResponse = zod.object({
+  id: zod.number(),
+  slug: zod.string(),
+  platformName: zod.string(),
+  threatScore: zod.number(),
+  verdict: zod.string(),
+  status: zod.string(),
+  summary: zod.string(),
+  heroDescription: zod.string(),
+  warningCallout: zod.string(),
+  investigationDate: zod.string(),
+  methodologyText: zod.string(),
+  disclaimerText: zod.string(),
+  wordCount: zod.number(),
+  readingMinutes: zod.number(),
+  author: zod.string(),
+  adCreatives: zod.number(),
+  countriesTargeted: zod.number(),
+  daysActive: zod.number(),
+  celebritiesAbused: zod.number(),
+  weeklyVelocity: zod.number(),
+  firstDetected: zod.string(),
+  lastActive: zod.string(),
+  funnelStages: zod.array(
+    zod.object({
+      stageNumber: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      statValue: zod.string(),
+      statLabel: zod.string(),
+      bullets: zod.array(zod.string()),
+    }),
+  ),
+  redFlags: zod.array(
+    zod.object({
+      emoji: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+  faqItems: zod.array(
+    zod.object({
+      question: zod.string(),
+      answer: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+  keyFindings: zod.array(
+    zod.object({
+      content: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+  geoTargets: zod.array(
+    zod.object({
+      region: zod.string(),
+      countryCodes: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * Called by the Vercel CMS when a review is published or updated. Requires X-Sync-Secret header.
+ * @summary Sync a review from the CMS (webhook)
+ */
+export const SyncReviewBody = zod.object({
+  platformName: zod.string(),
+  slug: zod.string(),
+  status: zod.string(),
+  threatScore: zod.number(),
+  verdict: zod.string(),
+  summary: zod.string(),
+  heroDescription: zod.string(),
+  warningCallout: zod.string(),
+  investigationDate: zod.string(),
+  methodologyText: zod.string(),
+  disclaimerText: zod.string(),
+  wordCount: zod.number(),
+  readingMinutes: zod.number(),
+  author: zod.string(),
+  adCreatives: zod.number(),
+  countriesTargeted: zod.number(),
+  daysActive: zod.number(),
+  celebritiesAbused: zod.number(),
+  weeklyVelocity: zod.number(),
+  firstDetected: zod.string(),
+  lastActive: zod.string(),
+  funnelStages: zod.array(
+    zod.object({
+      stageNumber: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      statValue: zod.string(),
+      statLabel: zod.string(),
+      bullets: zod.array(zod.string()),
+    }),
+  ),
+  redFlags: zod.array(
+    zod.object({
+      emoji: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+  faqItems: zod.array(
+    zod.object({
+      question: zod.string(),
+      answer: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+  keyFindings: zod.array(
+    zod.object({
+      content: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+  geoTargets: zod.array(
+    zod.object({
+      region: zod.string(),
+      countryCodes: zod.string(),
+      orderIndex: zod.number(),
+    }),
+  ),
+});
+
+export const SyncReviewResponse = zod.object({
+  ok: zod.boolean(),
+  reviewId: zod.number(),
+  action: zod.string(),
+});

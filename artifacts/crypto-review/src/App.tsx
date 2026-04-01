@@ -10,7 +10,8 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={ReviewPage} />
+      <Route path="/" component={() => <ReviewPage />} />
+      <Route path="/review/:slug" component={() => <ReviewPage />} />
       <Route component={NotFound} />
     </Switch>
   );

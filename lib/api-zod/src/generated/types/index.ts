@@ -6,4 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./errorResponse";
+export * from "./faqItem";
+export * from "./funnelStage";
+export * from "./geoTarget";
 export * from "./healthStatus";
+export * from "./keyFinding";
+export * from "./redFlag";
+export * from "./reviewFull";
+export * from "./reviewSummary";
+export * from "./syncFaqItem";
+export * from "./syncFunnelStage";
+export * from "./syncGeoTarget";
+export * from "./syncKeyFinding";
+export * from "./syncRedFlag";
+export * from "./syncResult";
+export * from "./syncReviewPayload";

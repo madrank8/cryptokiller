@@ -91,6 +91,50 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/crypto-review` (`@workspace/crypto-review`)
+
+React + Vite frontend web app — the **CryptoKiller by SpyOwl** review page.
+
+- Dark slate theme: slate-950 background, red danger indicators, amber/orange warnings
+- Dynamic: fetches all content from the API using generated React Query hooks (`useGetReview(slug)`)
+- Routes: `/` → Quantum AI review (slug `quantum-ai`); `/review/:slug` → any review by slug
+- Deployed at the root path `/` of the Replit preview domain
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+## CryptoKiller Application
+
+### Database Schema
+
+8 Drizzle tables in `lib/db/src/schema/`:
+
+| Table | Purpose |
+|---|---|
+| `platforms` | Platform name + slug (e.g. `quantum-ai`) |
+| `reviews` | Core review fields: threat_score, verdict, summary, hero_description, etc. |
+| `review_stats` | Ad metrics: ad_creatives, countries_targeted, days_active, celebrities_abused, weekly_velocity |
+| `red_flags` | Individual red flag items (emoji, title, description) |
+| `funnel_stages` | 4-stage scam flow (title, bullets array, stat callout) |
+| `faq_items` | FAQ question/answer pairs |
+| `key_findings` | Investigation finding paragraphs |
+| `geo_targets` | Geographic targeting summary (region, country_codes) |
+
+### API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/reviews` | List all published reviews |
+| GET | `/api/reviews/:slug` | Full review data (all joins in one response) |
+| POST | `/api/sync/review` | Webhook: upsert a complete review from Vercel CMS |
+
+### Sync Webhook Security
+
+- Header: `X-Sync-Secret`
+- Value: stored in env var `SYNC_SECRET` (`ck_sync_4fa041f5ff709bf97a66c22251893fe6cb22f613c8b96ee3`)
+- Send as: `X-Sync-Secret: ck_sync_4fa041f5ff709bf97a66c22251893fe6cb22f613c8b96ee3`
+
+### Seeded Data
+
+- **Quantum AI** — 95/100 threat score, 3,076 ads, 45 countries, 419 days, 28 celebrities
