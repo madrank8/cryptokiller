@@ -344,6 +344,28 @@ export async function runSupabaseSync(): Promise<SyncResult> {
 
 const SYNC_INTERVAL_MS = 15 * 60 * 1000;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
+let startupTimeout: ReturnType<typeof setTimeout> | null = null;
+let syncInProgress = false;
+
+async function guardedSync(label: string): Promise<void> {
+  const log = logger.child({ module: "sync-scheduler" });
+
+  if (syncInProgress) {
+    log.warn(`Skipping ${label} — previous sync still in progress`);
+    return;
+  }
+
+  syncInProgress = true;
+  try {
+    log.info(`Running ${label}`);
+    const result = await runSupabaseSync();
+    log.info(result, `${label} complete`);
+  } catch (err) {
+    log.error(err, `${label} failed`);
+  } finally {
+    syncInProgress = false;
+  }
+}
 
 export function startSyncScheduler(): void {
   const log = logger.child({ module: "sync-scheduler" });
@@ -353,33 +375,26 @@ export function startSyncScheduler(): void {
     return;
   }
 
-  setTimeout(async () => {
-    log.info("Running initial Supabase sync on startup");
-    try {
-      const result = await runSupabaseSync();
-      log.info(result, "Initial sync complete");
-    } catch (err) {
-      log.error(err, "Initial sync failed");
-    }
+  startupTimeout = setTimeout(() => {
+    startupTimeout = null;
+    guardedSync("initial Supabase sync");
   }, 5_000);
 
-  syncInterval = setInterval(async () => {
-    log.info("Running scheduled Supabase sync");
-    try {
-      const result = await runSupabaseSync();
-      log.info(result, "Scheduled sync complete");
-    } catch (err) {
-      log.error(err, "Scheduled sync failed");
-    }
+  syncInterval = setInterval(() => {
+    guardedSync("scheduled Supabase sync");
   }, SYNC_INTERVAL_MS);
 
   log.info({ intervalMs: SYNC_INTERVAL_MS }, "Sync scheduler started — will sync every 15 minutes");
 }
 
 export function stopSyncScheduler(): void {
+  if (startupTimeout) {
+    clearTimeout(startupTimeout);
+    startupTimeout = null;
+  }
   if (syncInterval) {
     clearInterval(syncInterval);
     syncInterval = null;
-    logger.info("Sync scheduler stopped");
   }
+  logger.info("Sync scheduler stopped");
 }
