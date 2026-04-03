@@ -135,8 +135,8 @@ const cryptoWriters: TeamMember[] = [
 function TeamCard({ member }: { member: TeamMember }) {
   return (
     <Card className="bg-slate-900/60 border-slate-800 overflow-hidden group hover:border-slate-700 transition-colors">
-      <CardContent className="p-0">
-        <div className="h-28 overflow-hidden bg-slate-800 relative">
+      <CardContent className="p-5 flex flex-col items-center text-center">
+        <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-800 border-2 border-slate-700 group-hover:border-red-500/50 transition-colors mb-4 shrink-0 relative">
           <img
             src={member.image}
             alt={member.name}
@@ -150,14 +150,12 @@ function TeamCard({ member }: { member: TeamMember }) {
             }}
           />
           <div className="hidden items-center justify-center w-full h-full absolute inset-0 bg-slate-800 text-slate-500">
-            <Users className="h-12 w-12" />
+            <Users className="h-8 w-8" />
           </div>
         </div>
-        <div className="p-5">
-          <h3 className="text-white font-bold text-base mb-0.5">{member.name}</h3>
-          <p className="text-red-400 text-xs font-semibold uppercase tracking-wider mb-3">{member.role}</p>
-          <p className="text-slate-400 text-sm leading-relaxed line-clamp-4">{member.bio}</p>
-        </div>
+        <h3 className="text-white font-bold text-sm mb-0.5">{member.name}</h3>
+        <p className="text-red-400 text-[10px] font-semibold uppercase tracking-wider mb-2">{member.role}</p>
+        <p className="text-slate-400 text-xs leading-relaxed line-clamp-3">{member.bio}</p>
       </CardContent>
     </Card>
   );
