@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface SiteHeaderProps {
-  activeNav?: "home" | "investigations" | "report";
+  activeNav?: "home" | "investigations" | "report" | "about";
 }
 
 export default function SiteHeader({ activeNav }: SiteHeaderProps) {
@@ -47,7 +47,14 @@ export default function SiteHeader({ activeNav }: SiteHeaderProps) {
           >
             Report a Scam
           </a>
-          <a href="#" className="hover:text-white transition-colors">About</a>
+          <a
+            href="/about"
+            className={activeNav === "about"
+              ? "text-white border-b border-red-500 pb-0.5"
+              : "hover:text-white transition-colors"}
+          >
+            About
+          </a>
         </nav>
         <div className="flex items-center gap-3">
           <Search className="hidden md:block h-4 w-4 text-slate-400 hover:text-white cursor-pointer" />
@@ -70,7 +77,7 @@ export default function SiteHeader({ activeNav }: SiteHeaderProps) {
           <a href="/" className={activeNav === "home" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Home</a>
           <a href="/#investigations" className={activeNav === "investigations" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Investigations</a>
           <a href="/report" className={activeNav === "report" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Report a Scam</a>
-          <a href="#" className="text-slate-300 hover:text-white text-sm py-1">About</a>
+          <a href="/about" className={activeNav === "about" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>About</a>
         </div>
       )}
     </header>
