@@ -136,7 +136,7 @@ function TeamCard({ member }: { member: TeamMember }) {
   return (
     <Card className="bg-slate-900/60 border-slate-800 overflow-hidden group hover:border-slate-700 transition-colors">
       <CardContent className="p-0">
-        <div className="aspect-[3/4] overflow-hidden bg-slate-800 relative">
+        <div className="aspect-square overflow-hidden bg-slate-800 relative">
           <img
             src={member.image}
             alt={member.name}
