@@ -125,16 +125,29 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/reviews` | List all published reviews |
+| GET | `/api/reviews` | List all published reviews (248 as of last sync) |
 | GET | `/api/reviews/:slug` | Full review data (all joins in one response) |
-| POST | `/api/sync/review` | Webhook: upsert a complete review from Vercel CMS |
+| POST | `/api/sync/review` | Webhook: upsert a single review from Vercel CMS |
+| POST | `/api/sync/supabase` | Bulk sync: pulls all brands + published reviews from Supabase |
 
-### Sync Webhook Security
+### Data Pipeline
+
+- **Source of truth**: Supabase (user's Vercel CMS) — 1,000 scam_brands, reviews table
+- **Supabase integration**: `@supabase/supabase-js` client in `artifacts/api-server/src/lib/supabase.ts`
+- **Bulk sync route**: `artifacts/api-server/src/routes/supabase-sync.ts`
+  - Maps `scam_brands` → `platforms` + `review_stats`
+  - Maps `reviews` (with red_flags, faq, key_takeaways, how_it_works) → `reviews` + related tables
+  - Groups geo_list into regional clusters for geo_targets
+  - Parses how_it_works text into funnel_stages
+- **Webhook route**: `artifacts/api-server/src/routes/sync.ts` — for individual review upserts
+
+### Sync Authentication
 
 - Header: `X-Sync-Secret`
-- Value: stored in env var `SYNC_SECRET` (`ck_sync_4fa041f5ff709bf97a66c22251893fe6cb22f613c8b96ee3`)
-- Send as: `X-Sync-Secret: ck_sync_4fa041f5ff709bf97a66c22251893fe6cb22f613c8b96ee3`
+- Value: stored in env var `SYNC_SECRET`
 
-### Seeded Data
+### Synced Data
 
+- **1,000 brands** synced from Supabase scam_brands table
+- **248 published reviews** with full content (red flags, FAQ, funnel stages, geo targets)
 - **Quantum AI** — 95/100 threat score, 3,076 ads, 45 countries, 419 days, 28 celebrities
