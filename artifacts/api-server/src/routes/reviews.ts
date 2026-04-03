@@ -28,6 +28,7 @@ router.get("/reviews", async (req, res): Promise<void> => {
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
+      celebritiesAbused: reviewStatsTable.celebritiesAbused,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
@@ -41,6 +42,7 @@ router.get("/reviews", async (req, res): Promise<void> => {
     adCreatives: r.adCreatives ?? 0,
     countriesTargeted: r.countriesTargeted ?? 0,
     daysActive: r.daysActive ?? 0,
+    celebritiesAbused: r.celebritiesAbused ?? 0,
   })));
 });
 

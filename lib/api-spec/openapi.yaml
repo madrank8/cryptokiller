@@ -142,6 +142,8 @@ components:
           type: integer
         daysActive:
           type: integer
+        celebritiesAbused:
+          type: integer
       required:
         - id
         - slug
@@ -153,6 +155,7 @@ components:
         - adCreatives
         - countriesTargeted
         - daysActive
+        - celebritiesAbused
 
     FunnelStage:
       type: object

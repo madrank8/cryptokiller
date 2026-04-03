@@ -24,6 +24,7 @@ export interface ReviewSummary {
   adCreatives: number;
   countriesTargeted: number;
   daysActive: number;
+  celebritiesAbused: number;
 }
 
 export interface FunnelStage {

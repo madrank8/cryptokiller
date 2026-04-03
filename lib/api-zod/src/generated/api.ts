@@ -29,6 +29,7 @@ export const ListReviewsResponseItem = zod.object({
   adCreatives: zod.number(),
   countriesTargeted: zod.number(),
   daysActive: zod.number(),
+  celebritiesAbused: zod.number(),
 });
 export const ListReviewsResponse = zod.array(ListReviewsResponseItem);
 
