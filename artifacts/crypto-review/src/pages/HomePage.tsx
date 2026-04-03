@@ -369,7 +369,7 @@ export default function HomePage() {
                 { label: "Report a Scam", href: "/report" },
                 { label: "About", href: "/about" },
                 { label: "Privacy Policy", href: "/privacy" },
-                { label: "Terms of Service", href: "#" },
+                { label: "Terms of Service", href: "/terms" },
                 { label: "API", href: "#" },
               ].map(l => (
                 <a key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</a>

@@ -278,7 +278,7 @@ export default function PrivacyPage() {
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
               <a href="/privacy" className="hover:text-white transition-colors text-white">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
               <a href="#" className="hover:text-white transition-colors">Contact</a>
             </div>
           </div>
