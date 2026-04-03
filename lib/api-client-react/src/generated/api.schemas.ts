@@ -163,6 +163,24 @@ export interface SyncReviewPayload {
   geoTargets: SyncGeoTarget[];
 }
 
+export interface ScamReportPayload {
+  platformName: string;
+  platformUrl?: string;
+  scamType?: string;
+  description: string;
+  amountLost?: string;
+  currency?: string;
+  contactMethod?: string;
+  country?: string;
+  evidenceUrls?: string;
+  reporterEmail?: string;
+}
+
+export interface ReportResult {
+  ok: boolean;
+  reportId: number;
+}
+
 export interface SyncResult {
   ok: boolean;
   reviewId: number;

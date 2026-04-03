@@ -20,8 +20,10 @@ import type {
   ErrorResponse,
   HealthStatus,
   RelatedReview,
+  ReportResult,
   ReviewFull,
   ReviewSummary,
+  ScamReportPayload,
   SyncResult,
   SyncReviewPayload,
 } from "./api.schemas";
@@ -357,6 +359,92 @@ export function useGetRelatedReviews<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Submit a scam report
+ */
+export const getSubmitReportUrl = () => {
+  return `/api/reports`;
+};
+
+export const submitReport = async (
+  scamReportPayload: ScamReportPayload,
+  options?: RequestInit,
+): Promise<ReportResult> => {
+  return customFetch<ReportResult>(getSubmitReportUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(scamReportPayload),
+  });
+};
+
+export const getSubmitReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitReport>>,
+    TError,
+    { data: BodyType<ScamReportPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitReport>>,
+  TError,
+  { data: BodyType<ScamReportPayload> },
+  TContext
+> => {
+  const mutationKey = ["submitReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitReport>>,
+    { data: BodyType<ScamReportPayload> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitReport(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitReport>>
+>;
+export type SubmitReportMutationBody = BodyType<ScamReportPayload>;
+export type SubmitReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Submit a scam report
+ */
+export const useSubmitReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitReport>>,
+    TError,
+    { data: BodyType<ScamReportPayload> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitReport>>,
+  TError,
+  { data: BodyType<ScamReportPayload> },
+  TContext
+> => {
+  return useMutation(getSubmitReportMutationOptions(options));
+};
 
 /**
  * Called by the Vercel CMS when a review is published or updated. Requires X-Sync-Secret header.

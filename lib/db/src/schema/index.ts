@@ -6,3 +6,4 @@ export * from "./funnel_stages";
 export * from "./faq_items";
 export * from "./key_findings";
 export * from "./geo_targets";
+export * from "./scam_reports";

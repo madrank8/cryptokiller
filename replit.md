@@ -97,7 +97,7 @@ React + Vite frontend web app — the **CryptoKiller by SpyOwl** review page.
 
 - Dark slate theme: slate-950 background, red danger indicators, amber/orange warnings
 - Dynamic: fetches all content from the API using generated React Query hooks (`useGetReview(slug)`)
-- Routes: `/` → Quantum AI review (slug `quantum-ai`); `/review/:slug` → any review by slug
+- Routes: `/` → Homepage with latest reviews; `/review/:slug` → any review by slug; `/report` → Report a Scam form
 - Deployed at the root path `/` of the Replit preview domain
 
 ### `scripts` (`@workspace/scripts`)
@@ -120,6 +120,7 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 | `faq_items` | FAQ question/answer pairs |
 | `key_findings` | Investigation finding paragraphs |
 | `geo_targets` | Geographic targeting summary (region, country_codes) |
+| `scam_reports` | User-submitted scam reports (platformName, description, scamType, amountLost, etc.) |
 
 ### API Endpoints
 
@@ -127,6 +128,7 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 |---|---|---|
 | GET | `/api/reviews` | List all published reviews (248 as of last sync) |
 | GET | `/api/reviews/:slug` | Full review data (all joins in one response) |
+| POST | `/api/reports` | Submit a scam report (no auth required) |
 | POST | `/api/sync/review` | Webhook: upsert a single review from Vercel CMS |
 | POST | `/api/sync/supabase` | Bulk sync: pulls all brands + published reviews from Supabase |
 

@@ -90,6 +90,31 @@ paths:
                 items:
                   $ref: "#/components/schemas/RelatedReview"
 
+  /reports:
+    post:
+      operationId: submitReport
+      tags: [reports]
+      summary: Submit a scam report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScamReportPayload"
+      responses:
+        "200":
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportResult"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /sync/review:
     post:
       operationId: syncReview
@@ -561,6 +586,44 @@ components:
         - faqItems
         - keyFindings
         - geoTargets
+
+    ScamReportPayload:
+      type: object
+      properties:
+        platformName:
+          type: string
+        platformUrl:
+          type: string
+        scamType:
+          type: string
+        description:
+          type: string
+        amountLost:
+          type: string
+        currency:
+          type: string
+        contactMethod:
+          type: string
+        country:
+          type: string
+        evidenceUrls:
+          type: string
+        reporterEmail:
+          type: string
+      required:
+        - platformName
+        - description
+
+    ReportResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        reportId:
+          type: integer
+      required:
+        - ok
+        - reportId
 
     SyncResult:
       type: object

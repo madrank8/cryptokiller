@@ -125,6 +125,27 @@ export const GetRelatedReviewsResponse = zod.array(
 );
 
 /**
+ * @summary Submit a scam report
+ */
+export const SubmitReportBody = zod.object({
+  platformName: zod.string(),
+  platformUrl: zod.string().optional(),
+  scamType: zod.string().optional(),
+  description: zod.string(),
+  amountLost: zod.string().optional(),
+  currency: zod.string().optional(),
+  contactMethod: zod.string().optional(),
+  country: zod.string().optional(),
+  evidenceUrls: zod.string().optional(),
+  reporterEmail: zod.string().optional(),
+});
+
+export const SubmitReportResponse = zod.object({
+  ok: zod.boolean(),
+  reportId: zod.number(),
+});
+
+/**
  * Called by the Vercel CMS when a review is published or updated. Requires X-Sync-Secret header.
  * @summary Sync a review from the CMS (webhook)
  */
