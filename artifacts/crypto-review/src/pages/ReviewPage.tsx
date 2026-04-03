@@ -555,7 +555,7 @@ export default function ReviewPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="h-4 w-4 text-slate-500" />
-              <span>SpyOwl Ad Surveillance</span>
+              <span>CryptoKiller Ad Surveillance</span>
             </div>
           </div>
 
@@ -953,7 +953,7 @@ export default function ReviewPage() {
               <span className="text-lg font-bold text-slate-400">
                 Crypto<span className="text-slate-600">Killer</span>
               </span>
-              <span className="text-slate-600 text-sm">by SpyOwl</span>
+              <span className="text-slate-600 text-sm">Scam Intelligence</span>
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
@@ -964,7 +964,7 @@ export default function ReviewPage() {
           </div>
           <Separator className="bg-slate-800 mb-6" />
           <p className="text-xs text-slate-600 text-center leading-relaxed max-w-4xl mx-auto">
-            © 2026 CryptoKiller / SpyOwl. All rights reserved. CryptoKiller provides investigation reports for informational purposes only.
+            © 2026 CryptoKiller. All rights reserved. CryptoKiller provides investigation reports for informational purposes only.
           </p>
         </div>
       </footer>

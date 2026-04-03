@@ -99,7 +99,7 @@ export default function ReportPage() {
               <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex gap-2 items-start">
                   <span className="text-green-500 mt-0.5">1.</span>
-                  Our team reviews your report and cross-references it with our SpyOwl ad intelligence database
+                  Our team reviews your report and cross-references it with our ad intelligence database
                 </li>
                 <li className="flex gap-2 items-start">
                   <span className="text-green-500 mt-0.5">2.</span>
@@ -151,7 +151,7 @@ export default function ReportPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
           {[
             { icon: <Lock className="h-5 w-5" />, color: "text-green-400", bg: "bg-green-500/10 border-green-900/30", title: "100% Confidential", desc: "Your identity is never shared publicly" },
-            { icon: <Eye className="h-5 w-5" />, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30", title: "Expert Review", desc: "Cross-referenced with SpyOwl intelligence" },
+            { icon: <Eye className="h-5 w-5" />, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30", title: "Expert Review", desc: "Cross-referenced with our scam intelligence systems" },
             { icon: <Shield className="h-5 w-5" />, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-900/30", title: "Actionable Results", desc: "Reports feed into published investigations" },
           ].map((item, i) => (
             <div key={i} className={`flex items-center gap-3 p-4 rounded-xl border ${item.bg}`}>

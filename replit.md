@@ -93,7 +93,7 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 
 ### `artifacts/crypto-review` (`@workspace/crypto-review`)
 
-React + Vite frontend web app — the **CryptoKiller by SpyOwl** review page.
+React + Vite frontend web app — the **CryptoKiller** scam investigation review page.
 
 - Dark slate theme: slate-950 background, red danger indicators, amber/orange warnings
 - Dynamic: fetches all content from the API using generated React Query hooks (`useGetReview(slug)`)

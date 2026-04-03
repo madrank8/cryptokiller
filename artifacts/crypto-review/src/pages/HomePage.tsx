@@ -264,8 +264,8 @@ function HowItWorks() {
       num: "1",
       icon: <Target className="h-7 w-7" />,
       color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30",
-      title: "SpyOwl Detects Scam Ads",
-      desc: "Our intelligence system monitors social media ad platforms across 50+ countries, detecting crypto scam campaigns in real time.",
+      title: "Scam Ads Detected",
+      desc: "Our sophisticated systems monitor social media ad platforms across 50+ countries 24/7, detecting crypto scam campaigns in real time.",
     },
     {
       num: "2",
@@ -357,7 +357,7 @@ export default function HomePage() {
                 <span className="text-xl font-black text-white tracking-tight">
                   Crypto<span className="text-red-500">Killer</span>
                 </span>
-                <span className="text-slate-600 text-sm">by SpyOwl</span>
+                <span className="text-slate-600 text-sm">Scam Intelligence</span>
               </a>
               <p className="text-slate-500 text-xs max-w-sm leading-relaxed">
                 Your definitive intelligence platform exposing cryptocurrency scams through real-time ad surveillance and evidence-based investigation reports.
@@ -370,7 +370,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-slate-600">© {new Date().getFullYear()} SpyOwl. All investigations are for informational purposes only.</p>
+            <p className="text-xs text-slate-600">© {new Date().getFullYear()} CryptoKiller. All investigations are for informational purposes only.</p>
             <div className="flex items-center gap-1.5 text-xs text-slate-600">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
               All systems operational

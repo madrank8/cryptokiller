@@ -53,7 +53,7 @@ export function ReviewPage() {
             <span className="text-xl font-bold tracking-tight text-white">
               Crypto<span className="text-red-500">Killer</span>
             </span>
-            <span className="hidden md:block text-xs text-slate-500 ml-1 mt-0.5">by SpyOwl</span>
+            <span className="hidden md:block text-xs text-slate-500 ml-1 mt-0.5">by CryptoKiller</span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
             <a href="#" className="hover:text-white transition-colors">Home</a>
@@ -117,7 +117,7 @@ export function ReviewPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="h-4 w-4 text-slate-500" />
-              <span>SpyOwl Ad Surveillance</span>
+              <span>CryptoKiller Ad Surveillance</span>
             </div>
           </div>
 
@@ -177,7 +177,7 @@ export function ReviewPage() {
                 Quantum AI is a confirmed crypto investment scam with a 95/100 threat score, based on 3,076 fraudulent advertisements detected across 45 countries over 419 days of continuous operation between February 2025 and March 2026. The scheme impersonates 28 real celebrities in paid advertisements, targeting victims in Brazil, Germany, Spain, France, the United Kingdom, Italy, Mexico, the United States, Australia, and India.
               </p>
               <p className="text-slate-300 leading-relaxed mb-4">
-                Victims report that initial deposits succeed through the platform, but withdrawal requests trigger account lockouts, fabricated compliance fees, and relentless contact from changing phone numbers demanding additional capital. SpyOwl's analysis confirms Quantum AI exhibits every hallmark of a confidence scheme: celebrity fabrication, geographic dispersion, high-velocity ad deployment (42 new creatives per 7 days), and zero regulatory registration across FCA, SEC, ASIC, or CySEC databases.
+                Victims report that initial deposits succeed through the platform, but withdrawal requests trigger account lockouts, fabricated compliance fees, and relentless contact from changing phone numbers demanding additional capital. Our analysis confirms Quantum AI exhibits every hallmark of a confidence scheme: celebrity fabrication, geographic dispersion, high-velocity ad deployment (42 new creatives per 7 days), and zero regulatory registration across FCA, SEC, ASIC, or CySEC databases.
               </p>
               <div className="bg-slate-900 border border-red-900/50 rounded-lg p-4 mt-4">
                 <p className="text-red-300 text-sm font-semibold leading-relaxed">
@@ -419,7 +419,7 @@ export function ReviewPage() {
             <section>
               <SectionTitle icon={<Microscope className="h-6 w-6" />}>Our Investigation Methodology</SectionTitle>
               <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                This review was conducted using SpyOwl ad surveillance technology, which monitored cryptocurrency-related advertising campaigns across 50+ ad networks and social platforms between 2025-02-01 and 2026-03-26. SpyOwl detected 3,076 distinct ad creatives using the brand name Quantum AI, deployed across 45 target countries with geo-specific celebrity impersonations.
+                This review was conducted using our ad surveillance technology, which monitored cryptocurrency-related advertising campaigns across 50+ ad networks and social platforms between 2025-02-01 and 2026-03-26. Our systems detected 3,076 distinct ad creatives using the brand name Quantum AI, deployed across 45 target countries with geo-specific celebrity impersonations.
               </p>
               <p className="text-slate-400 text-sm leading-relaxed mb-4">
                 Each detected creative was captured with metadata including geographic targeting, celebrity names used, ad account identifiers, domain landing pages, deployment dates, and creative format. The brand name was searched against FCA, SEC EDGAR, ASIC Moneysmart, and CySEC registries — returning zero results. Domain registration records and SSL certificate data were inspected to identify just-in-time infrastructure patterns.
@@ -602,7 +602,7 @@ export function ReviewPage() {
               <span className="text-lg font-bold text-slate-400">
                 Crypto<span className="text-slate-600">Killer</span>
               </span>
-              <span className="text-slate-600 text-sm">by SpyOwl</span>
+              <span className="text-slate-600 text-sm">Scam Intelligence</span>
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
@@ -613,7 +613,7 @@ export function ReviewPage() {
           </div>
           <Separator className="bg-slate-800 mb-6" />
           <p className="text-xs text-slate-600 text-center leading-relaxed max-w-4xl mx-auto">
-            © 2026 CryptoKiller / SpyOwl. All rights reserved. CryptoKiller provides investigation reports for informational purposes only. We are not a financial advisor, regulatory agency, or law enforcement body. Always conduct your own due diligence before investing. Data accuracy: analysis based on SpyOwl ad surveillance data collected 2025-02-01 to 2026-03-26.
+            © 2026 CryptoKiller. All rights reserved. CryptoKiller provides investigation reports for informational purposes only. We are not a financial advisor, regulatory agency, or law enforcement body. Always conduct your own due diligence before investing. Data accuracy: analysis based on ad surveillance data collected 2025-02-01 to 2026-03-26.
           </p>
         </div>
       </footer>

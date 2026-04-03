@@ -212,10 +212,10 @@ export default function AboutPage() {
             About <span className="text-red-500">CryptoKiller</span>
           </h1>
           <p className="text-slate-400 max-w-3xl mx-auto leading-relaxed text-lg">
-            CryptoKiller by SpyOwl is powered by a diverse team of financial experts,
-            crypto analysts, investigative journalists, and security researchers. Together,
-            we track, investigate, and expose fraudulent crypto platforms to protect
-            investors worldwide.
+            CryptoKiller is powered by a diverse team of financial experts,
+            crypto analysts, investigative journalists, and security researchers. We run
+            sophisticated systems 24/7 to discover the latest crypto scams, track them,
+            and publish detailed investigations to protect investors worldwide.
           </p>
         </div>
 
@@ -294,7 +294,7 @@ export default function AboutPage() {
                 {
                   icon: <Code className="h-5 w-5 text-blue-400" />,
                   title: "Speed of Service",
-                  desc: "SpyOwl ad intelligence enables rapid detection and analysis of fraudulent crypto advertising campaigns.",
+                  desc: "Our sophisticated detection systems enable rapid identification and analysis of fraudulent crypto advertising campaigns.",
                 },
               ].map((item, i) => (
                 <div
@@ -362,7 +362,7 @@ export default function AboutPage() {
 
         <div className="border-t border-slate-800 pt-8 pb-4 text-center">
           <p className="text-slate-600 text-xs">
-            CryptoKiller is a product of SpyOwl ad intelligence.
+            CryptoKiller runs sophisticated detection systems 24/7 to discover the latest crypto scams.
             All investigation data is sourced from real-time ad monitoring and community reports.
           </p>
         </div>
