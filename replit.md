@@ -97,7 +97,7 @@ React + Vite frontend web app — the **CryptoKiller** scam investigation review
 
 - Dark slate theme: slate-950 background, red danger indicators, amber/orange warnings
 - Dynamic: fetches all content from the API using generated React Query hooks (`useGetReview(slug)`)
-- Routes: `/` → Homepage with latest reviews; `/review/:slug` → any review by slug; `/report` → Report a Scam form; `/about` → About page with team profiles
+- Routes: `/` → Homepage with latest reviews; `/review/:slug` → any review by slug; `/report` → Report a Scam form; `/about` → About page with team profiles; `/privacy` → Privacy Policy page (GDPR/CCPA compliant)
 - Deployed at the root path `/` of the Replit preview domain
 
 ### `scripts` (`@workspace/scripts`)

@@ -364,8 +364,15 @@ export default function HomePage() {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm text-slate-500">
-              {["Investigations", "Report a Scam", "About", "Privacy Policy", "Terms of Service", "API"].map(l => (
-                <a key={l} href="#" className="hover:text-white transition-colors">{l}</a>
+              {[
+                { label: "Investigations", href: "#" },
+                { label: "Report a Scam", href: "/report" },
+                { label: "About", href: "/about" },
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "#" },
+                { label: "API", href: "#" },
+              ].map(l => (
+                <a key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</a>
               ))}
             </div>
           </div>

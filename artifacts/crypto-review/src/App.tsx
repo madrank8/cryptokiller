@@ -6,6 +6,7 @@ import HomePage from "@/pages/HomePage";
 import ReviewPage from "@/pages/ReviewPage";
 import ReportPage from "@/pages/ReportPage";
 import AboutPage from "@/pages/AboutPage";
+import PrivacyPage from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/review/:slug" component={() => <ReviewPage />} />
       <Route path="/report" component={() => <ReportPage />} />
       <Route path="/about" component={() => <AboutPage />} />
+      <Route path="/privacy" component={() => <PrivacyPage />} />
       <Route component={NotFound} />
     </Switch>
   );
