@@ -222,6 +222,10 @@ function TrendingScams({ reviews, isLoading }: { reviews: ReviewSummary[] | unde
 function LatestReviews({ reviews }: { reviews: ReviewSummary[] | undefined }) {
   if (!reviews || reviews.length === 0) return null;
 
+  const latest = [...reviews]
+    .sort((a, b) => new Date(b.investigationDate).getTime() - new Date(a.investigationDate).getTime())
+    .slice(0, 10);
+
   return (
     <section id="latest" className="container mx-auto px-4 max-w-6xl py-16 border-t border-slate-800">
       <div className="flex items-end justify-between mb-8">
@@ -231,7 +235,7 @@ function LatestReviews({ reviews }: { reviews: ReviewSummary[] | undefined }) {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {reviews.map((r) => {
+        {latest.map((r) => {
           const dateStr = new Date(r.investigationDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
           return (
             <a key={r.id} href={`/review/${r.slug}`} className="group flex gap-5 p-5 rounded-xl bg-slate-900/50 border border-slate-800 hover:border-slate-600 hover:bg-slate-900/80 transition-all">
