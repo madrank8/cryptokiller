@@ -134,11 +134,13 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 
 - **Source of truth**: Supabase (user's Vercel CMS) — 1,000 scam_brands, reviews table
 - **Supabase integration**: `@supabase/supabase-js` client in `artifacts/api-server/src/lib/supabase.ts`
-- **Bulk sync route**: `artifacts/api-server/src/routes/supabase-sync.ts`
+- **Sync logic**: `artifacts/api-server/src/lib/supabase-sync.ts` — shared `runSupabaseSync()` function
   - Maps `scam_brands` → `platforms` + `review_stats`
   - Maps `reviews` (with red_flags, faq, key_takeaways, how_it_works) → `reviews` + related tables
   - Groups geo_list into regional clusters for geo_targets
   - Parses how_it_works text into funnel_stages
+- **Automatic scheduler**: `startSyncScheduler()` in `index.ts` — runs initial sync 5s after startup, then every 15 minutes
+- **Manual sync route**: `POST /api/sync/supabase` in `artifacts/api-server/src/routes/supabase-sync.ts`
 - **Webhook route**: `artifacts/api-server/src/routes/sync.ts` — for individual review upserts
 
 ### Sync Authentication

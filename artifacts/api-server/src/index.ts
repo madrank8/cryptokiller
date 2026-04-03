@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startSyncScheduler, stopSyncScheduler } from "./lib/supabase-sync";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,16 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  startSyncScheduler();
+});
+
+process.on("SIGTERM", () => {
+  stopSyncScheduler();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  stopSyncScheduler();
+  process.exit(0);
 });
