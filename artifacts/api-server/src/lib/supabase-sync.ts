@@ -182,6 +182,8 @@ export async function runSupabaseSync(): Promise<SyncResult> {
       })
       .returning();
 
+    const celebrityNames = Array.isArray(brand.celebrity_list) ? brand.celebrity_list : [];
+
     await db
       .insert(reviewStatsTable)
       .values({
@@ -193,6 +195,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
         weeklyVelocity: brand.velocity_7d,
         firstDetected,
         lastActive,
+        celebrityNames,
       })
       .onConflictDoUpdate({
         target: reviewStatsTable.reviewId,
@@ -204,6 +207,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
           weeklyVelocity: brand.velocity_7d,
           firstDetected,
           lastActive,
+          celebrityNames,
         },
       });
 

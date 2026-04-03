@@ -69,6 +69,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /reviews/{slug}/related:
+    get:
+      operationId: getRelatedReviews
+      tags: [reviews]
+      summary: Get related high-threat reviews
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Related reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RelatedReview"
+
   /sync/review:
     post:
       operationId: syncReview
@@ -305,6 +326,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GeoTarget"
+        celebrityNames:
+          type: array
+          items:
+            type: string
+        allCountryCodes:
+          type: array
+          items:
+            type: string
       required:
         - id
         - slug
@@ -333,6 +362,31 @@ components:
         - faqItems
         - keyFindings
         - geoTargets
+        - celebrityNames
+        - allCountryCodes
+
+    RelatedReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        platformName:
+          type: string
+        threatScore:
+          type: integer
+        adCreatives:
+          type: integer
+        verdict:
+          type: string
+      required:
+        - id
+        - slug
+        - platformName
+        - threatScore
+        - adCreatives
+        - verdict
 
     SyncFunnelStage:
       type: object

@@ -19,6 +19,7 @@ import type {
 import type {
   ErrorResponse,
   HealthStatus,
+  RelatedReview,
   ReviewFull,
   ReviewSummary,
   SyncResult,
@@ -262,6 +263,93 @@ export function useGetReview<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetReviewQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get related high-threat reviews
+ */
+export const getGetRelatedReviewsUrl = (slug: string) => {
+  return `/api/reviews/${slug}/related`;
+};
+
+export const getRelatedReviews = async (
+  slug: string,
+  options?: RequestInit,
+): Promise<RelatedReview[]> => {
+  return customFetch<RelatedReview[]>(getGetRelatedReviewsUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRelatedReviewsQueryKey = (slug: string) => {
+  return [`/api/reviews/${slug}/related`] as const;
+};
+
+export const getGetRelatedReviewsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRelatedReviews>>,
+  TError = ErrorType<unknown>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRelatedReviews>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRelatedReviewsQueryKey(slug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRelatedReviews>>
+  > = ({ signal }) => getRelatedReviews(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRelatedReviews>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRelatedReviewsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRelatedReviews>>
+>;
+export type GetRelatedReviewsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get related high-threat reviews
+ */
+
+export function useGetRelatedReviews<
+  TData = Awaited<ReturnType<typeof getRelatedReviews>>,
+  TError = ErrorType<unknown>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRelatedReviews>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRelatedReviewsQueryOptions(slug, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

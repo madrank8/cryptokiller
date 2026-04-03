@@ -13,6 +13,7 @@ export * from "./geoTarget";
 export * from "./healthStatus";
 export * from "./keyFinding";
 export * from "./redFlag";
+export * from "./relatedReview";
 export * from "./reviewFull";
 export * from "./reviewSummary";
 export * from "./syncFaqItem";

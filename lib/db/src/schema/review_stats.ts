@@ -12,6 +12,7 @@ export const reviewStatsTable = pgTable("review_stats", {
   weeklyVelocity: integer("weekly_velocity").notNull().default(0),
   firstDetected: text("first_detected").notNull().default(""),
   lastActive: text("last_active").notNull().default(""),
+  celebrityNames: text("celebrity_names").array().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

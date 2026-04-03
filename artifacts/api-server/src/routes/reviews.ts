@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc, ne, and } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   platformsTable,
@@ -73,6 +73,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       weeklyVelocity: reviewStatsTable.weeklyVelocity,
       firstDetected: reviewStatsTable.firstDetected,
       lastActive: reviewStatsTable.lastActive,
+      celebrityNames: reviewStatsTable.celebrityNames,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
@@ -92,6 +93,12 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, row.id)).orderBy(asc(geoTargetsTable.orderIndex)),
   ]);
 
+  const allCountryCodes = [...new Set(
+    geoTargets.flatMap(g =>
+      g.countryCodes.split(",").map(c => c.trim().toUpperCase()).filter(Boolean)
+    )
+  )];
+
   res.json({
     ...row,
     investigationDate: row.investigationDate?.toISOString() ?? "",
@@ -102,6 +109,8 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     weeklyVelocity: row.weeklyVelocity ?? 0,
     firstDetected: row.firstDetected ?? "",
     lastActive: row.lastActive ?? "",
+    celebrityNames: row.celebrityNames ?? [],
+    allCountryCodes,
     funnelStages: funnelStages.map(s => ({
       stageNumber: s.stageNumber,
       title: s.title,
@@ -131,6 +140,42 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       orderIndex: g.orderIndex,
     })),
   });
+});
+
+router.get("/reviews/:slug/related", async (req, res): Promise<void> => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+
+  const [current] = await db
+    .select({ id: reviewsTable.id })
+    .from(reviewsTable)
+    .where(eq(reviewsTable.slug, slug));
+
+  if (!current) {
+    res.json([]);
+    return;
+  }
+
+  const rows = await db
+    .select({
+      id: reviewsTable.id,
+      slug: reviewsTable.slug,
+      platformName: platformsTable.name,
+      threatScore: reviewsTable.threatScore,
+      verdict: reviewsTable.verdict,
+      adCreatives: reviewStatsTable.adCreatives,
+    })
+    .from(reviewsTable)
+    .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+    .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
+    .where(and(eq(reviewsTable.status, "published"), ne(reviewsTable.id, current.id)))
+    .orderBy(desc(reviewsTable.threatScore))
+    .limit(6);
+
+  res.json(rows.map(r => ({
+    ...r,
+    adCreatives: r.adCreatives ?? 0,
+    verdict: r.verdict ?? "",
+  })));
 });
 
 export default router;

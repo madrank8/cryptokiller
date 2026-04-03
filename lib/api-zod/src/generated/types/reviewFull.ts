@@ -39,4 +39,6 @@ export interface ReviewFull {
   faqItems: FaqItem[];
   keyFindings: KeyFinding[];
   geoTargets: GeoTarget[];
+  celebrityNames: string[];
+  allCountryCodes: string[];
 }

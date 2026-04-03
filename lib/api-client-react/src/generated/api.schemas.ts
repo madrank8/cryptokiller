@@ -88,6 +88,17 @@ export interface ReviewFull {
   faqItems: FaqItem[];
   keyFindings: KeyFinding[];
   geoTargets: GeoTarget[];
+  celebrityNames: string[];
+  allCountryCodes: string[];
+}
+
+export interface RelatedReview {
+  id: number;
+  slug: string;
+  platformName: string;
+  threatScore: number;
+  adCreatives: number;
+  verdict: string;
 }
 
 export interface SyncFunnelStage {

@@ -101,7 +101,28 @@ export const GetReviewResponse = zod.object({
       orderIndex: zod.number(),
     }),
   ),
+  celebrityNames: zod.array(zod.string()),
+  allCountryCodes: zod.array(zod.string()),
 });
+
+/**
+ * @summary Get related high-threat reviews
+ */
+export const GetRelatedReviewsParams = zod.object({
+  slug: zod.coerce.string(),
+});
+
+export const GetRelatedReviewsResponseItem = zod.object({
+  id: zod.number(),
+  slug: zod.string(),
+  platformName: zod.string(),
+  threatScore: zod.number(),
+  adCreatives: zod.number(),
+  verdict: zod.string(),
+});
+export const GetRelatedReviewsResponse = zod.array(
+  GetRelatedReviewsResponseItem,
+);
 
 /**
  * Called by the Vercel CMS when a review is published or updated. Requires X-Sync-Secret header.
