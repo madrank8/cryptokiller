@@ -264,7 +264,7 @@ export default function PrivacyPage() {
               Email: <a href="mailto:privacy@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">privacy@cryptokiller.org</a>
             </p>
             <p className="text-slate-400 text-sm mt-1">
-              Website: <a href="https://dex.ag" target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 underline underline-offset-2">dex.ag</a>
+              Website: <a href="https://cryptokiller.org" target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 underline underline-offset-2">cryptokiller.org</a>
             </p>
           </div>
           <p className="text-slate-300 leading-relaxed mb-4">
