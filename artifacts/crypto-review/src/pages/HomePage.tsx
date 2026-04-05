@@ -112,42 +112,52 @@ function HeroSection() {
           </button>
         </form>
 
-        <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
-          {[
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg mx-auto">
+          {([
             {
               value: "281,110+",
               label: "Scam Ads Analyzed",
-              source: "Meta Ad Library + Google Ads Transparency",
-              href: "https://www.facebook.com/ads/library/",
+              citations: [
+                { name: "Meta Ad Library", href: "https://www.facebook.com/ads/library/" },
+                { name: "Google Ads Transparency", href: "https://adstransparency.google.com" },
+              ],
             },
             {
               value: "22,033+",
               label: "Brands Tracked",
-              source: "CryptoKiller Database",
+              citations: [{ name: "CryptoKiller Database" }],
             },
             {
               value: "84+",
               label: "Countries Monitored",
-              source: "CK Surveillance Network",
+              citations: [{ name: "CK Surveillance Network" }],
             },
-          ].map((s) => (
-            <div key={s.label}>
+          ] as const).map((s) => (
+            <div key={s.label} className="text-center">
               <p className="text-2xl md:text-3xl font-black text-white">{s.value}</p>
               <p className="text-xs text-slate-500 mt-1">{s.label}</p>
-              {s.href ? (
-                <a
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] text-slate-600 hover:text-slate-400 bg-slate-800/60 border border-slate-700/40 rounded-full px-2 py-0.5 transition-colors"
-                >
-                  {s.source} ↗
-                </a>
-              ) : (
-                <span className="inline-flex items-center mt-1.5 text-[10px] text-slate-600 bg-slate-800/60 border border-slate-700/40 rounded-full px-2 py-0.5">
-                  {s.source}
-                </span>
-              )}
+              <div className="flex flex-wrap items-center justify-center gap-1 mt-1.5">
+                {s.citations.map((c) =>
+                  "href" in c && c.href ? (
+                    <a
+                      key={c.name}
+                      href={c.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 text-[10px] text-slate-500 hover:text-slate-300 bg-slate-800/60 border border-slate-700/40 rounded-full px-2 py-0.5 transition-colors"
+                    >
+                      {c.name} ↗
+                    </a>
+                  ) : (
+                    <span
+                      key={c.name}
+                      className="inline-flex items-center text-[10px] text-slate-500 bg-slate-800/60 border border-slate-700/40 rounded-full px-2 py-0.5"
+                    >
+                      {c.name}
+                    </span>
+                  )
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -302,7 +312,17 @@ function LatestReviews({ reviews }: { reviews: ReviewSummary[] | undefined }) {
 }
 
 function HowItWorks() {
-  const steps = [
+  interface HowItWorksStep {
+    num: string;
+    icon: React.ReactNode;
+    color: string;
+    bg: string;
+    title: string;
+    desc: string;
+    footnote?: string;
+  }
+
+  const steps: HowItWorksStep[] = [
     {
       num: "1",
       icon: <Target className="h-7 w-7" />,
@@ -343,8 +363,8 @@ function HowItWorks() {
               </div>
               <h3 className="text-lg font-bold text-white mb-3">{s.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
-              {"footnote" in s && (s as any).footnote && (
-                <span className="block mt-2 text-[10px] text-slate-600">{(s as any).footnote}</span>
+              {s.footnote && (
+                <span className="block mt-2 text-[10px] text-slate-500">{s.footnote}</span>
               )}
             </div>
           ))}
