@@ -6,7 +6,7 @@ import {
   Shield, ShieldAlert, Globe, BarChart2, Clock,
   ArrowRight, Search, Eye, AlertTriangle,
   TrendingUp, Lock, Zap, Radio, ChevronRight,
-  Activity, Target, Users
+  Activity, Target, Users, MessageCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -422,7 +422,19 @@ export default function HomePage() {
           "Celebrity Impersonation Scams",
           "DeFi Fraud"
         ],
-        sameAs: [],
+        sameAs: [
+          "https://wa.me/YOUR_NUMBER",
+          "https://twitter.com/cryptokiller",
+          "https://t.me/cryptokiller"
+        ],
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          availableLanguage: "English",
+          contactOption: "TollFree",
+          areaServed: "Worldwide",
+          url: "https://wa.me/YOUR_NUMBER",
+        },
         address: {
           "@type": "PostalAddress",
           streetAddress: "150 Beach Rd., Level 35 Gateway West",
@@ -545,9 +557,21 @@ export default function HomePage() {
           </div>
           <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-600">© {new Date().getFullYear()} CryptoKiller. All investigations are for informational purposes only.</p>
-            <div className="flex items-center gap-1.5 text-xs text-slate-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              All systems operational
+            <div className="flex items-center gap-4">
+              <a
+                href="https://wa.me/YOUR_NUMBER"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-green-400 transition-colors"
+                aria-label="Contact us on WhatsApp"
+              >
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </a>
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                All systems operational
+              </div>
             </div>
           </div>
         </div>
