@@ -163,16 +163,12 @@ function HeroSection() {
           ))}
         </div>
 
-        <p className="text-[11px] text-slate-600 max-w-lg mx-auto mt-4 leading-relaxed text-center">
-          † Ad counts:{" "}
-          <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline decoration-dotted underline-offset-2 transition-colors">
-            Meta Ad Library
+        <p className="text-[11px] text-slate-600 max-w-[700px] mx-auto mt-4 leading-relaxed text-center">
+          † CryptoKiller Ad Surveillance Network, April 2026. Loss figures where cited:{" "}
+          <a href="https://www.chainalysis.com/blog/crypto-scams-2026/" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline decoration-dotted underline-offset-2 transition-colors">
+            Chainalysis 2026 Crypto Crime Report
           </a>{" "}
-          +{" "}
-          <a href="https://adstransparency.google.com" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline decoration-dotted underline-offset-2 transition-colors">
-            Google Ads Transparency
-          </a>
-          . Platform count: CryptoKiller internal database updated weekly. Country coverage: CryptoKiller Ad Surveillance Network.
+          (chainalysis.com). Platform count: CryptoKiller internal database, updated weekly.
         </p>
       </div>
     </section>
@@ -330,7 +326,7 @@ function HowItWorks() {
       color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30",
       title: "Scam Ads Detected",
       desc: "Our sophisticated systems monitor social media ad platforms across 50+ countries† 24/7, detecting crypto scam campaigns in real time.",
-      footnote: "† CryptoKiller Ad Surveillance Network",
+      footnote: "† CryptoKiller Ad Surveillance Network, April 2026",
     },
     {
       num: "2",
