@@ -252,6 +252,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
           investigationDate: reviewDate,
           methodologyText: supaReview.methodology ?? "",
           disclaimerText: supaReview.disclaimer ?? "",
+          metaDescription: supaReview.meta_description ?? "",
           wordCount: supaReview.word_count ?? 0,
           readingMinutes: Math.ceil((supaReview.word_count ?? 0) / 230),
           author: supaReview.author_name ?? "Crypto Killer Research Team",

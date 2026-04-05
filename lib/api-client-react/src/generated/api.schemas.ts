@@ -73,6 +73,7 @@ export interface ReviewFull {
   investigationDate: string;
   methodologyText: string;
   disclaimerText: string;
+  metaDescription: string;
   wordCount: number;
   readingMinutes: number;
   author: string;
@@ -146,6 +147,7 @@ export interface SyncReviewPayload {
   investigationDate: string;
   methodologyText: string;
   disclaimerText: string;
+  metaDescription: string;
   wordCount: number;
   readingMinutes: number;
   author: string;

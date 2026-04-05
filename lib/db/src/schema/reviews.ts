@@ -15,6 +15,7 @@ export const reviewsTable = pgTable("reviews", {
   investigationDate: timestamp("investigation_date", { withTimezone: true }).notNull().defaultNow(),
   methodologyText: text("methodology_text").notNull().default(""),
   disclaimerText: text("disclaimer_text").notNull().default(""),
+  metaDescription: text("meta_description").notNull().default(""),
   wordCount: integer("word_count").notNull().default(0),
   readingMinutes: integer("reading_minutes").notNull().default(0),
   author: text("author").notNull().default("Crypto Killer Research Team"),

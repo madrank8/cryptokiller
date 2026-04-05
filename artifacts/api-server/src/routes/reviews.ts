@@ -66,6 +66,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       wordCount: reviewsTable.wordCount,
       readingMinutes: reviewsTable.readingMinutes,
       author: reviewsTable.author,
+      metaDescription: reviewsTable.metaDescription,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -102,6 +103,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
   res.json({
     ...row,
     investigationDate: row.investigationDate?.toISOString() ?? "",
+    metaDescription: row.metaDescription ?? "",
     adCreatives: row.adCreatives ?? 0,
     countriesTargeted: row.countriesTargeted ?? 0,
     daysActive: row.daysActive ?? 0,

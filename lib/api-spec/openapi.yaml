@@ -311,6 +311,8 @@ components:
           type: string
         disclaimerText:
           type: string
+        metaDescription:
+          type: string
         wordCount:
           type: integer
         readingMinutes:
@@ -372,6 +374,7 @@ components:
         - investigationDate
         - methodologyText
         - disclaimerText
+        - metaDescription
         - wordCount
         - readingMinutes
         - author
@@ -519,6 +522,8 @@ components:
           type: string
         disclaimerText:
           type: string
+        metaDescription:
+          type: string
         wordCount:
           type: integer
         readingMinutes:
@@ -571,6 +576,7 @@ components:
         - investigationDate
         - methodologyText
         - disclaimerText
+        - metaDescription
         - wordCount
         - readingMinutes
         - author

@@ -500,35 +500,133 @@ function ReviewContent({ slug }: { slug: string }) {
 
   const jsonLd = useMemo(() => {
     if (!review) return undefined;
+
+    const org = {
+      "@type": "Organization",
+      name: "CryptoKiller",
+      url: "https://cryptokiller.org",
+      logo: "https://cryptokiller.org/favicon.svg",
+    };
+
+    const pageUrl = `https://cryptokiller.org/review/${slug}`;
+
+    const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
+    const orgRef = { "@id": `${pageUrl}#org` };
+    const itemRef = { "@id": `${pageUrl}#platform` };
+
+    const graph: Record<string, unknown>[] = [
+      {
+        "@type": "Organization",
+        "@id": `${pageUrl}#org`,
+        name: "CryptoKiller",
+        url: "https://cryptokiller.org",
+        logo: "https://cryptokiller.org/favicon.svg",
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        name: "CryptoKiller",
+        url: "https://cryptokiller.org",
+        publisher: orgRef,
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${pageUrl}#webpage`,
+        url: pageUrl,
+        name: `${review.platformName} Review — ${review.threatScore}/100 Threat Score`,
+        description: desc,
+        isPartOf: { "@id": "https://cryptokiller.org/#website" },
+        mainEntity: { "@id": `${pageUrl}#review` },
+        inLanguage: "en",
+        datePublished: review.investigationDate,
+        dateModified: review.investigationDate,
+      },
+      {
+        "@type": "Thing",
+        "@id": `${pageUrl}#platform`,
+        name: review.platformName,
+        description: `Crypto platform under investigation by CryptoKiller`,
+      },
+      {
+        "@type": "Review",
+        "@id": `${pageUrl}#review`,
+        name: `${review.platformName} Review — CryptoKiller Investigation`,
+        headline: `${review.platformName} — ${review.threatScore}/100 Threat Score`,
+        description: desc,
+        url: pageUrl,
+        author: orgRef,
+        publisher: orgRef,
+        datePublished: review.investigationDate,
+        dateModified: review.investigationDate,
+        mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
+        inLanguage: "en",
+        itemReviewed: itemRef,
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: review.threatScore,
+          bestRating: 100,
+          worstRating: 0,
+          ratingExplanation: `Threat score of ${review.threatScore}/100 — ${review.verdict || "Under investigation"}`,
+        },
+        reviewBody: review.heroDescription || review.verdict || "",
+      },
+      {
+        "@type": "Article",
+        "@id": `${pageUrl}#article`,
+        headline: `${review.platformName} Review — ${review.threatScore}/100 Threat Score`,
+        description: desc,
+        url: pageUrl,
+        author: { "@type": "Person", name: review.author || "Crypto Killer Research Team" },
+        publisher: orgRef,
+        datePublished: review.investigationDate,
+        dateModified: review.investigationDate,
+        mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
+        isPartOf: { "@id": "https://cryptokiller.org/#website" },
+        about: itemRef,
+        inLanguage: "en",
+        wordCount: review.wordCount || undefined,
+        timeRequired: review.readingMinutes ? `PT${review.readingMinutes}M` : undefined,
+      },
+    ];
+
+    if (review.faqItems && review.faqItems.length > 0) {
+      const faqNode = {
+        "@type": "FAQPage",
+        "@id": `${pageUrl}#faq`,
+        url: pageUrl,
+        mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
+        mainEntity: review.faqItems.map((faq: { question: string; answer: string }) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer,
+          },
+        })),
+      };
+      graph.push(faqNode);
+      const webPage = graph[2] as Record<string, unknown>;
+      webPage.hasPart = { "@id": `${pageUrl}#faq` };
+    }
+
+    if (review.redFlags && review.redFlags.length > 0) {
+      const reviewNode = graph[4] as Record<string, unknown>;
+      reviewNode.negativeNotes = {
+        "@type": "ItemList",
+        itemListElement: review.redFlags.map((rf: { title: string; description: string }, i: number) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          name: rf.title,
+          description: rf.description,
+        })),
+      };
+    }
+
     return {
       "@context": "https://schema.org",
-      "@type": "Review",
-      name: `${review.platformName} Review — CryptoKiller Investigation`,
-      description: review.verdict || `Investigation of ${review.platformName} crypto scam.`,
-      author: {
-        "@type": "Organization",
-        name: "CryptoKiller",
-        url: "https://cryptokiller.org",
-      },
-      publisher: {
-        "@type": "Organization",
-        name: "CryptoKiller",
-        url: "https://cryptokiller.org",
-      },
-      datePublished: review.investigationDate,
-      itemReviewed: {
-        "@type": "Thing",
-        name: review.platformName,
-      },
-      reviewRating: {
-        "@type": "Rating",
-        ratingValue: review.threatScore,
-        bestRating: 100,
-        worstRating: 0,
-        ratingExplanation: `Threat score of ${review.threatScore}/100 — ${review.verdict || "Under investigation"}`,
-      },
+      "@graph": graph,
     };
-  }, [review]);
+  }, [review, slug]);
 
   const seoTitle = review
     ? `${review.platformName} Review — ${review.threatScore}/100 Threat Score`
@@ -537,7 +635,7 @@ function ReviewContent({ slug }: { slug: string }) {
       : "Loading Investigation";
 
   const seoDescription = review
-    ? `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`
+    ? (review.metaDescription || `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`)
     : error
       ? `No investigation data found for "${slug}". Browse all crypto scam investigations on CryptoKiller.`
       : "Loading crypto scam investigation...";
