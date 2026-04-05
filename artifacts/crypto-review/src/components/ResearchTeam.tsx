@@ -1,32 +1,32 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const analysts = [
   {
-    name: "Marcus Webb",
+    name: "M. Webb",
     initials: "MW",
     role: "Lead Threat Analyst",
     avatarBg: "bg-blue-900",
-    credentials: "Blockchain Forensics · 9 yrs · Ex-TRM Labs",
+    credentials: "Blockchain Forensics · 9 yrs",
     specialties: ["Ad Fraud", "Wallet Tracing", "Pig Butchering"],
-    published: "340+ investigations",
+    published: "340+ investigations published",
   },
   {
-    name: "Priya Nair",
+    name: "P. Nair",
     initials: "PN",
-    role: "Ad Intelligence Analyst",
+    role: "Ad Intelligence",
     avatarBg: "bg-purple-900",
-    credentials: "Cybersecurity · CISSP · Ex-Meta Trust & Safety",
-    specialties: ["Celebrity Impersonation", "Phishing", "Social Ads"],
-    published: "218 investigations",
+    credentials: "Cybersecurity · Ex-Platform Trust & Safety",
+    specialties: ["Celebrity Impersonation", "Phishing"],
+    published: "218 investigations published",
   },
   {
-    name: "Daniel Ortiz",
+    name: "D. Ortiz",
     initials: "DO",
     role: "Investigative Writer",
     avatarBg: "bg-amber-900",
-    credentials: "Investigative Journalism · Reuters Alumni · FinCrime",
-    specialties: ["ICO Fraud", "Rug Pulls", "Regulatory"],
-    published: "167 investigations",
+    credentials: "Investigative Journalism · FinCrime",
+    specialties: ["Rug Pulls", "ICO Fraud"],
+    published: "167 investigations published",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function ResearchTeam() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {analysts.map((a) => (
             <div
               key={a.name}
@@ -83,11 +83,18 @@ export default function ResearchTeam() {
 
               <div className="border-t border-slate-800 pt-4">
                 <p className="text-xs text-slate-500">
-                  Published: <span className="text-white font-semibold">{a.published}</span>
+                  <span className="text-white font-semibold">{a.published}</span>
                 </p>
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="flex items-start gap-2.5 justify-center mb-8 max-w-2xl mx-auto">
+          <ShieldCheck className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-slate-600 leading-relaxed text-center">
+            Analyst profiles use initials to protect operational security. CryptoKiller analysts work anonymously to avoid retaliation from scam operations they investigate.
+          </p>
         </div>
 
         <p className="text-center text-sm text-slate-500">
