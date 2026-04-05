@@ -545,10 +545,12 @@ export default function ReviewPage() {
               <Calendar className="h-4 w-4 text-slate-500" />
               <span>Published: {formattedDate}</span>
             </div>
+            {(review.wordCount > 0 || review.readingMinutes > 0) && (
             <div className="flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-slate-500" />
               <span>{review.wordCount.toLocaleString()} words · {review.readingMinutes} min read</span>
             </div>
+            )}
             <div className="flex items-center gap-1.5">
               <User className="h-4 w-4 text-slate-500" />
               <span>{review.author}</span>
@@ -586,6 +588,7 @@ export default function ReviewPage() {
         </div>
 
         {/* KEY TAKEAWAYS */}
+        {review.summary && review.summary.trim().length > 0 && (
         <div className="mb-12 bg-red-950/20 border border-red-900/40 rounded-xl p-6">
           <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
             <AlertOctagon className="h-5 w-5" /> Key Takeaways
@@ -599,6 +602,7 @@ export default function ReviewPage() {
             ))}
           </ul>
         </div>
+        )}
 
         {/* MAIN 2-COL GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-14">
