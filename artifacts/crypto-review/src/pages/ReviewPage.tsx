@@ -668,6 +668,7 @@ function ReviewContent({ slug }: { slug: string }) {
     canonical: `https://cryptokiller.org/review/${slug}`,
     ogType: "article",
     jsonLd,
+    author: "CryptoKiller Research Team — cryptokiller.org",
   });
 
 

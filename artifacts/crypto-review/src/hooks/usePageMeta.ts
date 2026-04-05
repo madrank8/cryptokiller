@@ -7,13 +7,15 @@ interface PageMeta {
   ogType?: string;
   ogImage?: string;
   jsonLd?: Record<string, unknown>;
+  author?: string;
+  robots?: string;
 }
 
 const SITE_NAME = "CryptoKiller";
 const BASE_URL = "https://cryptokiller.org";
 const DEFAULT_IMAGE = `${BASE_URL}/opengraph.jpg`;
 
-export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd }: PageMeta) {
+export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots }: PageMeta) {
   useEffect(() => {
     const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
     document.title = fullTitle;
@@ -27,6 +29,9 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
     setMeta("twitter:title", fullTitle);
     setMeta("twitter:description", description);
     setMeta("twitter:image", ogImage || DEFAULT_IMAGE);
+
+    if (author) setMeta("author", author);
+    if (robots) setMeta("robots", robots);
 
     const linkCanonical = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
     if (linkCanonical) {
@@ -49,8 +54,16 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
     return () => {
       const el = document.querySelector<HTMLScriptElement>("script[data-page-jsonld]");
       if (el) el.remove();
+      if (author) {
+        const authorEl = document.querySelector<HTMLMetaElement>('meta[name="author"]');
+        if (authorEl) authorEl.content = "CryptoKiller Research Team";
+      }
+      if (robots) {
+        const robotsEl = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+        if (robotsEl) robotsEl.content = "index, follow";
+      }
     };
-  }, [title, description, canonical, ogType, ogImage, jsonLd]);
+  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots]);
 }
 
 function setMeta(key: string, value: string, isProperty = false) {
