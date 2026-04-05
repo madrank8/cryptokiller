@@ -14,6 +14,7 @@ import SiteHeader from "@/components/SiteHeader";
 import TrustBar from "@/components/TrustBar";
 import ResearchTeam from "@/components/ResearchTeam";
 import ScamActionSteps from "@/components/ScamActionSteps";
+import EditorialBand from "@/components/EditorialBand";
 
 const GridBg = () => (
   <div
@@ -410,10 +411,22 @@ export default function HomePage() {
     "@graph": [
       {
         "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
         name: "CryptoKiller",
         url: "https://cryptokiller.org",
         logo: "https://cryptokiller.org/favicon.svg",
-        description: "Crypto scam investigation and intelligence platform tracking 1,000+ fraudulent brands.",
+        description: "Crypto scam intelligence platform tracking 1,000+ fraudulent brands through real-time ad surveillance and evidence-based investigation.",
+        foundingDate: "2025",
+        knowsAbout: [
+          "Cryptocurrency Scams",
+          "Pig Butchering",
+          "Crypto Phishing",
+          "Rug Pulls",
+          "Investment Fraud",
+          "Celebrity Impersonation Scams",
+          "DeFi Fraud"
+        ],
+        sameAs: [],
         address: {
           "@type": "PostalAddress",
           streetAddress: "150 Beach Rd., Level 35 Gateway West",
@@ -424,13 +437,61 @@ export default function HomePage() {
       },
       {
         "@type": "WebSite",
-        name: "CryptoKiller",
+        "@id": "https://cryptokiller.org/#website",
         url: "https://cryptokiller.org",
+        name: "CryptoKiller",
+        publisher: { "@id": "https://cryptokiller.org/#organization" },
         potentialAction: {
           "@type": "SearchAction",
-          target: "https://cryptokiller.org/review/{search_term_string}",
+          target: "https://cryptokiller.org/search?q={search_term_string}",
           "query-input": "required name=search_term_string",
         },
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/#faq",
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: "How does CryptoKiller detect crypto scams?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "CryptoKiller monitors social media ad platforms across 84+ countries 24/7, detecting crypto scam campaigns in real time. Machine learning identifies celebrity impersonation, geo-targeting patterns, ad velocity surges, and other scam indicators. We then publish comprehensive reviews with threat scores, evidence, and actionable advice."
+            }
+          },
+          {
+            "@type": "Question",
+            name: "Are CryptoKiller threat scores reliable?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "Threat scores are based on verifiable ad evidence from platforms like Meta Ad Library and Google Ads Transparency — never paid placements. Every investigation is authored by a named analyst, and corrections are published within 24 hours with a full changelog."
+            }
+          },
+          {
+            "@type": "Question",
+            name: "What should I do if I've been scammed?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "Act within 72 hours: (1) Stop all contact and do not send more funds, (2) Screenshot everything — chats, wallet addresses, transaction IDs, URLs, (3) Report officially to FBI IC3 (ic3.gov), FTC (reportfraud.ftc.gov), or Chainalysis, (4) Submit intelligence to CryptoKiller to warn others and help investigators."
+            }
+          },
+          {
+            "@type": "Question",
+            name: "Does CryptoKiller offer recovery services?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "No. CryptoKiller does not offer recovery services and charges no fees to victims. Avoid 'crypto recovery' services charging upfront fees — they are almost always a second scam targeting victims. The FTC warns against all upfront-fee recovery services."
+            }
+          },
+          {
+            "@type": "Question",
+            name: "Is CryptoKiller content financial or legal advice?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "No. CryptoKiller content is for informational purposes only and does not constitute legal or financial advice. Threat scores reflect available evidence at time of publication. CryptoKiller cannot be paid to remove or modify scam listings. Our threat scores are editorially independent."
+            }
+          }
+        ],
       },
     ],
   }), []);
@@ -454,6 +515,7 @@ export default function HomePage() {
       <HowItWorks />
       <ResearchTeam />
       <ScamActionSteps />
+      <EditorialBand />
 
       <footer className="border-t border-slate-800 bg-slate-950 py-12">
         <div className="container mx-auto px-4 max-w-6xl">
