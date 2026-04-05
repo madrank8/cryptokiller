@@ -531,7 +531,7 @@ function ReviewContent({ slug }: { slug: string }) {
   }, [review]);
 
   usePageMeta({
-    title: review ? `${review.platformName} Review` : "Loading Investigation",
+    title: review ? `${review.platformName} Review — ${review.threatScore}/100 Threat Score` : "Loading Investigation",
     description: review
       ? `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`
       : "Loading crypto scam investigation...",
