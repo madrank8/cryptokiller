@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import SiteHeader from "@/components/SiteHeader";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const sections = [
   { id: "acceptance", label: "Acceptance of Terms" },
@@ -28,6 +29,12 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 }
 
 export default function TermsPage() {
+  usePageMeta({
+    title: "Terms of Service",
+    description: "CryptoKiller terms of service. Rules governing use of our crypto scam investigation platform, report submissions, and published content.",
+    canonical: "https://cryptokiller.org/terms",
+  });
+
   useEffect(() => {
     if (window.location.hash) {
       const el = document.querySelector(window.location.hash);

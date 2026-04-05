@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Shield } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const sections = [
   { id: "introduction", label: "Introduction" },
@@ -27,6 +28,12 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 }
 
 export default function PrivacyPage() {
+  usePageMeta({
+    title: "Privacy Policy",
+    description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
+    canonical: "https://cryptokiller.org/privacy",
+  });
+
   useEffect(() => {
     if (window.location.hash) {
       const el = document.querySelector(window.location.hash);

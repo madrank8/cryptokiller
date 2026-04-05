@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useGetReview, useGetRelatedReviews } from "@workspace/api-client-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   Shield, AlertTriangle, Flag, X, CheckCircle,
   Calendar, Eye, User, ExternalLink,
@@ -493,12 +494,51 @@ function NotFoundPage({ slug }: { slug: string }) {
   );
 }
 
-export default function ReviewPage() {
-  const params = useParams<{ slug?: string }>();
-  const slug = params.slug ?? "quantum-ai";
-
+function ReviewContent({ slug }: { slug: string }) {
   const { data: review, isLoading, error } = useGetReview(slug);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const jsonLd = useMemo(() => {
+    if (!review) return undefined;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Review",
+      name: `${review.platformName} Review — CryptoKiller Investigation`,
+      description: review.verdict || `Investigation of ${review.platformName} crypto scam.`,
+      author: {
+        "@type": "Organization",
+        name: "CryptoKiller",
+        url: "https://cryptokiller.org",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "CryptoKiller",
+        url: "https://cryptokiller.org",
+      },
+      datePublished: review.investigationDate,
+      itemReviewed: {
+        "@type": "Thing",
+        name: review.platformName,
+      },
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: review.threatScore,
+        bestRating: 100,
+        worstRating: 0,
+        ratingExplanation: `Threat score of ${review.threatScore}/100 — ${review.verdict || "Under investigation"}`,
+      },
+    };
+  }, [review]);
+
+  usePageMeta({
+    title: review ? `${review.platformName} Review` : "Loading Investigation",
+    description: review
+      ? `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`
+      : "Loading crypto scam investigation...",
+    canonical: `https://cryptokiller.org/review/${slug}`,
+    ogType: "article",
+    jsonLd,
+  });
 
   if (isLoading) return <ReviewSkeleton />;
   if (error || !review) return <NotFoundPage slug={slug} />;
@@ -974,4 +1014,10 @@ export default function ReviewPage() {
 
     </div>
   );
+}
+
+export default function ReviewPage() {
+  const params = useParams<{ slug?: string }>();
+  const slug = params.slug ?? "quantum-ai";
+  return <ReviewContent slug={slug} />;
 }

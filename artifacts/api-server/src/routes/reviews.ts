@@ -178,4 +178,45 @@ router.get("/reviews/:slug/related", async (req, res): Promise<void> => {
   })));
 });
 
+router.get("/sitemap.xml", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({
+      slug: reviewsTable.slug,
+      investigationDate: reviewsTable.investigationDate,
+    })
+    .from(reviewsTable)
+    .where(eq(reviewsTable.status, "published"))
+    .orderBy(desc(reviewsTable.investigationDate));
+
+  const staticPages = [
+    { loc: "/", changefreq: "daily", priority: "1.0" },
+    { loc: "/investigations", changefreq: "daily", priority: "0.9" },
+    { loc: "/report", changefreq: "monthly", priority: "0.7" },
+    { loc: "/about", changefreq: "monthly", priority: "0.6" },
+    { loc: "/recovery", changefreq: "monthly", priority: "0.7" },
+    { loc: "/privacy", changefreq: "yearly", priority: "0.3" },
+    { loc: "/terms", changefreq: "yearly", priority: "0.3" },
+  ];
+
+  const base = "https://cryptokiller.org";
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  for (const p of staticPages) {
+    xml += `  <url>\n    <loc>${base}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>\n`;
+  }
+
+  for (const r of rows) {
+    const lastmod = r.investigationDate ? new Date(r.investigationDate).toISOString().split("T")[0] : "";
+    xml += `  <url>\n    <loc>${base}/review/${r.slug}</loc>\n`;
+    if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+  }
+
+  xml += `</urlset>`;
+
+  res.set("Content-Type", "application/xml");
+  res.send(xml);
+});
+
 export default router;

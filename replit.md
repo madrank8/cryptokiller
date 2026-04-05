@@ -99,6 +99,7 @@ React + Vite frontend web app — the **CryptoKiller** scam investigation review
 - Dynamic: fetches all content from the API using generated React Query hooks (`useGetReview(slug)`)
 - Routes: `/` → Homepage; `/investigations` → Browse all reviews with search/filters; `/review/:slug` → review by slug; `/report` → Report a Scam; `/about` → About/Team; `/privacy` → Privacy Policy; `/terms` → Terms of Service; `/recovery` → Recovery Guide
 - Deployed at the root path `/` of the Replit preview domain
+- **SEO**: Per-page meta tags (title, description, OG, Twitter) via `usePageMeta` hook (`src/hooks/usePageMeta.ts`). Default fallback meta in `index.html`. JSON-LD structured data on homepage (Organization + WebSite) and review pages (Review schema). `robots.txt` and static `sitemap.xml` in `public/`. Dynamic sitemap at `/api/sitemap.xml` includes all published review slugs with `lastmod` dates.
 
 ### `scripts` (`@workspace/scripts`)
 
@@ -130,6 +131,7 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 | GET | `/api/reviews/:slug` | Full review data (all joins in one response) |
 | POST | `/api/reports` | Submit a scam report (no auth required) |
 | POST | `/api/sync/review` | Webhook: upsert a single review from Vercel CMS |
+| GET | `/api/sitemap.xml` | Dynamic sitemap with all static pages + published review slugs |
 | POST | `/api/sync/supabase` | Bulk sync: pulls all brands + published reviews from Supabase |
 
 ### Data Pipeline

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useListReviews } from "@workspace/api-client-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import type { ReviewSummary } from "@workspace/api-client-react";
 import {
   Shield, ShieldAlert, Globe, BarChart2, Clock,
@@ -336,6 +337,43 @@ function WarningBanner() {
 export default function HomePage() {
   const { data: reviews, isLoading, error } = useListReviews({
     query: { refetchInterval: 60_000 },
+  });
+
+  const jsonLd = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: "CryptoKiller",
+        url: "https://cryptokiller.org",
+        logo: "https://cryptokiller.org/favicon.svg",
+        description: "Crypto scam investigation and intelligence platform tracking 1,000+ fraudulent brands.",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "150 Beach Rd., Level 35 Gateway West",
+          addressLocality: "Singapore",
+          postalCode: "189720",
+          addressCountry: "SG",
+        },
+      },
+      {
+        "@type": "WebSite",
+        name: "CryptoKiller",
+        url: "https://cryptokiller.org",
+        potentialAction: {
+          "@type": "SearchAction",
+          target: "https://cryptokiller.org/review/{search_term_string}",
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  }), []);
+
+  usePageMeta({
+    title: "CryptoKiller — Crypto Scam Intelligence",
+    description: "Search any crypto platform to check its threat score, scam ads evidence, and investigation verdict. CryptoKiller tracks 1,000+ scam brands worldwide.",
+    canonical: "https://cryptokiller.org/",
+    jsonLd,
   });
 
   return (

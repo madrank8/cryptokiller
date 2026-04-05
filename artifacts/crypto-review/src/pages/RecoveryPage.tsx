@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Shield } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 const sections = [
   { id: "immediate-steps", label: "Immediate Steps" },
@@ -22,6 +23,12 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 }
 
 export default function RecoveryPage() {
+  usePageMeta({
+    title: "Crypto Scam Recovery Guide",
+    description: "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
+    canonical: "https://cryptokiller.org/recovery",
+  });
+
   useEffect(() => {
     if (window.location.hash) {
       const el = document.querySelector(window.location.hash);

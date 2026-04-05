@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useListReviews } from "@workspace/api-client-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import type { ReviewSummary } from "@workspace/api-client-react";
 import {
   Shield, ShieldAlert, Globe, BarChart2,
@@ -159,6 +160,12 @@ function LoadingSkeleton({ viewMode }: { viewMode: ViewMode }) {
 export default function InvestigationsPage() {
   const { data: reviews, isLoading, isError } = useListReviews({
     query: { refetchInterval: 60_000 },
+  });
+
+  usePageMeta({
+    title: "Scam Investigations",
+    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms.",
+    canonical: "https://cryptokiller.org/investigations",
   });
 
   const [searchQuery, setSearchQuery] = useState("");

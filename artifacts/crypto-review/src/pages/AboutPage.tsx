@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import SiteHeader from "@/components/SiteHeader";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface TeamMember {
   name: string;
@@ -196,6 +197,12 @@ function TeamSection({
 }
 
 export default function AboutPage() {
+  usePageMeta({
+    title: "About Us",
+    description: "Meet the CryptoKiller team — financial experts, crypto analysts, and security researchers working 24/7 to investigate crypto scams and protect investors.",
+    canonical: "https://cryptokiller.org/about",
+  });
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-900 selection:text-white">
       <SiteHeader activeNav="about" />

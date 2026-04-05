@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSubmitReport } from "@workspace/api-client-react";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   Shield, AlertTriangle, Send, CheckCircle, FileText,
   Globe, DollarSign, Mail, MessageSquare, Link2, MapPin,
@@ -23,6 +24,12 @@ const scamTypes = [
 const currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "BTC", "ETH", "USDT"];
 
 export default function ReportPage() {
+  usePageMeta({
+    title: "Report a Scam",
+    description: "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn victims, and build evidence for authorities.",
+    canonical: "https://cryptokiller.org/report",
+  });
+
   const { mutateAsync: submitReport, isPending } = useSubmitReport();
   const [submitted, setSubmitted] = useState(false);
   const [reportId, setReportId] = useState<number | null>(null);
