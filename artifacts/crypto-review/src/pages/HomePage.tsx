@@ -493,8 +493,8 @@ export default function HomePage() {
   }), []);
 
   usePageMeta({
-    title: "CryptoKiller — Crypto Scam Intelligence",
-    description: "Search any crypto platform to check its threat score, scam ads evidence, and investigation verdict. CryptoKiller tracks 1,000+ scam brands worldwide.",
+    title: "Crypto Scam Checker — Investigate Any Platform | CryptoKiller",
+    description: "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing, fake exchanges — with evidence and threat scores.",
     canonical: "https://cryptokiller.org/",
     jsonLd,
   });
