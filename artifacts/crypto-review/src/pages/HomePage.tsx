@@ -130,7 +130,7 @@ function HeroSection() {
             {
               value: "84+",
               label: "Countries Monitored",
-              citations: [{ name: "CK Surveillance Network" }],
+              citations: [{ name: "CryptoKiller Ad Surveillance Network" }],
             },
           ] as const).map((s) => (
             <div key={s.label} className="text-center">
