@@ -68,17 +68,55 @@ function parseHowItWorks(text: string): { stageNumber: number; title: string; bu
   if (!text) return [];
 
   const stages: { stageNumber: number; title: string; bullets: string[]; statValue: string; statLabel: string }[] = [];
-  const stageBlocks = text.split(/Stage \d+:\s*/i).filter(Boolean);
 
+  const stagePattern = /STAGE\s+(\d+)\s*(?:[—–\-]\s*|\()/gi;
+  const markers: { index: number; num: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = stagePattern.exec(text)) !== null) {
+    markers.push({ index: m.index, num: parseInt(m[1], 10) });
+  }
+
+  if (markers.length > 0) {
+    for (let i = 0; i < markers.length; i++) {
+      const start = markers[i].index;
+      const end = i + 1 < markers.length ? markers[i + 1].index : text.length;
+      const block = text.slice(start, end);
+      const headerMatch = block.match(/^STAGE\s+\d+\s*(?:[—–\-]\s*|\()([^:)]+)[):]\s*/i);
+      let title: string;
+      let bodyText: string;
+      if (headerMatch) {
+        title = headerMatch[1].trim();
+        bodyText = block.slice(headerMatch[0].length).trim();
+      } else {
+        const fallback = block.replace(/^STAGE\s+\d+\s*(?:[—–\-]\s*|\()/i, "");
+        const sentences = fallback.split(/\.\s+/).filter(Boolean);
+        title = sentences[0]?.replace(/\.$/, "").trim() ?? `Stage ${markers[i].num}`;
+        bodyText = sentences.slice(1).join(". ").trim();
+      }
+      const bullets = bodyText
+        .split(/\.\s+/)
+        .map(s => s.replace(/\.$/, "").trim())
+        .filter(b => b.length > 10 && !b.match(/^STAGE\s+\d+/i));
+      stages.push({
+        stageNumber: markers[i].num,
+        title,
+        bullets: bullets.slice(0, 6),
+        statValue: "",
+        statLabel: "",
+      });
+    }
+    return stages;
+  }
+
+  const stageBlocks = text.split(/Stage \d+:\s*/i).filter(Boolean);
   stageBlocks.forEach((block, idx) => {
     const lines = block.split(/\.\s+/).filter(Boolean);
     const title = lines[0]?.replace(/\.$/, "").trim() ?? `Stage ${idx + 1}`;
     const bullets = lines.slice(1).map(l => l.replace(/\.$/, "").trim()).filter(b => b.length > 10);
-
     stages.push({
       stageNumber: idx + 1,
       title,
-      bullets: bullets.slice(0, 5),
+      bullets: bullets.slice(0, 6),
       statValue: "",
       statLabel: "",
     });
@@ -372,6 +410,56 @@ async function guardedSync(label: string): Promise<void> {
   }
 }
 
+export async function repairFunnelStages(): Promise<number> {
+  const log = logger.child({ module: "funnel-repair" });
+  const allStages = await db
+    .select({
+      id: funnelStagesTable.id,
+      reviewId: funnelStagesTable.reviewId,
+      stageNumber: funnelStagesTable.stageNumber,
+      title: funnelStagesTable.title,
+      bullets: funnelStagesTable.bullets,
+    })
+    .from(funnelStagesTable);
+
+  const byReview = new Map<number, typeof allStages>();
+  for (const s of allStages) {
+    const arr = byReview.get(s.reviewId) ?? [];
+    arr.push(s);
+    byReview.set(s.reviewId, arr);
+  }
+
+  let repairedCount = 0;
+
+  for (const [reviewId, stages] of byReview.entries()) {
+    if (stages.length !== 1) continue;
+
+    const stage = stages[0];
+    const fullText = stage.title + ". " + (stage.bullets ?? []).join(". ");
+
+    if (!fullText.match(/STAGE\s+\d+\s*(?:[—–\-(])/i)) continue;
+
+    const parsed = parseHowItWorks(fullText);
+    if (parsed.length <= 1) continue;
+
+    await db.delete(funnelStagesTable).where(eq(funnelStagesTable.reviewId, reviewId));
+    await db.insert(funnelStagesTable).values(
+      parsed.map(s => ({
+        reviewId,
+        stageNumber: s.stageNumber,
+        title: s.title,
+        statValue: s.statValue,
+        statLabel: s.statLabel,
+        bullets: s.bullets,
+      }))
+    );
+    repairedCount++;
+  }
+
+  log.info({ repairedCount }, "Funnel stage repair complete");
+  return repairedCount;
+}
+
 export function startSyncScheduler(): void {
   const log = logger.child({ module: "sync-scheduler" });
 
@@ -380,8 +468,13 @@ export function startSyncScheduler(): void {
     return;
   }
 
-  startupTimeout = setTimeout(() => {
+  startupTimeout = setTimeout(async () => {
     startupTimeout = null;
+    try {
+      await repairFunnelStages();
+    } catch (err) {
+      log.error(err, "Funnel stage repair failed");
+    }
     guardedSync("initial Supabase sync");
   }, 5_000);
 
