@@ -1,0 +1,94 @@
+Add a WhatsApp chatbot to CryptoKiller using Twilio's WhatsApp API.
+
+Install dependencies:
+npm install twilio express body-parser
+
+Create /server/whatsapp.js — an Express route handler for 
+Twilio WhatsApp webhooks. Mount it at POST /api/whatsapp
+
+The bot handles these conversation flows based on incoming 
+message text:
+
+FLOW 1 — PLATFORM CHECK:
+Trigger: user sends any message containing a platform/brand name
+OR sends "check [name]" or "is [name] a scam"
+
+Response template:
+"🔍 *CryptoKiller Intelligence*
+
+Checking: [PLATFORM NAME]
+
+[If found in DB:]
+⚠️ *THREAT DETECTED*
+Threat Score: XX/100
+Status: [verdict]
+Ad Creatives: [count] detected
+First flagged: [date]
+
+Full investigation: cryptokiller.org/investigations/[slug]
+
+[If not found:]
+✅ Not in our database of 1,000+ flagged platforms.
+This does not guarantee it's safe — new scams emerge daily.
+Report it if something feels off: cryptokiller.org/report"
+
+FLOW 2 — REPORT A SCAM:
+Trigger: "report", "i was scammed", "lost money", "help"
+
+Multi-step conversation:
+Step 1: "I'm sorry to hear that. I'll help you document this.
+What is the name or website of the platform that scammed you?"
+
+Step 2 (after they reply): "How much did you lose approximately? 
+(You can say 'prefer not to say')"
+
+Step 3: "How were you contacted? (e.g. Instagram, WhatsApp, 
+Telegram, email, dating app)"
+
+Step 4: "Thank you. Your report has been logged and sent to 
+our analysts for review.
+
+⚠️ *Critical next steps — do these NOW:*
+1. File with FBI IC3: ic3.gov
+2. File with FTC: reportfraud.ftc.gov
+3. Contact your bank immediately
+4. Do NOT pay any 'recovery' service
+
+Our team will publish an investigation if we can verify the 
+platform. You're helping protect others. 🙏"
+
+Save the report data to a reports table or log file.
+
+FLOW 3 — MAIN MENU:
+Trigger: "hi", "hello", "start", "menu", "help"
+
+Response:
+"👋 Welcome to *CryptoKiller*
+Crypto Scam Intelligence — Free & Confidential
+
+What can I help you with?
+
+1️⃣ *Check a platform* — send the name
+2️⃣ *Report a scam* — type REPORT
+3️⃣ *I've been scammed* — type HELP
+4️⃣ *Latest scam alerts* — type ALERTS
+
+Or just send any crypto platform name to check it instantly."
+
+FLOW 4 — ALERTS:
+Trigger: "alerts", "latest", "new scams"
+
+Response: Return the 3 most recently published investigations 
+from the database as a formatted list.
+
+FLOW 5 — FALLBACK:
+Any unrecognized input → treat as platform check query.
+
+ENVIRONMENT VARIABLES needed:
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN  
+TWILIO_WHATSAPP_NUMBER (format: whatsapp:+14155238886)
+
+Add input sanitization — strip any links or injection attempts 
+from user messages before processing.
+Rate limit: max 10 messages per phone number per hour.
