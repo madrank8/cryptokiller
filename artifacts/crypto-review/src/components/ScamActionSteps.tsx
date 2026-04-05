@@ -104,6 +104,25 @@ export default function ScamActionSteps() {
           ))}
         </div>
 
+        <div className="rounded-2xl border border-[#25D366]/20 bg-slate-900/80 p-8 mb-10 text-center">
+          <h3 className="text-xl md:text-2xl font-black text-white mb-2">
+            💬 Get Instant Help on WhatsApp
+          </h3>
+          <p className="text-slate-400 text-sm max-w-lg mx-auto mb-5">
+            Send us a message on WhatsApp to check any crypto platform or report a scam — we respond fast.
+          </p>
+          <a
+            href="https://wa.me/[YOUR_NUMBER]?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors"
+            style={{ backgroundColor: "#25D366" }}
+          >
+            Open WhatsApp Chat →
+          </a>
+          <p className="text-xs text-slate-500 mt-4">🔒 Your number is never stored or shared</p>
+        </div>
+
         <div className="bg-red-950/30 border border-red-800/50 rounded-xl p-5 mb-6">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />

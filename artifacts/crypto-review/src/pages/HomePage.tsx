@@ -15,6 +15,7 @@ import TrustBar from "@/components/TrustBar";
 import ResearchTeam from "@/components/ResearchTeam";
 import ScamActionSteps from "@/components/ScamActionSteps";
 import EditorialBand from "@/components/EditorialBand";
+import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 
 const GridBg = () => (
   <div
@@ -170,6 +171,15 @@ function HeroSection() {
           </a>{" "}
           (chainalysis.com). Platform count: CryptoKiller internal database, updated weekly.
         </p>
+
+        <a
+          href="https://wa.me/[YOUR_NUMBER]?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mt-6 text-sm text-[#25D366]/70 hover:text-[#25D366] transition-colors"
+        >
+          💬 Or check any platform instantly on WhatsApp →
+        </a>
       </div>
     </section>
   );
@@ -524,6 +534,7 @@ export default function HomePage() {
       <ResearchTeam />
       <ScamActionSteps />
       <EditorialBand />
+      <WhatsAppFloatingButton />
 
       <footer className="border-t border-slate-800 bg-slate-950 py-12">
         <div className="container mx-auto px-4 max-w-6xl">
