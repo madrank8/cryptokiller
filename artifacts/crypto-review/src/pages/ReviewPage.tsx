@@ -926,12 +926,16 @@ export default function ReviewPage() {
             Your report helps warn others and builds the evidence trail against this operation. If you've lost money, act quickly — chargebacks are time-sensitive.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-            <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 w-full sm:w-auto">
-              Report Your Experience
-            </Button>
-            <Button size="lg" variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800 w-full sm:w-auto">
-              Get Recovery Guidance
-            </Button>
+            <a href="/report">
+              <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 w-full sm:w-auto">
+                Report Your Experience
+              </Button>
+            </a>
+            <a href="/recovery">
+              <Button size="lg" variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800 w-full sm:w-auto">
+                Get Recovery Guidance
+              </Button>
+            </a>
           </div>
           <p className="text-xs text-slate-500 max-w-xl mx-auto">
             ⚠️ Beware of "recovery agents" who contact you promising to retrieve your money for an upfront fee. These are often secondary scams targeting victims.
@@ -960,10 +964,9 @@ export default function ReviewPage() {
               <span className="text-slate-600 text-sm">Scam Intelligence</span>
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
+              <a href="/recovery" className="hover:text-white transition-colors">Recovery Guide</a>
               <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Contact</a>
-              <a href="#" className="hover:text-white transition-colors">API</a>
             </div>
           </div>
           <Separator className="bg-slate-800 mb-6" />
