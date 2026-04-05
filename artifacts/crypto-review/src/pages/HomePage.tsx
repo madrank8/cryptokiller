@@ -321,7 +321,7 @@ function WarningBanner() {
           </div>
         </div>
         <div className="flex gap-3 shrink-0">
-          <a href="#" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors text-white font-bold px-6 py-3 rounded-xl text-sm">
+          <a href="/report" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors text-white font-bold px-6 py-3 rounded-xl text-sm">
             <Radio className="h-4 w-4" /> Submit a Report
           </a>
           <a href="#" className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 transition-colors text-slate-300 font-semibold px-6 py-3 rounded-xl border border-slate-700 text-sm">
