@@ -32,7 +32,7 @@ export default function SiteHeader({ activeNav }: SiteHeaderProps) {
             Home
           </a>
           <a
-            href="/#investigations"
+            href="/investigations"
             className={activeNav === "investigations"
               ? "text-white border-b border-red-500 pb-0.5"
               : "hover:text-white transition-colors"}
@@ -83,7 +83,7 @@ export default function SiteHeader({ activeNav }: SiteHeaderProps) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 py-3 flex flex-col gap-3">
           <a href="/" className={activeNav === "home" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Home</a>
-          <a href="/#investigations" className={activeNav === "investigations" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Investigations</a>
+          <a href="/investigations" className={activeNav === "investigations" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Investigations</a>
           <a href="/report" className={activeNav === "report" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Report a Scam</a>
           <a href="/about" className={activeNav === "about" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>About</a>
           <a href="/recovery" className={activeNav === "recovery" ? "text-white text-sm py-1" : "text-slate-300 hover:text-white text-sm py-1"}>Recovery Guide</a>

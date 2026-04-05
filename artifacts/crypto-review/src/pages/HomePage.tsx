@@ -205,7 +205,7 @@ function TrendingScams({ reviews, isLoading }: { reviews: ReviewSummary[] | unde
           <h2 className="text-2xl md:text-3xl font-black text-white mb-1">Trending Scams</h2>
           <p className="text-slate-500 text-sm">Highest threat scores right now</p>
         </div>
-        <a href="#latest" className="text-red-400 text-sm font-semibold hover:text-red-300 transition-colors flex items-center gap-1">
+        <a href="/investigations" className="text-red-400 text-sm font-semibold hover:text-red-300 transition-colors flex items-center gap-1">
           View all <ChevronRight className="h-3.5 w-3.5" />
         </a>
       </div>
@@ -367,7 +367,7 @@ export default function HomePage() {
             </div>
             <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm text-slate-500">
               {[
-                { label: "Investigations", href: "#" },
+                { label: "Investigations", href: "/investigations" },
                 { label: "Report a Scam", href: "/report" },
                 { label: "Recovery Guide", href: "/recovery" },
                 { label: "About", href: "/about" },

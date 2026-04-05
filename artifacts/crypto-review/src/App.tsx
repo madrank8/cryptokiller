@@ -9,6 +9,7 @@ import AboutPage from "@/pages/AboutPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import RecoveryPage from "@/pages/RecoveryPage";
+import InvestigationsPage from "@/pages/InvestigationsPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={() => <HomePage />} />
+      <Route path="/investigations" component={() => <InvestigationsPage />} />
       <Route path="/review/:slug" component={() => <ReviewPage />} />
       <Route path="/report" component={() => <ReportPage />} />
       <Route path="/about" component={() => <AboutPage />} />
