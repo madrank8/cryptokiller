@@ -114,16 +114,55 @@ function HeroSection() {
 
         <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
           {[
-            { value: "281,110+", label: "Scam Ads Analyzed" },
-            { value: "22,033+", label: "Brands Tracked" },
-            { value: "84+", label: "Countries Monitored" },
+            {
+              value: "281,110+",
+              label: "Scam Ads Analyzed",
+              source: "Meta Ad Library + Google Ads Transparency",
+              href: "https://www.facebook.com/ads/library/",
+            },
+            {
+              value: "22,033+",
+              label: "Brands Tracked",
+              source: "CryptoKiller Database",
+            },
+            {
+              value: "84+",
+              label: "Countries Monitored",
+              source: "CK Surveillance Network",
+            },
           ].map((s) => (
             <div key={s.label}>
               <p className="text-2xl md:text-3xl font-black text-white">{s.value}</p>
               <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+              {s.href ? (
+                <a
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] text-slate-600 hover:text-slate-400 bg-slate-800/60 border border-slate-700/40 rounded-full px-2 py-0.5 transition-colors"
+                >
+                  {s.source} ↗
+                </a>
+              ) : (
+                <span className="inline-flex items-center mt-1.5 text-[10px] text-slate-600 bg-slate-800/60 border border-slate-700/40 rounded-full px-2 py-0.5">
+                  {s.source}
+                </span>
+              )}
             </div>
           ))}
         </div>
+
+        <p className="text-[11px] text-slate-600 max-w-lg mx-auto mt-4 leading-relaxed text-center">
+          † Ad counts:{" "}
+          <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline decoration-dotted underline-offset-2 transition-colors">
+            Meta Ad Library
+          </a>{" "}
+          +{" "}
+          <a href="https://adstransparency.google.com" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline decoration-dotted underline-offset-2 transition-colors">
+            Google Ads Transparency
+          </a>
+          . Platform count: CryptoKiller internal database updated weekly. Country coverage: CryptoKiller Ad Surveillance Network.
+        </p>
       </div>
     </section>
   );
@@ -269,7 +308,8 @@ function HowItWorks() {
       icon: <Target className="h-7 w-7" />,
       color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30",
       title: "Scam Ads Detected",
-      desc: "Our sophisticated systems monitor social media ad platforms across 50+ countries 24/7, detecting crypto scam campaigns in real time.",
+      desc: "Our sophisticated systems monitor social media ad platforms across 50+ countries† 24/7, detecting crypto scam campaigns in real time.",
+      footnote: "† CryptoKiller Ad Surveillance Network",
     },
     {
       num: "2",
@@ -303,6 +343,9 @@ function HowItWorks() {
               </div>
               <h3 className="text-lg font-bold text-white mb-3">{s.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
+              {"footnote" in s && (s as any).footnote && (
+                <span className="block mt-2 text-[10px] text-slate-600">{(s as any).footnote}</span>
+              )}
             </div>
           ))}
         </div>
