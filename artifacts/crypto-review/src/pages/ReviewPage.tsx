@@ -530,11 +530,21 @@ function ReviewContent({ slug }: { slug: string }) {
     };
   }, [review]);
 
+  const seoTitle = review
+    ? `${review.platformName} Review — ${review.threatScore}/100 Threat Score`
+    : error
+      ? "Investigation Not Found"
+      : "Loading Investigation";
+
+  const seoDescription = review
+    ? `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`
+    : error
+      ? `No investigation data found for "${slug}". Browse all crypto scam investigations on CryptoKiller.`
+      : "Loading crypto scam investigation...";
+
   usePageMeta({
-    title: review ? `${review.platformName} Review — ${review.threatScore}/100 Threat Score` : "Loading Investigation",
-    description: review
-      ? `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`
-      : "Loading crypto scam investigation...",
+    title: seoTitle,
+    description: seoDescription,
     canonical: `https://cryptokiller.org/review/${slug}`,
     ogType: "article",
     jsonLd,

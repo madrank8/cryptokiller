@@ -178,6 +178,10 @@ router.get("/reviews/:slug/related", async (req, res): Promise<void> => {
   })));
 });
 
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const rows = await db
     .select({
@@ -208,7 +212,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
 
   for (const r of rows) {
     const lastmod = r.investigationDate ? new Date(r.investigationDate).toISOString().split("T")[0] : "";
-    xml += `  <url>\n    <loc>${base}/review/${r.slug}</loc>\n`;
+    xml += `  <url>\n    <loc>${base}/review/${escapeXml(r.slug)}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
   }
