@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import TrustBar from "@/components/TrustBar";
 import ResearchTeam from "@/components/ResearchTeam";
+import ScamActionSteps from "@/components/ScamActionSteps";
 
 const GridBg = () => (
   <div
@@ -389,6 +390,7 @@ export default function HomePage() {
       <WarningBanner />
       <HowItWorks />
       <ResearchTeam />
+      <ScamActionSteps />
 
       <footer className="border-t border-slate-800 bg-slate-950 py-12">
         <div className="container mx-auto px-4 max-w-6xl">
