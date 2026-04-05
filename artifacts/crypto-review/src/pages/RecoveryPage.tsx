@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Shield } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 const sections = [
   { id: "immediate-steps", label: "Immediate Steps" },
@@ -23,10 +24,16 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 }
 
 export default function RecoveryPage() {
+  const crumbs = [
+    { label: "Home", href: "https://cryptokiller.org/" },
+    { label: "Crypto Scam Recovery Guide", href: "https://cryptokiller.org/recovery" },
+  ];
+
   usePageMeta({
     title: "Crypto Scam Recovery Guide — What To Do After Losing Funds | CryptoKiller",
     description: "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
     canonical: "https://cryptokiller.org/recovery",
+    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
   });
 
   useEffect(() => {
@@ -41,6 +48,10 @@ export default function RecoveryPage() {
       <SiteHeader activeNav="recovery" />
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "Crypto Scam Recovery Guide" },
+        ]} />
         <div className="mb-10">
           <h1 className="text-4xl md:text-5xl font-black text-white mb-3">Recovery Guide</h1>
           <p className="text-slate-400 text-sm">

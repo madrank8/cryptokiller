@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 type SortKey = "threatScore" | "newest" | "adCreatives" | "countriesTargeted" | "daysActive" | "platformName";
 type ThreatFilter = "all" | "critical" | "high" | "medium" | "low";
@@ -162,10 +163,16 @@ export default function InvestigationsPage() {
     query: { refetchInterval: 60_000 },
   });
 
+  const crumbs = [
+    { label: "Home", href: "https://cryptokiller.org/" },
+    { label: "Scam Investigations", href: "https://cryptokiller.org/investigations" },
+  ];
+
   usePageMeta({
     title: "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
     description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
     canonical: "https://cryptokiller.org/investigations",
+    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -257,6 +264,10 @@ export default function InvestigationsPage() {
 
       <div className="border-b border-slate-800 bg-slate-950">
         <div className="container mx-auto px-4 max-w-6xl py-10">
+          <Breadcrumbs items={[
+            { label: "Home", href: "/" },
+            { label: "Scam Investigations" },
+          ]} />
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
             <div>
               <h1 className="text-3xl md:text-4xl font-black text-white mb-2">Investigations</h1>

@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 const analysts = [
   {
@@ -39,10 +40,16 @@ const analysts = [
 ];
 
 export default function AboutPage() {
+  const crumbs = [
+    { label: "Home", href: "https://cryptokiller.org/" },
+    { label: "About CryptoKiller", href: "https://cryptokiller.org/about" },
+  ];
+
   usePageMeta({
     title: "About CryptoKiller — Crypto Scam Intelligence Platform",
     description: "CryptoKiller is a crypto scam intelligence platform. Our analysts investigate fraudulent platforms, track scam ads, and publish evidence-based reviews to protect investors.",
     canonical: "https://cryptokiller.org/about",
+    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
   });
 
   return (
@@ -50,6 +57,10 @@ export default function AboutPage() {
       <SiteHeader activeNav="about" />
 
       <main className="container mx-auto px-4 py-10 max-w-6xl">
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "About CryptoKiller" },
+        ]} />
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-slate-800/60 border border-slate-700/40 text-slate-300 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-5">
             <Users className="h-3.5 w-3.5" />

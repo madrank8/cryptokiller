@@ -9,6 +9,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SiteHeader from "@/components/SiteHeader";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 const scamTypes = [
   { value: "crypto_investment", label: "Crypto Investment Scam" },
@@ -24,10 +25,16 @@ const scamTypes = [
 const currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "BTC", "ETH", "USDT"];
 
 export default function ReportPage() {
+  const crumbs = [
+    { label: "Home", href: "https://cryptokiller.org/" },
+    { label: "Report a Scam", href: "https://cryptokiller.org/report" },
+  ];
+
   usePageMeta({
     title: "Report a Crypto Scam — Submit Evidence | CryptoKiller",
     description: "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn victims, and build evidence for authorities.",
     canonical: "https://cryptokiller.org/report",
+    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
   });
 
   const { mutateAsync: submitReport, isPending } = useSubmitReport();
@@ -140,6 +147,10 @@ export default function ReportPage() {
       <SiteHeader activeNav="report" />
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "Report a Scam" },
+        ]} />
 
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-red-600/20 border border-red-800/40 text-red-400 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-5">

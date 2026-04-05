@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
+import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
   <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2.5 border-b border-slate-800 pb-3">
@@ -602,6 +603,12 @@ function ReviewContent({ slug }: { slug: string }) {
       },
     ];
 
+    graph.push(breadcrumbJsonLd([
+      { label: "Home", href: "https://cryptokiller.org/" },
+      { label: "Scam Investigations", href: "https://cryptokiller.org/investigations" },
+      { label: review.platformName, href: pageUrl },
+    ]));
+
     if (review.faqItems && review.faqItems.length > 0) {
       const faqNode = {
         "@type": "FAQPage",
@@ -679,13 +686,11 @@ function ReviewContent({ slug }: { slug: string }) {
       <main className="container mx-auto px-4 py-8 max-w-6xl">
 
         {/* BREADCRUMB */}
-        <div className="flex items-center text-sm text-slate-500 mb-6">
-          <a href="#" className="hover:text-slate-300">Home</a>
-          <ChevronRight className="h-3 w-3 mx-1" />
-          <a href="#" className="hover:text-slate-300">Investigations</a>
-          <ChevronRight className="h-3 w-3 mx-1" />
-          <span className="text-slate-300">{review.platformName}</span>
-        </div>
+        <Breadcrumbs items={[
+          { label: "Home", href: "/" },
+          { label: "Scam Investigations", href: "/investigations" },
+          { label: review.platformName },
+        ]} />
 
         {/* HERO */}
         <div className="mb-10">
