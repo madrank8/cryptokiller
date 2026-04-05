@@ -25,7 +25,7 @@ const currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "BTC", "ETH", "USDT"];
 
 export default function ReportPage() {
   usePageMeta({
-    title: "Report a Scam",
+    title: "Report a Crypto Scam — Submit Evidence | CryptoKiller",
     description: "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn victims, and build evidence for authorities.",
     canonical: "https://cryptokiller.org/report",
   });

@@ -163,8 +163,8 @@ export default function InvestigationsPage() {
   });
 
   usePageMeta({
-    title: "Scam Investigations",
-    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms.",
+    title: "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
+    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
     canonical: "https://cryptokiller.org/investigations",
   });
 

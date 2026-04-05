@@ -24,7 +24,7 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 
 export default function RecoveryPage() {
   usePageMeta({
-    title: "Crypto Scam Recovery Guide",
+    title: "Crypto Scam Recovery Guide — What To Do After Losing Funds | CryptoKiller",
     description: "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
     canonical: "https://cryptokiller.org/recovery",
   });

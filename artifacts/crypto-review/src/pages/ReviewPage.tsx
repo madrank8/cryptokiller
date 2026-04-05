@@ -629,13 +629,15 @@ function ReviewContent({ slug }: { slug: string }) {
   }, [review, slug]);
 
   const seoTitle = review
-    ? `${review.platformName} Review — ${review.threatScore}/100 Threat Score`
+    ? (`${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`.length <= 60
+        ? `${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`
+        : `${review.platformName} Scam Review | CryptoKiller`)
     : error
-      ? "Investigation Not Found"
-      : "Loading Investigation";
+      ? "Investigation Not Found | CryptoKiller"
+      : "Loading Investigation | CryptoKiller";
 
   const seoDescription = review
-    ? (review.metaDescription || `${review.platformName} threat score: ${review.threatScore}/100. ${review.verdict || "Read the full investigation on CryptoKiller."}`)
+    ? (review.metaDescription || `Is ${review.platformName} a scam? CryptoKiller investigation reveals threat score ${review.threatScore}/100, ${review.adCreatives.toLocaleString()}+ scam ad creatives detected across ${review.countriesTargeted} countries. Evidence inside.`.slice(0, 155))
     : error
       ? `No investigation data found for "${slug}". Browse all crypto scam investigations on CryptoKiller.`
       : "Loading crypto scam investigation...";
@@ -647,6 +649,7 @@ function ReviewContent({ slug }: { slug: string }) {
     ogType: "article",
     jsonLd,
   });
+
 
   if (isLoading) return <ReviewSkeleton />;
   if (error || !review) return <NotFoundPage slug={slug} />;

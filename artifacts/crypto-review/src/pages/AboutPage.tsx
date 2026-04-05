@@ -40,7 +40,7 @@ const analysts = [
 
 export default function AboutPage() {
   usePageMeta({
-    title: "About Us",
+    title: "About CryptoKiller — Crypto Scam Intelligence Platform",
     description: "CryptoKiller is a crypto scam intelligence platform. Our analysts investigate fraudulent platforms, track scam ads, and publish evidence-based reviews to protect investors.",
     canonical: "https://cryptokiller.org/about",
   });
