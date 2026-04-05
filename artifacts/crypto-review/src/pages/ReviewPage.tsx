@@ -576,7 +576,7 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} Review — ${review.threatScore}/100 Threat Score`,
         description: desc,
         url: pageUrl,
-        author: { "@type": "Person", name: review.author || "Crypto Killer Research Team" },
+        author: { "@type": "Organization", name: "CryptoKiller Research Team", url: "https://cryptokiller.org/about" },
         publisher: orgRef,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -688,10 +688,14 @@ function ReviewContent({ slug }: { slug: string }) {
             ).replace(/\d+\/100 threat score/gi, '<span class="text-red-400 font-bold">$&</span>') }}
           />
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-400 mb-8 pb-6 border-b border-slate-800">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-400 mb-4 pb-4 border-b border-slate-800">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4 text-slate-500" />
               <span>Published: {formattedDate}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-green-600" />
+              <span>Last verified: {formattedDate}</span>
             </div>
             {(review.wordCount > 0 || review.readingMinutes > 0) && (
             <div className="flex items-center gap-1.5">
@@ -701,12 +705,27 @@ function ReviewContent({ slug }: { slug: string }) {
             )}
             <div className="flex items-center gap-1.5">
               <User className="h-4 w-4 text-slate-500" />
-              <span>{review.author}</span>
+              <span>CryptoKiller Research Team</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="h-4 w-4 text-slate-500" />
               <span>CryptoKiller Ad Surveillance</span>
             </div>
+          </div>
+
+          <div className="mb-8 space-y-1.5">
+            <p className="text-xs text-slate-500">
+              Reviewed by our editorial team · Methodology:{" "}
+              <a href="/about" className="text-slate-400 hover:text-slate-200 underline decoration-dotted underline-offset-2 transition-colors">
+                cryptokiller.org/methodology
+              </a>
+            </p>
+            <p className="text-xs text-slate-500">
+              All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency.{" "}
+              <a href="/about" className="text-red-400 hover:text-red-300 font-semibold transition-colors">
+                How we investigate →
+              </a>
+            </p>
           </div>
 
           {/* KEY STATS */}
@@ -1012,7 +1031,7 @@ function ReviewContent({ slug }: { slug: string }) {
               </CardContent>
 
               <CardFooter className="border-t border-slate-800 pt-4 pb-4 block">
-                <p className="text-xs text-slate-500 mb-3">Reviewed by {review.author}</p>
+                <p className="text-xs text-slate-500 mb-3">Reviewed by CryptoKiller Research Team</p>
                 <Button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold" size="sm">
                   Report Your Experience
                 </Button>
