@@ -323,7 +323,7 @@ export default function RecoveryPage() {
 
           <h3 className="text-lg font-semibold text-white mt-6 mb-3">Before Investing in Any Crypto Platform</h3>
           <ul className="list-disc pl-6 space-y-1.5 text-slate-400">
-            <li><strong className="text-slate-200">Check CryptoKiller first</strong> — Search our investigation database at <a href="/" className="text-red-400 hover:text-red-300 underline underline-offset-2">cryptokiller.com</a> to see if the platform has been flagged</li>
+            <li><strong className="text-slate-200">Check CryptoKiller first</strong> — Search our investigation database at <a href="/" className="text-red-400 hover:text-red-300 underline underline-offset-2">cryptokiller.org</a> to see if the platform has been flagged</li>
             <li><strong className="text-slate-200">Verify regulatory registration</strong> — Check if the platform is registered with your country&rsquo;s financial regulator (FCA, SEC, ASIC, etc.). A legitimate platform will prominently display its registration number</li>
             <li><strong className="text-slate-200">Search for reviews independently</strong> — Look for reviews on multiple independent sites, not just testimonials on the platform&rsquo;s own website (which are almost always fabricated)</li>
             <li><strong className="text-slate-200">Research the team</strong> — Verify that the people behind the platform are real, with verifiable LinkedIn profiles and professional histories. Stock photos and AI-generated faces are common red flags</li>

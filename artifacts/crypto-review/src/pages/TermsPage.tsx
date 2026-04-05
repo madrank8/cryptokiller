@@ -229,7 +229,7 @@ export default function TermsPage() {
             <p className="text-slate-400 text-sm">150 Beach Rd., Level 35 Gateway West</p>
             <p className="text-slate-400 text-sm">Singapore 189720</p>
             <p className="text-slate-400 text-sm mt-2">
-              Email: <a href="mailto:legal@cryptokiller.com" className="text-red-400 hover:text-red-300 underline underline-offset-2">legal@cryptokiller.com</a>
+              Email: <a href="mailto:legal@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">legal@cryptokiller.org</a>
             </p>
           </div>
         </div>
