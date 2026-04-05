@@ -587,6 +587,19 @@ function ReviewContent({ slug }: { slug: string }) {
         wordCount: review.wordCount || undefined,
         timeRequired: review.readingMinutes ? `PT${review.readingMinutes}M` : undefined,
       },
+      {
+        "@type": "NewsArticle",
+        "@id": `${pageUrl}#newsarticle`,
+        headline: `${review.platformName} Scam Investigation`,
+        description: `Is ${review.platformName} a scam? CryptoKiller investigation with threat score, ad evidence, and victim reports.`,
+        url: pageUrl,
+        author: { "@type": "Organization", name: "CryptoKiller Research Team", url: "https://cryptokiller.org/about" },
+        publisher: { "@id": "https://cryptokiller.org/#organization" },
+        datePublished: review.investigationDate,
+        dateModified: review.investigationDate,
+        mainEntityOfPage: `https://cryptokiller.org/review/${slug}`,
+        inLanguage: "en",
+      },
     ];
 
     if (review.faqItems && review.faqItems.length > 0) {

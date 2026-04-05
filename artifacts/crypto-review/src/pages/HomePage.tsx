@@ -449,7 +449,7 @@ export default function HomePage() {
         mainEntity: [
           {
             "@type": "Question",
-            name: "How does CryptoKiller detect crypto scams?",
+            name: "How do I know if a crypto platform is a scam?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "CryptoKiller monitors social media ad platforms across 84+ countries 24/7, detecting crypto scam campaigns in real time. Machine learning identifies celebrity impersonation, geo-targeting patterns, ad velocity surges, and other scam indicators. We then publish comprehensive reviews with threat scores, evidence, and actionable advice."
@@ -457,7 +457,7 @@ export default function HomePage() {
           },
           {
             "@type": "Question",
-            name: "Are CryptoKiller threat scores reliable?",
+            name: "What is a crypto threat score and how is it calculated?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "Threat scores are based on verifiable ad evidence from platforms like Meta Ad Library and Google Ads Transparency — never paid placements. Every investigation is authored by a named analyst, and corrections are published within 24 hours with a full changelog."
@@ -465,7 +465,7 @@ export default function HomePage() {
           },
           {
             "@type": "Question",
-            name: "What should I do if I've been scammed?",
+            name: "What should I do immediately after losing money to a crypto scam?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "Act within 72 hours: (1) Stop all contact and do not send more funds, (2) Screenshot everything — chats, wallet addresses, transaction IDs, URLs, (3) Report officially to FBI IC3 (ic3.gov), FTC (reportfraud.ftc.gov), or Chainalysis, (4) Submit intelligence to CryptoKiller to warn others and help investigators."
@@ -473,7 +473,7 @@ export default function HomePage() {
           },
           {
             "@type": "Question",
-            name: "Does CryptoKiller offer recovery services?",
+            name: "Can I recover money lost to a crypto scam?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "No. CryptoKiller does not offer recovery services and charges no fees to victims. Avoid 'crypto recovery' services charging upfront fees — they are almost always a second scam targeting victims. The FTC warns against all upfront-fee recovery services."
@@ -481,7 +481,7 @@ export default function HomePage() {
           },
           {
             "@type": "Question",
-            name: "Is CryptoKiller content financial or legal advice?",
+            name: "Is this crypto platform regulated or licensed?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "No. CryptoKiller content is for informational purposes only and does not constitute legal or financial advice. Threat scores reflect available evidence at time of publication. CryptoKiller cannot be paid to remove or modify scam listings. Our threat scores are editorially independent."
