@@ -334,7 +334,9 @@ function WarningBanner() {
 }
 
 export default function HomePage() {
-  const { data: reviews, isLoading, error } = useListReviews();
+  const { data: reviews, isLoading, error } = useListReviews({
+    query: { refetchInterval: 60_000 },
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-900 selection:text-white">
