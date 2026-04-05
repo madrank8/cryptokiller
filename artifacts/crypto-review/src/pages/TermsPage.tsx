@@ -235,6 +235,7 @@ export default function TermsPage() {
         </div>
 
         <div className="border-t border-slate-800 mt-16 pt-8 pb-6 flex flex-wrap gap-4 text-sm text-slate-500">
+          <a href="/recovery" className="hover:text-white transition-colors">Recovery Guide</a>
           <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
           <a href="/terms" className="hover:text-white transition-colors text-white">Terms of Service</a>
           <a href="/about" className="hover:text-white transition-colors">About</a>
