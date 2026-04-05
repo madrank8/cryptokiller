@@ -926,15 +926,11 @@ export default function ReviewPage() {
             Your report helps warn others and builds the evidence trail against this operation. If you've lost money, act quickly — chargebacks are time-sensitive.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-            <a href="/report">
-              <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 w-full sm:w-auto">
-                Report Your Experience
-              </Button>
+            <a href="/report" className="inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto transition-colors">
+              Report Your Experience
             </a>
-            <a href="/recovery">
-              <Button size="lg" variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800 w-full sm:w-auto">
-                Get Recovery Guidance
-              </Button>
+            <a href="/recovery" className="inline-flex items-center justify-center rounded-md text-sm font-medium h-11 px-8 border border-slate-600 text-slate-200 hover:bg-slate-800 w-full sm:w-auto transition-colors">
+              Get Recovery Guidance
             </a>
           </div>
           <p className="text-xs text-slate-500 max-w-xl mx-auto">

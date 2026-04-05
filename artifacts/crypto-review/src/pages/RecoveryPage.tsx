@@ -31,7 +31,7 @@ export default function RecoveryPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-900 selection:text-white">
-      <SiteHeader activeNav="" />
+      <SiteHeader activeNav="recovery" />
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
         <div className="mb-10">
