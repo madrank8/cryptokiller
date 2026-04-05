@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const WHATSAPP_URL =
-  "https://wa.me/[YOUR_NUMBER]?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform";
+  "https://wa.me/14155238886?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform";
 
 export default function WhatsAppFloatingButton() {
   const [hovered, setHovered] = useState(false);

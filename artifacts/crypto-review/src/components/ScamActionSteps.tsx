@@ -112,7 +112,7 @@ export default function ScamActionSteps() {
             Send us a message on WhatsApp to check any crypto platform or report a scam — we respond fast.
           </p>
           <a
-            href="https://wa.me/[YOUR_NUMBER]?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
+            href="https://wa.me/14155238886?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors"

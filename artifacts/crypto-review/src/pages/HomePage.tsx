@@ -173,7 +173,7 @@ function HeroSection() {
         </p>
 
         <a
-          href="https://wa.me/[YOUR_NUMBER]?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
+          href="https://wa.me/14155238886?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
           target="_blank"
           rel="noopener noreferrer"
           className="block mt-6 text-sm text-[#25D366]/70 hover:text-[#25D366] transition-colors"
@@ -433,7 +433,7 @@ export default function HomePage() {
           "DeFi Fraud"
         ],
         sameAs: [
-          "https://wa.me/YOUR_NUMBER",
+          "https://wa.me/14155238886",
           "https://twitter.com/cryptokiller",
           "https://t.me/cryptokiller"
         ],
@@ -443,7 +443,7 @@ export default function HomePage() {
           availableLanguage: "English",
           contactOption: "TollFree",
           areaServed: "Worldwide",
-          url: "https://wa.me/YOUR_NUMBER",
+          url: "https://wa.me/14155238886",
         },
         address: {
           "@type": "PostalAddress",
@@ -570,7 +570,7 @@ export default function HomePage() {
             <p className="text-xs text-slate-600">© {new Date().getFullYear()} CryptoKiller. All investigations are for informational purposes only.</p>
             <div className="flex items-center gap-4">
               <a
-                href="https://wa.me/YOUR_NUMBER"
+                href="https://wa.me/14155238886"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-green-400 transition-colors"
