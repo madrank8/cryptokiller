@@ -11,6 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
+import TrustBar from "@/components/TrustBar";
+import ResearchTeam from "@/components/ResearchTeam";
 
 const GridBg = () => (
   <div
@@ -381,10 +383,12 @@ export default function HomePage() {
       <SiteHeader activeNav="home" />
       <LiveFeedTicker reviews={reviews ?? []} />
       <HeroSection />
+      <TrustBar />
       <TrendingScams reviews={reviews} isLoading={isLoading} />
       <LatestReviews reviews={reviews} />
       <WarningBanner />
       <HowItWorks />
+      <ResearchTeam />
 
       <footer className="border-t border-slate-800 bg-slate-950 py-12">
         <div className="container mx-auto px-4 max-w-6xl">

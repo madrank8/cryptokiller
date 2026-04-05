@@ -190,3 +190,11 @@
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
