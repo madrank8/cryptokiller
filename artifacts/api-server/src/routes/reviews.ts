@@ -10,6 +10,7 @@ import {
   faqItemsTable,
   keyFindingsTable,
   geoTargetsTable,
+  blogPostsTable,
 } from "@workspace/db";
 import { logger } from "../lib/logger";
 
@@ -185,14 +186,24 @@ function escapeXml(s: string): string {
 }
 
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
-  const rows = await db
-    .select({
-      slug: reviewsTable.slug,
-      investigationDate: reviewsTable.investigationDate,
-    })
-    .from(reviewsTable)
-    .where(eq(reviewsTable.status, "published"))
-    .orderBy(desc(reviewsTable.investigationDate));
+  const [rows, blogRows] = await Promise.all([
+    db
+      .select({
+        slug: reviewsTable.slug,
+        investigationDate: reviewsTable.investigationDate,
+      })
+      .from(reviewsTable)
+      .where(eq(reviewsTable.status, "published"))
+      .orderBy(desc(reviewsTable.investigationDate)),
+    db
+      .select({
+        slug: blogPostsTable.slug,
+        updatedAt: blogPostsTable.updatedAt,
+      })
+      .from(blogPostsTable)
+      .where(eq(blogPostsTable.status, "published"))
+      .orderBy(desc(blogPostsTable.publishedAt)),
+  ]);
 
   const ITEMS_PER_PAGE = 20;
   const investigationPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
@@ -200,6 +211,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const staticPages = [
     { loc: "/", changefreq: "daily", priority: "1.0" },
     { loc: "/investigations", changefreq: "daily", priority: "0.9" },
+    { loc: "/blog", changefreq: "daily", priority: "0.8" },
     { loc: "/report", changefreq: "monthly", priority: "0.7" },
     { loc: "/about", changefreq: "monthly", priority: "0.6" },
     { loc: "/recovery", changefreq: "monthly", priority: "0.7" },
@@ -226,9 +238,16 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
   }
 
+  for (const b of blogRows) {
+    const lastmod = b.updatedAt ? new Date(b.updatedAt).toISOString().split("T")[0] : "";
+    xml += `  <url>\n    <loc>${base}/blog/${escapeXml(b.slug)}</loc>\n`;
+    if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+  }
+
   xml += `</urlset>`;
 
-  res.set("Content-Type", "application/xml");
+  res.set("Content-Type", "application/xml; charset=utf-8");
   res.set("Cache-Control", "public, max-age=3600");
   res.send(xml);
 });
