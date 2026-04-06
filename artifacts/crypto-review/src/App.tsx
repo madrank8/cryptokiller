@@ -10,6 +10,7 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import RecoveryPage from "@/pages/RecoveryPage";
 import InvestigationsPage from "@/pages/InvestigationsPage";
+import BlogPostPage from "@/pages/BlogPostPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/" component={() => <HomePage />} />
       <Route path="/investigations" component={() => <InvestigationsPage />} />
       <Route path="/review/:slug" component={() => <ReviewPage />} />
+      <Route path="/blog/:slug" component={() => <BlogPostPage />} />
       <Route path="/report" component={() => <ReportPage />} />
       <Route path="/about" component={() => <AboutPage />} />
       <Route path="/privacy" component={() => <PrivacyPage />} />

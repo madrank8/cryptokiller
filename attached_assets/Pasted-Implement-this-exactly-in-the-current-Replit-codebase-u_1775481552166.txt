@@ -1,0 +1,84 @@
+Implement this exactly in the current Replit codebase (use existing framework/patterns and existing DB models).
+
+Objective:
+Add authenticated topical-content sync endpoints so Vercel can publish to /blog/:slug.
+
+Do not change existing /api/sync/review behavior.
+
+Required endpoints (same handler):
+- POST /api/sync/blog
+- POST /api/sync/content
+- POST /api/sync/post
+
+Auth:
+- Expect header: Authorization: Bearer <SYNC_SECRET>
+- Compare to process.env.SYNC_SECRET
+- Return 401 JSON { "error": "Unauthorized" } if invalid
+
+Payload:
+{
+  "content": {
+    "id": "...",
+    "topic_id": "...",
+    "content_type": "...",
+    "title": "...",
+    "headline": "...",
+    "slug": "...",
+    "meta_description": "...",
+    "summary": "...",
+    "full_article": "...",
+    "sections": [],
+    "faq": [],
+    "internal_links": [],
+    "sources": [],
+    "word_count": 0,
+    "status": "draft|published",
+    "published_at": "...",
+    "updated_at": "..."
+  },
+  "topic": {
+    "id": "...",
+    "title": "...",
+    "target_keyword": "...",
+    "content_type": "...",
+    "priority_score": 0,
+    "search_volume": 0,
+    "keyword_difficulty": 0
+  },
+  "destination": "blog",
+  "url": "/blog/<slug>"
+}
+
+Rules:
+1) Validate payload/content/slug; return 400 on missing values.
+2) Upsert by slug:
+   - existing slug => update post
+   - new slug => create post
+3) Map fields into blog post store:
+   - title/headline/slug/meta_description/summary/full_article
+   - faq/sources/internal_links
+   - topic metadata
+4) Publication behavior:
+   - if content.status === "published": publish/visible
+   - else keep as draft/unpublished
+5) Return 200 JSON:
+{
+  "success": true,
+  "slug": "<slug>",
+  "url": "https://cryptokiller.org/blog/<slug>",
+  "post_id": "<id>",
+  "action": "created|updated"
+}
+
+Public route:
+- Ensure GET /blog/:slug renders synced posts correctly.
+- Use title/meta_description for page metadata/SEO.
+
+Deliverables:
+- Implement code changes only (no placeholders)
+- Reuse existing coding style and data layer
+- Print at end:
+  - files changed
+  - endpoint list
+  - required env vars
+  - 3 curl examples (create/update/unauthorized)
