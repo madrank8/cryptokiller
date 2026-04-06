@@ -10,6 +10,7 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import RecoveryPage from "@/pages/RecoveryPage";
 import InvestigationsPage from "@/pages/InvestigationsPage";
+import BlogPage from "@/pages/BlogPage";
 import BlogPostPage from "@/pages/BlogPostPage";
 import NotFound from "@/pages/not-found";
 
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={() => <HomePage />} />
       <Route path="/investigations" component={() => <InvestigationsPage />} />
       <Route path="/review/:slug" component={() => <ReviewPage />} />
+      <Route path="/blog" component={() => <BlogPage />} />
       <Route path="/blog/:slug" component={() => <BlogPostPage />} />
       <Route path="/report" component={() => <ReportPage />} />
       <Route path="/about" component={() => <AboutPage />} />

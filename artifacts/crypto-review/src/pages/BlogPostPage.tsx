@@ -75,7 +75,7 @@ export default function BlogPostPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300">
-      <SiteHeader activeNav="" />
+      <SiteHeader activeNav="blog" />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <Breadcrumbs items={crumbs} />
 
