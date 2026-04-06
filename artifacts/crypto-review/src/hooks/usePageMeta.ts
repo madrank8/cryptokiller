@@ -9,13 +9,15 @@ interface PageMeta {
   jsonLd?: Record<string, unknown>;
   author?: string;
   robots?: string;
+  prevPage?: string;
+  nextPage?: string;
 }
 
 const SITE_NAME = "CryptoKiller";
 const BASE_URL = "https://cryptokiller.org";
 const DEFAULT_IMAGE = `${BASE_URL}/opengraph.jpg`;
 
-export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots }: PageMeta) {
+export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage }: PageMeta) {
   useEffect(() => {
     const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
     document.title = fullTitle;
@@ -32,6 +34,9 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
 
     if (author) setMeta("author", author);
     if (robots) setMeta("robots", robots);
+
+    setLink("prev", prevPage);
+    setLink("next", nextPage);
 
     const linkCanonical = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
     if (linkCanonical) {
@@ -62,8 +67,25 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
         const robotsEl = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
         if (robotsEl) robotsEl.content = "index, follow";
       }
+      setLink("prev", undefined);
+      setLink("next", undefined);
     };
-  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots]);
+  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage]);
+}
+
+function setLink(rel: string, href: string | undefined) {
+  let el = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"][data-page-link]`);
+  if (href) {
+    if (!el) {
+      el = document.createElement("link");
+      el.rel = rel;
+      el.setAttribute("data-page-link", "true");
+      document.head.appendChild(el);
+    }
+    el.href = href;
+  } else if (el) {
+    el.remove();
+  }
 }
 
 function setMeta(key: string, value: string, isProperty = false) {

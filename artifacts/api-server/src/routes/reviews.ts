@@ -194,6 +194,9 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     .where(eq(reviewsTable.status, "published"))
     .orderBy(desc(reviewsTable.investigationDate));
 
+  const ITEMS_PER_PAGE = 20;
+  const investigationPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
+
   const staticPages = [
     { loc: "/", changefreq: "daily", priority: "1.0" },
     { loc: "/investigations", changefreq: "daily", priority: "0.9" },
@@ -210,6 +213,10 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
 
   for (const p of staticPages) {
     xml += `  <url>\n    <loc>${base}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>\n`;
+  }
+
+  for (let page = 2; page <= investigationPages; page++) {
+    xml += `  <url>\n    <loc>${base}/investigations?page=${page}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
   }
 
   for (const r of rows) {

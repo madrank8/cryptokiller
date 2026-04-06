@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useListReviews } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { ReviewSummary } from "@workspace/api-client-react";
@@ -17,7 +17,22 @@ type SortKey = "threatScore" | "newest" | "adCreatives" | "countriesTargeted" | 
 type ThreatFilter = "all" | "critical" | "high" | "medium" | "low";
 type ViewMode = "grid" | "list";
 
-const ITEMS_PER_PAGE = 24;
+const ITEMS_PER_PAGE = 20;
+const BASE = "https://cryptokiller.org";
+
+function getPageFromUrl(): number {
+  const params = new URLSearchParams(window.location.search);
+  const p = parseInt(params.get("page") || "1", 10);
+  return Number.isFinite(p) && p >= 1 ? p : 1;
+}
+
+function pageUrl(page: number): string {
+  return page <= 1 ? "/investigations" : `/investigations?page=${page}`;
+}
+
+function canonicalUrl(page: number): string {
+  return page <= 1 ? `${BASE}/investigations` : `${BASE}/investigations?page=${page}`;
+}
 
 function getThreatLevel(score: number): { label: string; color: string; bg: string; border: string } {
   if (score >= 90) return { label: "Critical", color: "text-red-400", bg: "bg-red-600", border: "border-red-600/30" };
@@ -163,23 +178,17 @@ export default function InvestigationsPage() {
     query: { refetchInterval: 60_000 },
   });
 
-  const crumbs = [
-    { label: "Home", href: "https://cryptokiller.org/" },
-    { label: "Scam Investigations", href: "https://cryptokiller.org/investigations" },
-  ];
-
-  usePageMeta({
-    title: "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
-    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
-    canonical: "https://cryptokiller.org/investigations",
-    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
-  });
-
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("threatScore");
   const [threatFilter, setThreatFilter] = useState<ThreatFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(getPageFromUrl);
+
+  useEffect(() => {
+    const onPopState = () => setCurrentPage(getPageFromUrl());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const filtered = useMemo(() => {
     if (!reviews) return [];
@@ -216,19 +225,63 @@ export default function InvestigationsPage() {
     return result;
   }, [reviews, searchQuery, sortBy, threatFilter]);
 
+  const dataLoaded = filtered.length > 0 || (reviews && reviews.length === 0);
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const clampedPage = Math.min(currentPage, totalPages);
-  if (clampedPage !== currentPage) setCurrentPage(clampedPage);
+  const clampedPage = dataLoaded ? Math.min(currentPage, totalPages) : currentPage;
   const paged = filtered.slice((clampedPage - 1) * ITEMS_PER_PAGE, clampedPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (dataLoaded && clampedPage !== currentPage) {
+      setCurrentPage(clampedPage);
+      window.history.replaceState(null, "", pageUrl(clampedPage));
+    }
+  }, [dataLoaded, clampedPage, currentPage]);
+
+  const navigateToPage = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.history.pushState(null, "", pageUrl(page));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const resetToPage1 = useCallback(() => {
+    setCurrentPage(1);
+    window.history.replaceState(null, "", pageUrl(1));
+  }, []);
+
+  const handlePaginationClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, page: number) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    if (page === clampedPage) return;
+    navigateToPage(page);
+  }, [clampedPage, navigateToPage]);
+
+  const crumbs = [
+    { label: "Home", href: `${BASE}/` },
+    { label: "Scam Investigations", href: canonicalUrl(clampedPage) },
+  ];
+
+  const prevHref = clampedPage > 1 ? canonicalUrl(clampedPage - 1) : undefined;
+  const nextHref = clampedPage < totalPages ? canonicalUrl(clampedPage + 1) : undefined;
+
+  usePageMeta({
+    title: clampedPage > 1
+      ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
+      : "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
+    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
+    canonical: canonicalUrl(clampedPage),
+    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    prevPage: prevHref,
+    nextPage: nextHref,
+  });
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
+    resetToPage1();
   };
 
   const handleFilterChange = (value: ThreatFilter) => {
     setThreatFilter(value);
-    setCurrentPage(1);
+    resetToPage1();
   };
 
   const threatCounts = useMemo(() => {
@@ -418,17 +471,23 @@ export default function InvestigationsPage() {
             )}
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-10">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Previous
-                </button>
+              <nav aria-label="Pagination" className="flex items-center justify-center gap-2 mt-10">
+                {clampedPage > 1 ? (
+                  <a
+                    href={pageUrl(clampedPage - 1)}
+                    onClick={(e) => handlePaginationClick(e, clampedPage - 1)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" /> Previous
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 text-slate-400 opacity-30 cursor-not-allowed">
+                    <ChevronLeft className="h-4 w-4" /> Previous
+                  </span>
+                )}
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - clampedPage) <= 2)
                   .reduce<(number | "ellipsis")[]>((acc, p, i, arr) => {
                     if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("ellipsis");
                     acc.push(p);
@@ -438,29 +497,36 @@ export default function InvestigationsPage() {
                     item === "ellipsis" ? (
                       <span key={`e-${i}`} className="text-slate-600 px-1">…</span>
                     ) : (
-                      <button
+                      <a
                         key={item}
-                        onClick={() => setCurrentPage(item as number)}
+                        href={pageUrl(item as number)}
+                        onClick={(e) => handlePaginationClick(e, item as number)}
                         aria-current={clampedPage === item ? "page" : undefined}
-                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors flex items-center justify-center ${
                           clampedPage === item
                             ? "bg-red-600 text-white"
                             : "text-slate-400 hover:text-white hover:bg-slate-800"
                         }`}
                       >
                         {item}
-                      </button>
+                      </a>
                     )
                   )}
 
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+                {clampedPage < totalPages ? (
+                  <a
+                    href={pageUrl(clampedPage + 1)}
+                    onClick={(e) => handlePaginationClick(e, clampedPage + 1)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                  >
+                    Next <ChevronRight className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 text-slate-400 opacity-30 cursor-not-allowed">
+                    Next <ChevronRight className="h-4 w-4" />
+                  </span>
+                )}
+              </nav>
             )}
           </>
         )}
