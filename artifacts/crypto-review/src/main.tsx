@@ -7,7 +7,7 @@ if (
   !sessionStorage.getItem("ck_sitemap_pinged")
 ) {
   fetch(
-    "https://www.google.com/ping?sitemap=https://cryptokiller.org/sitemap.xml",
+    "https://www.google.com/ping?sitemap=https://cryptokiller.org/api/sitemap.xml",
     { mode: "no-cors" }
   ).catch(() => {});
   sessionStorage.setItem("ck_sitemap_pinged", "1");

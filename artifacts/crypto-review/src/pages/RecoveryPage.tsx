@@ -394,6 +394,7 @@ export default function RecoveryPage() {
               <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
               <a href="/report" className="hover:text-white transition-colors">Report a Scam</a>
+              <a href="/api/sitemap.xml" className="hover:text-white transition-colors">Sitemap</a>
             </div>
           </div>
           <div className="border-t border-slate-800 pt-6">

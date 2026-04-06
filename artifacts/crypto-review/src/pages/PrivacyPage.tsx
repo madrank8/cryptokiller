@@ -287,6 +287,7 @@ export default function PrivacyPage() {
               <a href="/recovery" className="hover:text-white transition-colors">Recovery Guide</a>
               <a href="/privacy" className="hover:text-white transition-colors text-white">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="/api/sitemap.xml" className="hover:text-white transition-colors">Sitemap</a>
             </div>
           </div>
           <div className="border-t border-slate-800 pt-6">

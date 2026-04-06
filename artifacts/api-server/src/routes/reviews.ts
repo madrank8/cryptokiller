@@ -222,6 +222,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   xml += `</urlset>`;
 
   res.set("Content-Type", "application/xml");
+  res.set("Cache-Control", "public, max-age=3600");
   res.send(xml);
 });
 

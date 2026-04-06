@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Allow: /api/sitemap.xml
 Disallow: /api/
-Sitemap: https://cryptokiller.org/sitemap.xml
+Sitemap: https://cryptokiller.org/api/sitemap.xml

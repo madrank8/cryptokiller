@@ -1152,6 +1152,7 @@ function ReviewContent({ slug }: { slug: string }) {
               <a href="/recovery" className="hover:text-white transition-colors">Recovery Guide</a>
               <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="/api/sitemap.xml" className="hover:text-white transition-colors">Sitemap</a>
             </div>
           </div>
           <Separator className="bg-slate-800 mb-6" />
