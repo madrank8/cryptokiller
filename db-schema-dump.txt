@@ -1,0 +1,81 @@
+table_name,column_name,data_type,is_nullable,column_default
+faq_items,id,integer,NO,nextval('faq_items_id_seq'::regclass)
+faq_items,review_id,integer,NO,
+faq_items,question,text,NO,
+faq_items,answer,text,NO,
+faq_items,order_index,integer,NO,0
+faq_items,created_at,timestamp with time zone,NO,now()
+funnel_stages,id,integer,NO,nextval('funnel_stages_id_seq'::regclass)
+funnel_stages,review_id,integer,NO,
+funnel_stages,stage_number,integer,NO,
+funnel_stages,title,text,NO,
+funnel_stages,description,text,NO,''::text
+funnel_stages,stat_value,text,NO,''::text
+funnel_stages,stat_label,text,NO,''::text
+funnel_stages,bullets,ARRAY,NO,'{}'::text[]
+funnel_stages,created_at,timestamp with time zone,NO,now()
+geo_targets,id,integer,NO,nextval('geo_targets_id_seq'::regclass)
+geo_targets,review_id,integer,NO,
+geo_targets,region,text,NO,
+geo_targets,country_codes,text,NO,
+geo_targets,order_index,integer,NO,0
+geo_targets,created_at,timestamp with time zone,NO,now()
+key_findings,id,integer,NO,nextval('key_findings_id_seq'::regclass)
+key_findings,review_id,integer,NO,
+key_findings,content,text,NO,
+key_findings,order_index,integer,NO,0
+key_findings,created_at,timestamp with time zone,NO,now()
+platforms,id,integer,NO,nextval('platforms_id_seq'::regclass)
+platforms,name,text,NO,
+platforms,slug,text,NO,
+platforms,created_at,timestamp with time zone,NO,now()
+platforms,updated_at,timestamp with time zone,NO,now()
+red_flags,id,integer,NO,nextval('red_flags_id_seq'::regclass)
+red_flags,review_id,integer,NO,
+red_flags,emoji,text,NO,'🚩'::text
+red_flags,title,text,NO,
+red_flags,description,text,NO,
+red_flags,order_index,integer,NO,0
+red_flags,created_at,timestamp with time zone,NO,now()
+review_stats,id,integer,NO,nextval('review_stats_id_seq'::regclass)
+review_stats,review_id,integer,NO,
+review_stats,ad_creatives,integer,NO,0
+review_stats,countries_targeted,integer,NO,0
+review_stats,days_active,integer,NO,0
+review_stats,celebrities_abused,integer,NO,0
+review_stats,weekly_velocity,integer,NO,0
+review_stats,first_detected,text,NO,''::text
+review_stats,last_active,text,NO,''::text
+review_stats,created_at,timestamp with time zone,NO,now()
+review_stats,celebrity_names,ARRAY,NO,'{}'::text[]
+reviews,id,integer,NO,nextval('reviews_id_seq'::regclass)
+reviews,platform_id,integer,NO,
+reviews,slug,text,NO,
+reviews,status,text,NO,'draft'::text
+reviews,threat_score,integer,NO,0
+reviews,verdict,text,NO,''::text
+reviews,summary,text,NO,''::text
+reviews,hero_description,text,NO,''::text
+reviews,warning_callout,text,NO,''::text
+reviews,investigation_date,timestamp with time zone,NO,now()
+reviews,methodology_text,text,NO,''::text
+reviews,disclaimer_text,text,NO,''::text
+reviews,word_count,integer,NO,0
+reviews,reading_minutes,integer,NO,0
+reviews,author,text,NO,'Crypto Killer Research Team'::text
+reviews,created_at,timestamp with time zone,NO,now()
+reviews,updated_at,timestamp with time zone,NO,now()
+reviews,meta_description,text,NO,''::text
+scam_reports,id,integer,NO,nextval('scam_reports_id_seq'::regclass)
+scam_reports,platform_name,text,NO,
+scam_reports,platform_url,text,NO,''::text
+scam_reports,scam_type,text,NO,'crypto_investment'::text
+scam_reports,description,text,NO,
+scam_reports,amount_lost,text,NO,''::text
+scam_reports,currency,text,NO,'USD'::text
+scam_reports,contact_method,text,NO,''::text
+scam_reports,country,text,NO,''::text
+scam_reports,evidence_urls,text,NO,''::text
+scam_reports,reporter_email,text,NO,''::text
+scam_reports,status,text,NO,'new'::text
+scam_reports,created_at,timestamp with time zone,NO,now()
