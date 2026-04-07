@@ -212,6 +212,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     { loc: "/", changefreq: "daily", priority: "1.0" },
     { loc: "/investigations", changefreq: "daily", priority: "0.9" },
     { loc: "/blog", changefreq: "daily", priority: "0.8" },
+    { loc: "/methodology", changefreq: "monthly", priority: "0.8" },
     { loc: "/report", changefreq: "monthly", priority: "0.7" },
     { loc: "/about", changefreq: "monthly", priority: "0.6" },
     { loc: "/recovery", changefreq: "monthly", priority: "0.7" },

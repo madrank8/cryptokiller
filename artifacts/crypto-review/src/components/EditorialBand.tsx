@@ -35,7 +35,7 @@ export default function EditorialBand() {
               ))}
             </ul>
             <a
-              href="/about"
+              href="/methodology"
               className="text-sm text-slate-400 hover:text-white font-medium transition-colors"
             >
               Read Full Methodology →

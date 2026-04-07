@@ -727,7 +727,7 @@ function ReviewContent({ slug }: { slug: string }) {
             )}
             <div className="flex items-center gap-1.5">
               <User className="h-4 w-4 text-slate-500" />
-              <span>CryptoKiller Research Team · <a href="/about" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></span>
+              <span>CryptoKiller Research Team · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></span>
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="h-4 w-4 text-slate-500" />
@@ -738,13 +738,13 @@ function ReviewContent({ slug }: { slug: string }) {
           <div className="mb-8 space-y-1.5">
             <p className="text-xs text-slate-500">
               Reviewed by our editorial team · Methodology:{" "}
-              <a href="/about" className="text-slate-400 hover:text-slate-200 underline decoration-dotted underline-offset-2 transition-colors">
+              <a href="/methodology" className="text-slate-400 hover:text-slate-200 underline decoration-dotted underline-offset-2 transition-colors">
                 cryptokiller.org/methodology
               </a>
             </p>
             <p className="text-xs text-slate-500">
               All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency.{" "}
-              <a href="/about" className="text-red-400 hover:text-red-300 font-semibold transition-colors">
+              <a href="/methodology" className="text-red-400 hover:text-red-300 font-semibold transition-colors">
                 How we investigate →
               </a>
             </p>
@@ -1053,7 +1053,7 @@ function ReviewContent({ slug }: { slug: string }) {
               </CardContent>
 
               <CardFooter className="border-t border-slate-800 pt-4 pb-4 block">
-                <p className="text-xs text-slate-500 mb-3">Reviewed by CryptoKiller Research Team · <a href="/about" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></p>
+                <p className="text-xs text-slate-500 mb-3">Reviewed by CryptoKiller Research Team · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></p>
                 <Button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold" size="sm">
                   Report Your Experience
                 </Button>

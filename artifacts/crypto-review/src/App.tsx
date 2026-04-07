@@ -12,6 +12,7 @@ import RecoveryPage from "@/pages/RecoveryPage";
 import InvestigationsPage from "@/pages/InvestigationsPage";
 import BlogPage from "@/pages/BlogPage";
 import BlogPostPage from "@/pages/BlogPostPage";
+import MethodologyPage from "@/pages/MethodologyPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/about" component={() => <AboutPage />} />
       <Route path="/privacy" component={() => <PrivacyPage />} />
       <Route path="/terms" component={() => <TermsPage />} />
+      <Route path="/methodology" component={() => <MethodologyPage />} />
       <Route path="/recovery" component={() => <RecoveryPage />} />
       <Route component={NotFound} />
     </Switch>
