@@ -4,6 +4,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { Calendar, Clock, ArrowLeft, ExternalLink, BookOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 interface BlogPost {
@@ -209,9 +210,7 @@ export default function BlogPostPage() {
         )}
       </main>
 
-      <footer className="border-t border-slate-800 mt-16 py-8 text-center text-sm text-slate-600">
-        <p>&copy; {new Date().getFullYear()} CryptoKiller. All rights reserved.</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

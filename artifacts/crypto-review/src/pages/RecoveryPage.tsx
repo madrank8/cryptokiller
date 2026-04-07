@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Shield } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
@@ -379,32 +380,7 @@ export default function RecoveryPage() {
         </div>
       </main>
 
-      <footer className="border-t border-slate-800 bg-slate-950 py-10">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-slate-600" />
-              <span className="text-lg font-bold text-slate-400">
-                Crypto<span className="text-slate-600">Killer</span>
-              </span>
-              <span className="text-slate-600 text-sm">Scam Intelligence</span>
-            </div>
-            <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
-              <a href="/methodology" className="hover:text-white transition-colors">Methodology</a>
-              <a href="/recovery" className="hover:text-white transition-colors text-white">Recovery Guide</a>
-              <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="/report" className="hover:text-white transition-colors">Report a Scam</a>
-              <a href="/api/sitemap.xml" className="hover:text-white transition-colors">Sitemap</a>
-            </div>
-          </div>
-          <div className="border-t border-slate-800 pt-6">
-            <p className="text-xs text-slate-600 text-center leading-relaxed max-w-4xl mx-auto">
-              &copy; {new Date().getFullYear()} CryptoKiller. All rights reserved. This guide is for informational purposes only and does not constitute legal or financial advice.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 const scamTypes = [
@@ -428,6 +429,8 @@ export default function ReportPage() {
           </div>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

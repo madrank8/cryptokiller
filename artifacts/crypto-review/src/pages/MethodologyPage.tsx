@@ -4,6 +4,7 @@ import {
   Users, Database, ArrowRight, Mail, RefreshCw, Ban
 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
@@ -447,6 +448,8 @@ export default function MethodologyPage() {
           </p>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

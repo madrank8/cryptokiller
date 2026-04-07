@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
@@ -1137,31 +1138,7 @@ function ReviewContent({ slug }: { slug: string }) {
 
       </main>
 
-      {/* FOOTER */}
-      <footer className="border-t border-slate-800 bg-slate-950 py-10">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-slate-600" />
-              <span className="text-lg font-bold text-slate-400">
-                Crypto<span className="text-slate-600">Killer</span>
-              </span>
-              <span className="text-slate-600 text-sm">Scam Intelligence</span>
-            </div>
-            <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
-              <a href="/methodology" className="hover:text-white transition-colors">Methodology</a>
-              <a href="/recovery" className="hover:text-white transition-colors">Recovery Guide</a>
-              <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="/api/sitemap.xml" className="hover:text-white transition-colors">Sitemap</a>
-            </div>
-          </div>
-          <Separator className="bg-slate-800 mb-6" />
-          <p className="text-xs text-slate-600 text-center leading-relaxed max-w-4xl mx-auto">
-            © 2026 CryptoKiller. All rights reserved. CryptoKiller provides investigation reports for informational purposes only.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
 
     </div>
   );

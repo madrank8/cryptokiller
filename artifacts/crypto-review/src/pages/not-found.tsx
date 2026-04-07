@@ -1,6 +1,7 @@
 import { AlertCircle } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 export default function NotFound() {
   usePageMeta({
@@ -25,6 +26,7 @@ export default function NotFound() {
           </a>
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

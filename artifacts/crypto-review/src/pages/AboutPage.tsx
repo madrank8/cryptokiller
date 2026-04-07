@@ -3,6 +3,7 @@ import {
   TrendingUp, MapPin, ShieldCheck, Mail
 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
@@ -278,6 +279,8 @@ export default function AboutPage() {
           </p>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }
