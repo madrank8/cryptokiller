@@ -5,6 +5,7 @@ import { Calendar, Clock, ArrowLeft, ExternalLink, BookOpen } from "lucide-react
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 
 interface BlogPost {
@@ -206,6 +207,8 @@ export default function BlogPostPage() {
                 </ul>
               </section>
             )}
+
+            <AuthorBox />
           </article>
         )}
       </main>
