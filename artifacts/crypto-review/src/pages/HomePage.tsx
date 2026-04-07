@@ -559,6 +559,7 @@ export default function HomePage() {
                 { label: "Report a Scam", href: "/report" },
                 { label: "Recovery Guide", href: "/recovery" },
                 { label: "About", href: "/about" },
+                { label: "Methodology", href: "/methodology" },
                 { label: "Privacy Policy", href: "/privacy" },
                 { label: "Terms of Service", href: "/terms" },
                 { label: "Sitemap", href: "/api/sitemap.xml" },

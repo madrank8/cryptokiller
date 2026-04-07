@@ -545,6 +545,7 @@ export default function InvestigationsPage() {
               <span className="text-slate-600 text-sm">Scam Intelligence</span>
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
+              <a href="/methodology" className="hover:text-white transition-colors">Methodology</a>
               <a href="/recovery" className="hover:text-white transition-colors">Recovery Guide</a>
               <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
