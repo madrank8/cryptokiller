@@ -1,0 +1,16 @@
+Wire AuthorBox component into blog post pages with real persona data from Supabase.
+CONTEXT: The AuthorBox component (artifacts/crypto-review/src/components/AuthorBox.tsx) was built in Task #13 but never connected to data. Blog posts in local DB have NO author fields. Persona data lives in Supabase content table in the ai_audit JSONB column under ai_audit.writer_persona with structure {id, name, title, model}.
+Three writer personas (create a WRITER_PERSONAS lookup map in a new utils file):
+
+webb: {name: "M. Webb", initials: "MW", role: "Lead Threat Analyst", credentials: "Blockchain Forensics · 9 yrs", specialties: ["Ad Fraud", "Wallet Tracing", "Pig Butchering"], avatarBg: "bg-blue-900"}
+nair: {name: "P. Nair", initials: "PN", role: "Ad Intelligence Specialist", credentials: "Cybersecurity · Ex-Platform Trust & Safety", specialties: ["Celebrity Impersonation", "Phishing"], avatarBg: "bg-purple-900"}
+ortiz: {name: "D. Ortiz", initials: "DO", role: "Investigative Writer", credentials: "Investigative Journalism · FinCrime", specialties: ["Rug Pulls", "ICO Fraud"], avatarBg: "bg-emerald-900"}
+
+REQUIRED CHANGES:
+
+DB: Add author_persona_id VARCHAR(20) column to the blog posts table
+SYNC: When syncing content from Supabase, include ai_audit in the SELECT and store ai_audit->writer_persona->id as author_persona_id
+API: Return authorPersonaId from /api/blog and /api/blog/:slug endpoints
+PAGE: Import AuthorBox and WRITER_PERSONAS into the blog post detail page. Render AuthorBox below article content, before FAQ. If authorPersonaId exists and maps to WRITER_PERSONAS, spread those props. Otherwise render default AuthorBox (CryptoKiller Research Team).
+SYNC NEW ARTICLE: The article "Fake Trading Profits: How Scam Dashboards Lie" (external_id: b0ba8fa5-d1c9-4e55-bb02-278bd77fae4f, slug: fake-trading-profits) was just published in Supabase with persona nair. Re-run content sync so it appears on /blog with P. Nair's AuthorBox.
+ALSO: The existing AI Deepfake article now has persona webb in Supabase. Update its local record too.
