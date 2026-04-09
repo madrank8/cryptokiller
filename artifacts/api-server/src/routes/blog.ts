@@ -75,6 +75,28 @@ function processContentBody(html: string): string {
 
   out = out.replace(/\{\{[A-Z_]+:[^}]*\}\}/g, "");
 
+  out = out.replace(/<span[^>]*class="[^"]*verify-tag[^"]*"[^>]*>[\s\S]*?<\/span>/g, '');
+
+  out = out.replace(
+    /<div[^>]*class="[^"]*(?:callout-warning[^"]*callout|callout[^"]*callout-warning)[^"]*"[^>]*>([\s\S]*?)<\/div>/g,
+    (_m, inner) => `<div class="ck-callout ck-callout--warning" style="margin:1.5rem 0;padding:1rem 1.25rem;border-left:4px solid #ef4444;background:rgba(239,68,68,0.08);border-radius:0.5rem;">${inner}</div>`
+  );
+
+  out = out.replace(
+    /<div[^>]*class="[^"]*(?:callout-tip[^"]*callout|callout[^"]*callout-tip)[^"]*"[^>]*>([\s\S]*?)<\/div>/g,
+    (_m, inner) => `<div class="ck-callout ck-callout--tip" style="margin:1.5rem 0;padding:1rem 1.25rem;border-left:4px solid #22c55e;background:rgba(34,197,94,0.08);border-radius:0.5rem;">${inner}</div>`
+  );
+
+  out = out.replace(
+    /<figure[^>]*class="[^"]*ck-visual[^"]*"[^>]*>[\s\S]*?<img\s[^>]*src="https:\/\/mermaid\.ink\/[^"]*"[^>]*\/?>[\s\S]*?<\/figure>/g,
+    ''
+  );
+
+  out = out.replace(
+    /<figure[^>]*class="[^"]*ck-visual[^"]*"[^>]*>[\s\S]*?<img\s[^>]*src="https:\/\/quickchart\.io\/[^"]*"[^>]*\/?>[\s\S]*?<\/figure>/g,
+    ''
+  );
+
   out = out.replace(/(?:^|\n|>)\s*(\|.+\|(?:\n\|.+\|)+)/g, (fullMatch, tableBlock) => {
     const prefix = fullMatch.slice(0, fullMatch.length - tableBlock.length);
     const rows = tableBlock.trim().split("\n").filter((r: string) => r.trim());
@@ -142,13 +164,35 @@ function processContentBody(html: string): string {
   });
 
   out = out.replace(
-    /<figure[^>]*>[\s\S]*?<img\s[^>]*src="https:\/\/oaidalleapiprodscus\.blob\.core\.windows\.net\/[^"]*"[^>]*\/>[\s\S]*?<\/figure>/g,
+    /<figure[^>]*>[\s\S]*?<img\s[^>]*src="https:\/\/oaidalleapiprodscus\.blob\.core\.windows\.net\/[^"]*"[^>]*\/?>[\s\S]*?<\/figure>/g,
     ''
   );
 
   out = out.replace(/<figure[^>]*class="[^"]*visual-placeholder[^"]*"[^>]*>[\s\S]*?<\/figure>/g, '');
 
   out = out.replace(/<br\/>\s*(?=<img\s)/g, '');
+  out = out.replace(/<figure([^>]*)>\s*<br\s*\/?>\s*/g, '<figure$1>');
+  out = out.replace(/\s*<br\s*\/?>\s*<\/figure>/g, '</figure>');
+
+  out = out.replace(
+    /<div[^>]*class="[^"]*key-takeaways[^"]*"[^>]*>([\s\S]*?)<\/div>/g,
+    (_m, inner) => `<div class="ck-key-takeaways" style="margin:1.5rem 0;padding:1.25rem 1.5rem;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.05);border-radius:0.75rem;">${inner}</div>`
+  );
+
+  out = out.replace(
+    /<blockquote[^>]*class="[^"]*expert-quote[^"]*"[^>]*>([\s\S]*?)<\/blockquote>/g,
+    (_m, inner) => `<blockquote class="ck-expert-quote" style="margin:1.5rem 0;padding:1rem 1.25rem;border-left:4px solid #f59e0b;background:rgba(245,158,11,0.06);border-radius:0 0.5rem 0.5rem 0;font-style:italic;">${inner}</blockquote>`
+  );
+
+  out = out.replace(
+    /<blockquote[^>]*class="[^"]*social-proof[^"]*"[^>]*>([\s\S]*?)<\/blockquote>/g,
+    (_m, inner) => `<blockquote class="ck-social-proof" style="margin:1.5rem 0;padding:1rem 1.25rem;border-left:4px solid #6366f1;background:rgba(99,102,241,0.06);border-radius:0 0.5rem 0.5rem 0;">${inner}</blockquote>`
+  );
+
+  out = out.replace(
+    /<div[^>]*class="[^"]*not-for-you[^"]*"[^>]*>([\s\S]*?)<\/div>/g,
+    (_m, inner) => `<div class="ck-not-for-you" style="margin:2rem 0;padding:1.25rem 1.5rem;border:1px solid rgba(148,163,184,0.2);background:rgba(148,163,184,0.05);border-radius:0.75rem;font-size:0.9rem;color:#94a3b8;">${inner}</div>`
+  );
 
   return out;
 }

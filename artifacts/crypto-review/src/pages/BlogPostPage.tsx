@@ -44,6 +44,37 @@ interface BlogPost {
 
 const BASE = "https://cryptokiller.org";
 
+const PROSE_CLASSES = `prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed
+  [&_p]:mb-4 [&_p]:text-base [&_p]:leading-7
+  [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4
+  [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4
+  [&_li]:mb-1.5 [&_li]:leading-7
+  [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_a]:underline [&_a]:underline-offset-2
+  [&_strong]:text-white [&_strong]:font-semibold
+  [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-10 [&_h2]:mb-4
+  [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-3
+  [&_blockquote]:border-l-2 [&_blockquote]:border-red-500/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-slate-400
+  [&_blockquote.ck-expert-quote]:border-l-amber-500/60 [&_blockquote.ck-expert-quote]:text-slate-300
+  [&_blockquote.ck-social-proof]:border-l-indigo-500/60 [&_blockquote.ck-social-proof]:text-slate-300 [&_blockquote.ck-social-proof]:not-italic
+  [&_cite]:block [&_cite]:mt-2 [&_cite]:text-sm [&_cite]:text-slate-500 [&_cite]:not-italic
+  [&_figure]:my-8 [&_figure]:rounded-xl [&_figure]:overflow-hidden [&_figure]:border [&_figure]:border-slate-800
+  [&_figure_img]:w-full [&_figure_img]:object-contain [&_figure_img]:bg-slate-900
+  [&_figcaption]:text-xs [&_figcaption]:text-slate-500 [&_figcaption]:px-4 [&_figcaption]:py-2.5 [&_figcaption]:bg-slate-900/80 [&_figcaption]:italic
+  [&_img:not(figure_img)]:rounded-xl [&_img:not(figure_img)]:border [&_img:not(figure_img)]:border-slate-800 [&_img:not(figure_img)]:my-6
+  [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+  [&_th]:text-left [&_th]:text-white [&_th]:text-sm [&_th]:font-semibold [&_th]:border-b [&_th]:border-slate-700 [&_th]:pb-2 [&_th]:pr-4
+  [&_td]:text-sm [&_td]:py-2 [&_td]:pr-4 [&_td]:border-b [&_td]:border-slate-800/50
+  [&_.ck-key-takeaways_h2]:text-lg [&_.ck-key-takeaways_h2]:font-semibold [&_.ck-key-takeaways_h2]:text-red-400 [&_.ck-key-takeaways_h2]:mt-0 [&_.ck-key-takeaways_h2]:mb-3
+  [&_.ck-key-takeaways_li]:text-sm
+  [&_.ck-callout_strong]:block [&_.ck-callout_strong]:mb-1
+  [&_.ck-callout--warning_strong]:text-red-300
+  [&_.ck-callout--tip_strong]:text-emerald-300
+  [&_.ck-not-for-you_h2]:text-base [&_.ck-not-for-you_h2]:text-slate-400 [&_.ck-not-for-you_h2]:mt-0 [&_.ck-not-for-you_h2]:mb-2
+  [&_.ck-not-for-you_p]:text-sm [&_.ck-not-for-you_p]:text-slate-500
+  [&_details]:bg-slate-900/50 [&_details]:border [&_details]:border-slate-800 [&_details]:rounded-lg [&_details]:my-3
+  [&_summary]:p-4 [&_summary]:cursor-pointer [&_summary]:text-white [&_summary]:font-semibold
+  [&_details>p]:px-4 [&_details>p]:pb-4 [&_details>p]:text-slate-400`;
+
 function isUsableHeroUrl(url: string): boolean {
   if (/oaidalleapiprodscus\.blob\.core\.windows\.net/.test(url)) return false;
   if (/quickchart\.io/.test(url)) return false;
@@ -239,22 +270,7 @@ export default function BlogPostPage() {
                           <h2 className="text-2xl font-bold text-white mb-4 scroll-mt-24">{section.heading}</h2>
                         )}
                         <div
-                          className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed
-                            [&_p]:mb-4 [&_p]:text-base [&_p]:leading-7
-                            [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4
-                            [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4
-                            [&_li]:mb-1.5 [&_li]:leading-7
-                            [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_a]:underline [&_a]:underline-offset-2
-                            [&_strong]:text-white [&_strong]:font-semibold
-                            [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-3
-                            [&_blockquote]:border-l-2 [&_blockquote]:border-red-500/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-slate-400
-                            [&_figure]:my-8 [&_figure]:rounded-xl [&_figure]:overflow-hidden [&_figure]:border [&_figure]:border-slate-800
-                            [&_figure_img]:w-full [&_figure_img]:object-contain [&_figure_img]:bg-slate-900
-                            [&_figcaption]:text-xs [&_figcaption]:text-slate-500 [&_figcaption]:px-4 [&_figcaption]:py-2.5 [&_figcaption]:bg-slate-900/80 [&_figcaption]:italic
-                            [&_img:not(figure_img)]:rounded-xl [&_img:not(figure_img)]:border [&_img:not(figure_img)]:border-slate-800 [&_img:not(figure_img)]:my-6
-                            [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
-                            [&_th]:text-left [&_th]:text-white [&_th]:text-sm [&_th]:font-semibold [&_th]:border-b [&_th]:border-slate-700 [&_th]:pb-2 [&_th]:pr-4
-                            [&_td]:text-sm [&_td]:py-2 [&_td]:pr-4 [&_td]:border-b [&_td]:border-slate-800/50"
+                          className={PROSE_CLASSES}
                           dangerouslySetInnerHTML={{ __html: section.body }}
                         />
                       </section>
@@ -263,19 +279,7 @@ export default function BlogPostPage() {
                 </>
               ) : post.fullArticle ? (
                 <div
-                  className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed
-                    [&_p]:mb-4 [&_p]:text-base [&_p]:leading-7
-                    [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4
-                    [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4
-                    [&_li]:mb-1.5
-                    [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_a]:underline [&_a]:underline-offset-2
-                    [&_strong]:text-white
-                    [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-10 [&_h2]:mb-4
-                    [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-3
-                    [&_figure]:my-8 [&_figure]:rounded-xl [&_figure]:overflow-hidden [&_figure]:border [&_figure]:border-slate-800
-                    [&_figure_img]:w-full [&_figure_img]:object-contain [&_figure_img]:bg-slate-900
-                    [&_figcaption]:text-xs [&_figcaption]:text-slate-500 [&_figcaption]:px-4 [&_figcaption]:py-2.5 [&_figcaption]:bg-slate-900/80 [&_figcaption]:italic
-                    [&_img:not(figure_img)]:rounded-xl [&_img:not(figure_img)]:border [&_img:not(figure_img)]:border-slate-800 [&_img:not(figure_img)]:my-6"
+                  className={PROSE_CLASSES}
                   dangerouslySetInnerHTML={{ __html: post.fullArticle }}
                 />
               ) : null}

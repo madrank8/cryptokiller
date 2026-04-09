@@ -158,3 +158,20 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 - **1,000 brands** synced from Supabase scam_brands table
 - **248 published reviews** with full content (red flags, FAQ, funnel stages, geo targets)
 - **Quantum AI** — 95/100 threat score, 3,076 ads, 45 countries, 419 days, 28 celebrities
+
+### Blog Content Pipeline
+
+- **Source**: Vercel CMS admin dashboard generates blog post HTML with custom elements
+- **Sync**: Posts synced via `POST /api/sync/blog`, `POST /api/sync/content`, `POST /api/sync/post` (Bearer token auth via `SYNC_SECRET`)
+- **Storage**: `blog_posts` table with `full_article` (complete HTML), `sections` (JSONB array of {heading, body}), `faq`, `sources`, `visual_meta`
+- **Content Processing** (`processContentBody` in `blog.ts`):
+  - Strips: `{{VERIFY:...}}` tokens, `<span class="verify-tag">` elements, `(ESTABLISHED)` markers, all `{{TAG:...}}` tokens
+  - Strips figures: `visual-placeholder`, `ck-visual` with mermaid.ink/quickchart.io/DALL-E expired URLs
+  - Converts: `{{WARNING:...}}`/`{{TIP:...}}` tokens → styled callout divs
+  - Styles: `callout-warning`/`callout-tip` HTML divs → `ck-callout` with inline styles
+  - Styles: `expert-quote`/`social-proof` blockquotes → colored border variants
+  - Styles: `key-takeaways` div → red-bordered summary box
+  - Styles: `not-for-you` div → muted info box
+  - Parses: Markdown tables, links, blockquotes, bold, lists → HTML
+  - Cleans: `<br/>` inside figures
+- **Frontend**: `BlogPostPage.tsx` uses shared `PROSE_CLASSES` constant with Tailwind utilities for all content styling including custom CMS elements (cite, callouts, details/summary, etc.)
