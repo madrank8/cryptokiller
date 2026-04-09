@@ -2,6 +2,32 @@ import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, blogPostsTable } from "@workspace/db";
 
+interface VisualMetaItem {
+  url?: string;
+  altText?: string;
+  succeeded?: boolean;
+  type?: string;
+  width?: number;
+  height?: number | string;
+  description?: string;
+  originalType?: string;
+}
+
+function isVisualMetaItem(v: unknown): v is VisualMetaItem {
+  return typeof v === "object" && v !== null && "url" in v;
+}
+
+function resolveHeroImage(
+  heroUrl: string | null,
+  heroAlt: string | null,
+  visualMeta: unknown
+): { url: string | null; alt: string | null } {
+  if (heroUrl) return { url: heroUrl, alt: heroAlt };
+  const items = Array.isArray(visualMeta) ? visualMeta.filter(isVisualMetaItem) : [];
+  const best = items.find(v => v.url && v.succeeded !== false) ?? items.find(v => !!v.url);
+  return { url: best?.url ?? null, alt: best?.altText ?? null };
+}
+
 const router: IRouter = Router();
 
 router.get("/blog", async (_req, res): Promise<void> => {
@@ -27,16 +53,13 @@ router.get("/blog", async (_req, res): Promise<void> => {
     .orderBy(desc(blogPostsTable.publishedAt));
 
   res.json(posts.map(p => {
-    const vm = Array.isArray(p.visualMeta) ? p.visualMeta as any[] : [];
-    const firstImage = vm.find((v: any) => v.succeeded && v.url);
-    const imageUrl = p.heroImageUrl || firstImage?.url || null;
-    const imageAlt = p.heroImageAlt || firstImage?.altText || null;
+    const hero = resolveHeroImage(p.heroImageUrl, p.heroImageAlt, p.visualMeta);
     return {
       ...p,
       publishedAt: p.publishedAt?.toISOString() ?? "",
       authorPersonaId: p.authorPersonaId ?? null,
-      heroImageUrl: imageUrl,
-      heroImageAlt: imageAlt,
+      heroImageUrl: hero.url,
+      heroImageAlt: hero.alt,
     };
   }));
 });
