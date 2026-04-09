@@ -28,6 +28,96 @@ function resolveHeroImage(
   return { url: best?.url ?? null, alt: best?.altText ?? null };
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function sanitizeHref(href: string): string {
+  const trimmed = href.trim();
+  if (/^javascript:/i.test(trimmed) || /^data:/i.test(trimmed) || /^vbscript:/i.test(trimmed)) {
+    return "#";
+  }
+  return trimmed;
+}
+
+function processContentBody(html: string): string {
+  let out = html;
+
+  out = out.replace(/\(ESTABLISHED\)/g, "");
+
+  out = out.replace(/\{\{VERIFY:[^}]*\}\}/g, "");
+
+  out = out.replace(/\{\{WARNING:\s*([\s\S]*?)\}\}/g, (_m, text) => {
+    const trimmed = escapeHtml(text.trim());
+    return `<div class="ck-callout ck-callout--warning" style="margin:1.5rem 0;padding:1rem 1.25rem;border-left:4px solid #ef4444;background:rgba(239,68,68,0.08);border-radius:0.5rem;"><strong style="color:#fca5a5;display:block;margin-bottom:0.25rem;">⚠ Warning</strong><span style="color:#cbd5e1;">${trimmed}</span></div>`;
+  });
+
+  out = out.replace(/\{\{TIP:\s*([\s\S]*?)\}\}/g, (_m, text) => {
+    const trimmed = escapeHtml(text.trim());
+    return `<div class="ck-callout ck-callout--tip" style="margin:1.5rem 0;padding:1rem 1.25rem;border-left:4px solid #22c55e;background:rgba(34,197,94,0.08);border-radius:0.5rem;"><strong style="color:#86efac;display:block;margin-bottom:0.25rem;">💡 Tip</strong><span style="color:#cbd5e1;">${trimmed}</span></div>`;
+  });
+
+  out = out.replace(/\{\{[A-Z_]+:[^}]*\}\}/g, "");
+
+  out = out.replace(/((?:^|\n)\|.+\|(?:\n\|.+\|)+)/g, (tableBlock) => {
+    const rows = tableBlock.trim().split("\n").filter(r => r.trim());
+    if (rows.length < 2) return tableBlock;
+
+    const parseRow = (row: string) =>
+      row.split("|").slice(1, -1).map(c => c.trim());
+
+    const isSep = (row: string) => /^\|[\s\-:|]+\|$/.test(row.trim());
+
+    let headerRow: string[] | null = null;
+    const bodyRows: string[][] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      if (isSep(rows[i])) continue;
+      const cells = parseRow(rows[i]);
+      if (!headerRow) {
+        headerRow = cells;
+      } else {
+        bodyRows.push(cells);
+      }
+    }
+
+    if (!headerRow) return tableBlock;
+
+    let table = '<table><thead><tr>';
+    headerRow.forEach(h => { table += `<th>${escapeHtml(h)}</th>`; });
+    table += '</tr></thead><tbody>';
+    bodyRows.forEach(row => {
+      table += '<tr>';
+      row.forEach(c => { table += `<td>${escapeHtml(c)}</td>`; });
+      table += '</tr>';
+    });
+    table += '</tbody></table>';
+    return table;
+  });
+
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {
+    return `<a href="${sanitizeHref(href)}">${escapeHtml(text)}</a>`;
+  });
+
+  return out;
+}
+
+function processSections(sections: unknown): unknown {
+  if (!Array.isArray(sections)) return sections;
+  return sections.map((s: { heading?: string; body?: string }) => ({
+    ...s,
+    body: typeof s.body === "string" ? processContentBody(s.body) : s.body,
+  }));
+}
+
+function processFullArticle(article: unknown): unknown {
+  return typeof article === "string" ? processContentBody(article) : article;
+}
+
 const router: IRouter = Router();
 
 router.get("/blog", async (_req, res): Promise<void> => {
@@ -79,6 +169,8 @@ router.get("/blog/:slug", async (req, res): Promise<void> => {
 
   res.json({
     ...post,
+    sections: processSections(post.sections),
+    fullArticle: processFullArticle(post.fullArticle),
     publishedAt: post.publishedAt?.toISOString() ?? "",
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
