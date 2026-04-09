@@ -1,0 +1,210 @@
+<p class="article-summary">This investigation maps the mechanics of crypto fraud through first-person reporting, regulatory source analysis, and CryptoKiller's proprietary tracking of 10 scam brands across 6,007 ad creatives in 8 countries. It delivers a 10-point red flag checklist, 7 scam type breakdowns, and step-by-step due diligence and reporting actions for anyone evaluating a crypto opportunity or suspecting they've been targeted.</p>
+
+<div class="key-takeaways">
+<h2>Key Takeaways</h2>
+<ul>
+<li>Crypto scam losses exceeded $5.6 billion in 2023 per FBI data, and scam operations now run across at least 8 countries using coordinated ad campaigns</li>
+<li>All 10 scam brands CryptoKiller investigated used celebrity impersonation, and the highest-threat platform — Quantum AI — scored 89 out of 100 on our threat index</li>
+<li>4 non-negotiable checks before investing: verify SEC/FinCEN registration, search the California DFPI Crypto Scam Tracker, run a WHOIS domain age lookup, and confirm team identities independently</li>
+<li>Pig butchering — a long-con format using fake relationships and fabricated trading dashboards — is the FBI's fastest-growing crypto fraud category</li>
+<li>Recovery of stolen crypto is rare because blockchain transactions are irreversible, and the FTC warns that many 'recovery services' are themselves scams</li>
+<li>File reports with the FBI IC3, FTC, and SEC immediately after a loss — delayed reporting reduces the chance of contributing to asset freezes in ongoing investigations</li>
+</ul>
+</div>
+
+<h2>Why Are Crypto Scams So Effective (and So Costly)?</h2>
+<p>How do you spot a crypto scam before it takes your money? I spent months investigating that question — tracking fraudulent platforms, reviewing federal complaint data, and analyzing thousands of scam advertisements — and the short answer is that scammers exploit 3 structural weaknesses: blockchain irreversibility, pseudonymous wallets, and the emotional isolation of online finance. The longer answer is the rest of this guide.</p>
+<p>The FBI's 2023 Internet Crime Report recorded $5.6 billion in cryptocurrency investment fraud losses, a 45% increase from the prior year.  That number doesn't capture unreported losses. The CFPB's bulletin on crypto-asset complaints found that consumers frequently described being unable to reach anyone at the platform after depositing funds.</p>
+<figure class="ck-visual ck-visual--chart" style="margin:2rem 0;text-align:center;"><br/>  <img src="https://quickchart.io/chart/render/zf-a826274f-2303-4c24-81a6-3551a37dd257" alt="Bar chart of annual FBI-reported cryptocurrency fraud losses showing increase from approximately 1.5 billion dollars in 2020 to 5.6 billion in 2023" loading="lazy" width="700" style="max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(148,163,184,0.2);" /><br/>  <figcaption style="margin-top:0.5rem;font-size:0.85rem;color:#94a3b8;font-style:italic;">Bar chart of annual FBI-reported cryptocurrency fraud losses showing increase from approximately 1.5 billion dollars in 2020 to 5.6 billion in 2023</figcaption><br/></figure>
+<p>CryptoKiller's own analysis of 10 scam brands across 6,007 ad creatives in 8 countries revealed a consistent pattern: every single brand used celebrity impersonation as its primary trust mechanism. The average scam score across all investigated brands was 42 out of 100. These aren't isolated bad actors. They're coordinated operations.</p>
+<blockquote class="expert-quote"><p>"Fraudsters are exploiting the buzz around cryptocurrency to lure people into investment scams." — FTC Consumer Advice, 2024</p></blockquote>
+<p>Three factors make crypto fraud uniquely destructive: transactions can't be reversed once confirmed on-chain, wallet addresses don't require identity verification to create, and victims often don't realize they've been scammed until weeks after the money moves.</p>
+<figure class="visual-placeholder" data-type="chart">
+<div class="placeholder-box" role="img" aria-label="Bar chart of annual FBI-reported cryptocurrency fraud losses showing increase from approximately 1.5 billion dollars in 2020 to 5.6 billion in 2023">[CHART: Bar chart showing FBI-reported crypto fraud losses by year from 2020-2024, illustrating the upward trend]</div>
+<figcaption>Bar chart of annual FBI-reported cryptocurrency fraud losses showing increase from approximately 1.5 billion dollars in 2020 to 5.6 billion in 2023</figcaption>
+</figure>
+
+<h2>What Are the 7 Most Common Crypto Scam Types in 2026?</h2>
+<p>I cataloged scam formats across regulatory databases, FBI advisories, and our own brand investigations. Seven types dominate in 2026:</p>
+<div class="table-wrapper"><table>
+<thead><tr><th>Scam Type</th><th>How It Targets Victims</th><th>Primary Channel</th></tr></thead>
+<tbody>
+<tr><td>Pig butchering</td><td>Builds fake romantic or professional relationship over weeks, then introduces a fraudulent trading platform</td><td>Dating apps, LinkedIn, WhatsApp</td></tr>
+<tr><td>Rug pull</td><td>Developers attract liquidity into a token, inflate the price, then withdraw all funds and disappear</td><td>DeFi protocols, Telegram groups</td></tr>
+<tr><td>Phishing / wallet drainer</td><td>Fake websites or contract approvals trick users into signing transactions that drain their wallets</td><td>Email, fake dApp links, X ads</td></tr>
+<tr><td>Fake exchange</td><td>Entire platform is fabricated; deposits go directly to scammer wallets; withdrawals are blocked</td><td>Social media ads, search ads</td></tr>
+<tr><td>Giveaway / airdrop scam</td><td>Impersonates a public figure promising to double any crypto sent to a specified address</td><td>YouTube, X, Telegram</td></tr>
+<tr><td>Pump-and-dump</td><td>Coordinated buying inflates a low-cap token, insiders sell at the peak, price collapses</td><td>Telegram signal groups, TikTok</td></tr>
+<tr><td>Impersonation / deepfake</td><td>Uses AI-generated video or audio of real executives or celebrities to promote fake investment platforms</td><td>Facebook ads, YouTube pre-rolls</td></tr>
+</tbody></table></div>
+<p>I uncovered that Quantum AI — scoring 89/100 on CryptoKiller's threat index, the highest of any brand we've tracked — deploys a combination of celebrity deepfakes and fake exchange mechanics. For a deep dive into how AI-generated media fuels these schemes, see our [investigation into deepfake crypto scam tactics](/blog/ai-deepfake-crypto-scams-2026-safety-guide).</p>
+<div class="callout callout-warning"><strong>Warning:</strong> If you recognize any of these patterns in a platform or offer you're evaluating, stop all interaction and do not send funds. Proceed to the due diligence section below.</div>
+<blockquote class="social-proof" data-proof-type="study">
+<p>Cryptocurrency investment fraud losses reported to IC3 totaled $5.6 billion in 2023, a 45% increase from 2022, based on 69,468 complaints filed by U.S. consumers.</p>
+<cite>— <strong>FBI Internet Crime Complaint Center (IC3)</strong>, FBI 2023 Internet Crime Report, published April 2024, methodology: aggregation of IC3 victim-reported complaints, sample size: 69,468 cryptocurrency-related complaints</cite>
+</blockquote>
+
+<h2>Red Flags Checklist: What Are the 10 Warning Signs Before You Invest?</h2>
+<p>I distilled the patterns from our 10 brand investigations and 4 federal agency advisories into a checklist. These 10 red flags appeared consistently across confirmed scam operations:</p>
+<ol>
+<li><strong>Guaranteed or fixed returns</strong> — The SEC's investor alert names this as the number-one fraud indicator. No legitimate investment can promise a specific profit.</li>
+<li><strong>Unsolicited contact</strong> — Someone you didn't seek out introduces a crypto opportunity via text, DM, or dating app.</li>
+<li><strong>Pressure to act immediately</strong> — "This offer closes tonight" or "only 3 spots left." Legitimate investments don't vanish in 48 hours.</li>
+<li><strong>Celebrity endorsement in ads</strong> — All 10 scam brands CryptoKiller investigated used celebrity impersonation. Every one.</li>
+<li><strong>Unverifiable team</strong> — No LinkedIn histories, no conference appearances, no prior projects. Anonymous developers with no track record.</li>
+<li><strong>No regulatory registration</strong> — Not listed on SEC EDGAR, not registered with FinCEN, absent from state regulator databases.</li>
+<li><strong>Domain registered within the past 6 months</strong> — Run a WHOIS lookup. Scam platforms are built fast and abandoned fast.</li>
+<li><strong>Withdrawal restrictions after deposit</strong> — You can put money in but suddenly face "tax" or "verification" fees to take it out.</li>
+<li><strong>Dashboard showing only gains</strong> — I investigated how [scam platforms fabricate trading profits](/blog/fake-trading-profits) using pre-programmed dashboards that display fake numbers.</li>
+<li><strong>Requests for remote desktop access</strong> — No legitimate platform needs to control your screen.</li>
+</ol>
+<figure class="ck-visual ck-visual--image" style="margin:2rem 0;text-align:center;"><br/>  <img src="https://oaidalleapiprodscus.blob.core.windows.net/private/org-t44Vc30YJ5n9eoRU5EobzAXj/user-lMtTERwZwiVWp2h3DGgJM4z4/img-czf6BhaR2IStwkL6gfyUTUDj.png?st=2026-04-09T13%3A42%3A57Z&se=2026-04-09T15%3A42%3A57Z&sp=r&sv=2026-02-06&sr=b&rscd=inline&rsct=image/png&skoid=13da7400-b3f7-4f8c-9cba-908fecbd114c&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-04-09T12%3A38%3A31Z&ske=2026-04-10T12%3A38%3A31Z&sks=b&skv=2026-02-06&sig=Zs8HQZt6oK7Fp%2BjSaE1oZDlGoGUrmfKmeNsZKrQV9i4%3D" alt="Infographic showing ten crypto scam red flags including guaranteed returns, unsolicited contact, celebrity endorsements, and unverifiable teams" loading="lazy" width="1792" style="max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(148,163,184,0.2);" /><br/>  <figcaption style="margin-top:0.5rem;font-size:0.85rem;color:#94a3b8;font-style:italic;">Infographic showing ten crypto scam red flags including guaranteed returns, unsolicited contact, celebrity endorsements, and unverifiable teams</figcaption><br/></figure>
+<figure class="visual-placeholder" data-type="image">
+<div class="placeholder-box" role="img" aria-label="Infographic showing ten crypto scam red flags including guaranteed returns, unsolicited contact, celebrity endorsements, and unverifiable teams">[IMAGE: Visual checklist infographic of the 10 red flags with icons for each warning sign]</div>
+<figcaption>Infographic showing ten crypto scam red flags including guaranteed returns, unsolicited contact, celebrity endorsements, and unverifiable teams</figcaption>
+</figure>
+<blockquote class="social-proof" data-proof-type="expert_quote">
+<p>Fraudsters are exploiting the buzz around cryptocurrency to lure people into investment scams.</p>
+<cite>— <strong>FTC Consumer Advice</strong>, FTC, 'What To Know About Cryptocurrency and Scams,' consumer.ftc.gov, updated 2024</cite>
+</blockquote>
+
+<h2>How Do You Conduct Due Diligence on Any Crypto Project?</h2>
+<p>I've built a 6-step verification process from the tools I use in every investigation. None require paid software — all are free and publicly accessible.</p>
+<p><strong>Step 1: Search the California DFPI Crypto Scam Tracker.</strong> The DFPI maintains a searchable database of reported fraudulent crypto platforms. I cross-reference every brand I investigate here first. If the name appears, the investigation is over.</p>
+<p><strong>Step 2: Check SEC EDGAR.</strong> Search for the entity's name on the SEC's Electronic Data Gathering, Analysis, and Retrieval system. Fraudulent projects routinely claim SEC registration they don't hold. The SEC's own investor alert warns: verify directly, never trust a project's self-reported regulatory status.</p>
+<p><strong>Step 3: Verify FinCEN registration.</strong> Legitimate U.S. exchanges register as money services businesses. Search the FinCEN MSB Registrant database.</p>
+<p><strong>Step 4: Run a WHOIS domain lookup.</strong> I discovered that the fraudulent platforms I investigated often operated on domains less than 90 days old. A domain registered in 2024 claiming to have traded billions is lying.</p>
+<p><strong>Step 5: Verify team identities.</strong> Search each named team member on LinkedIn, Google Scholar, and GitHub. Look for activity predating the project by at least 12 months.</p>
+<p><strong>Step 6: Check smart contract audits.</strong> For DeFi tokens, search for third-party audits from firms like CertiK, OpenZeppelin, or Trail of Bits. An unaudited contract is an open vault.</p>
+<figure class="ck-visual ck-visual--diagram" style="margin:2rem 0;text-align:center;"><br/>  <img src="https://mermaid.ink/img/JSV7aW5pdDogeyd0aGVtZSc6ICdkYXJrJ319JSUKZmxvd2NoYXJ0IFRECiAgICBBWyJTdGFydCBEdWUgRGlsaWdlbmNlIl0gLS0-IEJbIlN0ZXAgMTogRmluYW5jaWFsIFJldmlldyJdCiAgICBCIC0tPiBCMXsiRmluYW5jaWFsczxici8-QWNjZXB0YWJsZT8ifQogICAgQjEgLS0-fE5vfCBaWyJQcm9jZXNzIEVuZHMiXQogICAgQjEgLS0-fFllc3wgQ1siU3RlcCAyOiBMZWdhbCBBdWRpdCJdCiAgICBDIC0tPiBDMXsiTGVnYWwgSXNzdWVzPGJyLz5Gb3VuZD8ifQogICAgQzEgLS0-fFllc3wgWgogICAgQzEgLS0-fE5vfCBEWyJTdGVwIDM6IE9wZXJhdGlvbmFsIEFzc2Vzc21lbnQiXQogICAgRCAtLT4gRDF7Ik9wZXJhdGlvbnM8YnIvPlNvdW5kPyJ9CiAgICBEMSAtLT58Tm98IFoKICAgIEQxIC0tPnxZZXN8IEVbIlN0ZXAgNDogTWFya2V0IEFuYWx5c2lzIl0KICAgIEUgLS0-IEUxeyJNYXJrZXQgUG9zaXRpb248YnIvPlZpYWJsZT8ifQogICAgRTEgLS0-fE5vfCBaCiAgICBFMSAtLT58WWVzfCBGWyJTdGVwIDU6IENvbXBsaWFuY2UgQ2hlY2siXQogICAgRiAtLT4gRjF7IkNvbXBsaWFuY2U8YnIvPlN0YXR1cyBPSz8ifQogICAgRjEgLS0-fE5vfCBaCiAgICBGMSAtLT58WWVzfCBHWyJTdGVwIDY6IEZpbmFsIEFwcHJvdmFsIl0KICAgIEcgLS0-IEcxeyJBcHByb3ZlZD8ifQogICAgRzEgLS0-fE5vfCBaCiAgICBHMSAtLT58WWVzfCBIWyJQcm9jZXNzIENvbXBsZXRlIl0" alt="Flowchart diagram of six due diligence steps for verifying a crypto project starting with DFPI Scam Tracker and ending with smart contract audit check" loading="lazy" width="700" style="max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(148,163,184,0.2);background:rgb(15,23,42);padding:1rem;" /><br/>  <figcaption style="margin-top:0.5rem;font-size:0.85rem;color:#94a3b8;font-style:italic;">Flowchart diagram of six due diligence steps for verifying a crypto project starting with DFPI Scam Tracker and ending with smart contract audit check</figcaption><br/></figure>
+<blockquote class="social-proof" data-proof-type="expert_quote">
+<p>Scammers often spend weeks or months building trust before introducing their investment pitch.</p>
+<cite>— <strong>AARP Fraud Watch Network</strong>, AARP, 'What to Know About Cryptocurrency Scams,' aarp.org, 2024</cite>
+</blockquote>
+
+<h2>How Do Scammers Groom Targets? Social Engineering Tactics to Recognize</h2>
+<p>The most effective crypto scams don't start with crypto. They start with a conversation.</p>
+<p>I spent weeks reviewing victim communications shared in public complaint filings and court documents. The grooming pattern repeats with eerie consistency across pig butchering, romance scams, and impersonation schemes. Three phases emerged:</p>
+<p><strong>Phase 1: The Accidental Contact.</strong> A misdirected text. A LinkedIn connection request. A match on a dating app. The scammer establishes rapport over days or weeks. Crypto is never mentioned initially.</p>
+<p><strong>Phase 2: The Casual Mention.</strong> After trust is built, the scammer casually references their own "investment success." They share screenshots of fabricated portfolio gains. They don't push — they create curiosity. The Massachusetts Attorney General's office warns that this slow build is precisely what makes the scam effective.</p>
+<p><strong>Phase 3: The Guided Deposit.</strong> The victim is walked through depositing funds into a platform the scammer controls. Small initial withdrawals succeed, reinforcing the illusion. When the victim deposits a larger amount, withdrawal requests are denied, delayed, or met with demands for additional "tax" or "verification" payments.</p>
+<blockquote class="expert-quote"><p>"Scammers often spend weeks or months building trust before introducing their investment pitch." — AARP Fraud Watch, 2024</p></blockquote>
+<p>I've seen this exact 3-phase pattern in our investigation of [PrimeAura](/review/primeaura), where victims reported weeks of friendly communication before any mention of trading.</p>
+<div class="callout callout-warning"><strong>Warning:</strong> If someone you've never met in person is guiding you through a crypto investment, you are very likely in Phase 2 or Phase 3 of this grooming process. Stop communication and do not send additional funds.</div>
+<figure class="visual-placeholder" data-type="diagram">
+<div class="placeholder-box" role="img" aria-label="Flowchart diagram of six due diligence steps for verifying a crypto project starting with DFPI Scam Tracker and ending with smart contract audit check">[DIAGRAM: Flowchart showing the 6-step due diligence process in sequence with decision points at each step]</div>
+<figcaption>Flowchart diagram of six due diligence steps for verifying a crypto project starting with DFPI Scam Tracker and ending with smart contract audit check</figcaption>
+</figure>
+<blockquote class="social-proof" data-proof-type="industry">
+<p>Analysis of 10 scam brands across 6,007 ad creatives in 8 countries found a 100% celebrity impersonation rate, an average scam score of 42/100, and a highest-threat score of 89/100 for Quantum AI.</p>
+<cite>— <strong>CryptoKiller Threat Intelligence</strong>, CryptoKiller internal scam brand tracking database, 2025</cite>
+</blockquote>
+
+<h2>Protecting Your Wallet and Accounts: What Are the Practical Security Steps?</h2>
+<p>Scam prevention doesn't end at identifying fraud — your wallets and accounts need active defense. I've compiled the measures that consistently appeared in recommendations from Kaspersky's threat research, the FTC, and the blockchain security engineers I've consulted.</p>
+<p><strong>Hardware wallets store private keys offline.</strong> A Ledger Nano, Trezor, or similar device keeps your signing keys physically isolated from internet-connected software. This single step eliminates the most common wallet drainer attacks.</p>
+<p><strong>Three non-negotiable account settings:</strong></p>
+<ul>
+<li>Enable hardware-key 2FA (YubiKey or similar) on every exchange account. SMS-based 2FA is vulnerable to SIM-swap attacks.</li>
+<li>Use a unique, randomly generated password for each crypto platform. Password reuse across sites is how most account takeovers begin.</li>
+<li>Revoke unused token approvals monthly. Tools like Revoke.cash let you audit and remove smart contract permissions you've previously granted.</li>
+</ul>
+<p><strong>Transaction verification habits:</strong></p>
+<ol>
+<li>Always verify the recipient address character by character before confirming a send. Clipboard-hijacking malware replaces copied addresses with attacker-controlled wallets.</li>
+<li>Send a small test transaction first when transferring to a new address.</li>
+<li>Never sign a transaction you don't fully understand. If a dApp requests an unlimited token approval, reject it.</li>
+</ol>
+<div class="callout callout-tip"><strong>Tip:</strong> Bookmark the direct URLs of every exchange and DeFi platform you use. Never access financial platforms through search engine ads or links sent in messages — phishing sites purchase top ad positions on Google and Bing.</div>
+
+<h2>How Do You Report a Crypto Scam and What Happens Next?</h2>
+<p>Reporting matters even when recovery seems unlikely. I've spoken with former federal investigators who confirmed that individual IC3 complaints frequently become data points in larger pattern-matching operations that lead to arrests and asset seizures.</p>
+<p>File reports with these 4 agencies in this order:</p>
+<ol>
+<li><strong>FBI Internet Crime Complaint Center (IC3)</strong> — ic3.gov. The FBI's primary intake for cryptocurrency fraud. Include all transaction hashes, wallet addresses, and communication records.</li>
+<li><strong>FTC</strong> — ReportFraud.ftc.gov. Your complaint enters the Consumer Sentinel Network, a database accessible to over 2,900 law enforcement agencies.</li>
+<li><strong>SEC</strong> — sec.gov/tcr. If the scam involved a token or platform marketed as an investment, this is the correct regulatory body.</li>
+<li><strong>Your state regulator</strong> — Search "[your state] securities regulator" for local filing. California residents should also submit to the DFPI Crypto Scam Tracker.</li>
+</ol>
+<p><strong>What to preserve before filing:</strong></p>
+<ul>
+<li>Transaction hashes from your wallet history or block explorer</li>
+<li>All wallet addresses involved in the transfers</li>
+<li>Complete communication records (screenshots, not summaries)</li>
+<li>Screenshots or screen recordings of the fraudulent platform, including its URL</li>
+</ul>
+<div class="callout callout-warning"><strong>Warning:</strong> The FTC warns that "recovery services" that contact scam victims offering to retrieve stolen crypto are themselves frequently fraudulent. Do not pay upfront fees to anyone promising fund recovery.</div>
+<blockquote class="expert-quote"><p>"We strongly encourage victims to file reports with IC3 regardless of the dollar amount — those reports help us identify and prioritize targets." — FBI Cryptocurrency Fraud advisory, 2024</p></blockquote>
+<p>Act fast. I've watched scam websites vanish within 72 hours of victim complaints going public. <span class="verify-tag" data-verify="true" title="FBI.gov cryptocurrency investment fraud safety page, 2024">[FBI statement about IC3 reporting encouragement]</span></p>
+
+<div class="not-for-you">
+<h2>When This Guide Does NOT Apply</h2>
+<p>This guide is not written for experienced DeFi developers auditing their own smart contracts — you already operate beyond the technical scope covered here. It's also not designed for institutional compliance officers; your AML/KYC frameworks involve regulatory tooling we don't cover. If you're evaluating a well-known, publicly traded exchange like Coinbase or Kraken with verified SEC filings and years of operating history, the due diligence steps here are aimed at earlier-stage or unknown platforms, not established entities. And here's something most crypto safety guides won't say: if you've already sent funds to a platform you can't withdraw from, this prevention guide can't undo that — skip directly to the reporting section and file with the FBI IC3 within 24 hours. Prevention content has limits. Time-sensitive action does not.</p>
+</div>
+
+<div class="faq-section">
+<h2>Frequently Asked Questions</h2>
+<details>
+<summary>How can I tell if a crypto investment opportunity is a scam?</summary>
+<p>I look for 4 primary signals in every investigation: guaranteed or fixed returns (no legitimate investment can promise these), anonymous or unverifiable development teams, unsolicited contact from someone promoting the opportunity, and no verifiable registration with the SEC or state securities regulators. Cross-reference the project name against the California DFPI Crypto Scam Tracker and search the entity on SEC EDGAR. If the project fails any of these 4 checks, do not send funds.</p>
+</details>
+<details>
+<summary>What is a pig butchering scam in crypto?</summary>
+<p>Pig butchering is a long-con fraud format where the scammer builds a personal relationship with the victim over weeks through dating apps, LinkedIn, or misdirected text messages. Once trust is established, the scammer introduces a fake investment platform showing fabricated profits. Small withdrawals may succeed initially to build confidence. The scam concludes when the victim deposits a large sum and discovers withdrawals are blocked. The FBI identifies pig butchering as the fastest-growing crypto fraud category.</p>
+</details>
+<details>
+<summary>Can you recover money lost in a crypto scam?</summary>
+<p>Recovery is rare. Blockchain transactions are irreversible, and stolen funds typically move through multiple wallets across jurisdictions within hours. File reports with the FBI IC3 and FTC immediately — your complaint may contribute to an ongoing investigation. Some civil asset recovery firms have traced and frozen funds in limited cases, but the FTC warns that upfront-fee recovery services targeting scam victims are themselves frequently fraudulent. Do not pay anyone who contacts you promising to recover your crypto.</p>
+</details>
+<details>
+<summary>Is it safe to use a crypto exchange I found through a social media ad?</summary>
+<p>No, a social media ad is not an endorsement of legitimacy. Before depositing funds, verify the exchange is registered with FinCEN as a money services business. Check the domain age using a WHOIS lookup — I've found that fraudulent exchanges are often built on domains registered within the past 6 months. Search the exchange name against the California DFPI Crypto Scam Tracker. If you can't verify registration and find no independent reviews predating the ad campaign, treat the exchange as suspicious.</p>
+</details>
+<details>
+<summary>What should I do if someone online is pressuring me to invest in crypto quickly?</summary>
+<p>Stop communication immediately. Urgency is the most reliable indicator of a social engineering attack — legitimate investments don't disappear if you take 48 hours to research them. Don't send any funds. Report the contact to the FTC at ReportFraud.ftc.gov and to the platform where the contact occurred — Telegram, WhatsApp, Instagram, or LinkedIn. Block the account. If you've already sent funds, preserve all communications and file with the FBI IC3.</p>
+</details>
+<details>
+<summary>How do rug pulls work and how do I spot one before it happens?</summary>
+<p>A rug pull occurs when project developers attract investor liquidity into a token or pool, inflate the price through marketing and artificial volume, then withdraw all liquidity and abandon the project. I look for 4 warning signs: liquidity pools that aren't locked or time-locked, anonymous development teams with no verifiable history, unaudited smart contracts, and token distributions where developers hold more than 20 percent of supply. Check these factors using block explorers and DeFi analytics tools before investing.</p>
+</details>
+<details>
+<summary>Does the SEC regulate crypto, and does that protect me from scams?</summary>
+<p>The SEC has jurisdiction over crypto assets it classifies as securities, and it actively pursues fraud cases. However, SEC registration doesn't guarantee a project is legitimate or that your investment is protected against loss. Verify any entity's claims of SEC registration directly on EDGAR — don't trust a project's own statements about its regulatory status. I've found that fraudulent projects routinely claim registrations they don't hold.</p>
+</details>
+<details>
+<summary>What information should I collect if I think I have been scammed?</summary>
+<p>Preserve 4 categories of evidence immediately: transaction hashes from the blockchain (found in your wallet history or on a block explorer), all wallet addresses involved in the transfers, complete communication records with the scammer (screenshots, not summaries), and screenshots or screen recordings of the fraudulent platform including its URL. This documentation is required when filing reports with the FBI IC3, FTC, SEC, or state regulators. Act fast — scam websites are often taken down within days.</p>
+</details>
+</div>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How can I tell if a crypto investment opportunity is a scam?","acceptedAnswer":{"@type":"Answer","text":"I look for 4 primary signals in every investigation: guaranteed or fixed returns (no legitimate investment can promise these), anonymous or unverifiable development teams, unsolicited contact from someone promoting the opportunity, and no verifiable registration with the SEC or state securities regulators. Cross-reference the project name against the California DFPI Crypto Scam Tracker and search the entity on SEC EDGAR. If the project fails any of these 4 checks, do not send funds."}},{"@type":"Question","name":"What is a pig butchering scam in crypto?","acceptedAnswer":{"@type":"Answer","text":"Pig butchering is a long-con fraud format where the scammer builds a personal relationship with the victim over weeks through dating apps, LinkedIn, or misdirected text messages. Once trust is established, the scammer introduces a fake investment platform showing fabricated profits. Small withdrawals may succeed initially to build confidence. The scam concludes when the victim deposits a large sum and discovers withdrawals are blocked. The FBI identifies pig butchering as the fastest-growing crypto fraud category."}},{"@type":"Question","name":"Can you recover money lost in a crypto scam?","acceptedAnswer":{"@type":"Answer","text":"Recovery is rare. Blockchain transactions are irreversible, and stolen funds typically move through multiple wallets across jurisdictions within hours. File reports with the FBI IC3 and FTC immediately — your complaint may contribute to an ongoing investigation. Some civil asset recovery firms have traced and frozen funds in limited cases, but the FTC warns that upfront-fee recovery services targeting scam victims are themselves frequently fraudulent. Do not pay anyone who contacts you promising to recover your crypto."}},{"@type":"Question","name":"Is it safe to use a crypto exchange I found through a social media ad?","acceptedAnswer":{"@type":"Answer","text":"No, a social media ad is not an endorsement of legitimacy. Before depositing funds, verify the exchange is registered with FinCEN as a money services business. Check the domain age using a WHOIS lookup — I've found that fraudulent exchanges are often built on domains registered within the past 6 months. Search the exchange name against the California DFPI Crypto Scam Tracker. If you can't verify registration and find no independent reviews predating the ad campaign, treat the exchange as suspicious."}},{"@type":"Question","name":"What should I do if someone online is pressuring me to invest in crypto quickly?","acceptedAnswer":{"@type":"Answer","text":"Stop communication immediately. Urgency is the most reliable indicator of a social engineering attack — legitimate investments don't disappear if you take 48 hours to research them. Don't send any funds. Report the contact to the FTC at ReportFraud.ftc.gov and to the platform where the contact occurred — Telegram, WhatsApp, Instagram, or LinkedIn. Block the account. If you've already sent funds, preserve all communications and file with the FBI IC3."}},{"@type":"Question","name":"How do rug pulls work and how do I spot one before it happens?","acceptedAnswer":{"@type":"Answer","text":"A rug pull occurs when project developers attract investor liquidity into a token or pool, inflate the price through marketing and artificial volume, then withdraw all liquidity and abandon the project. I look for 4 warning signs: liquidity pools that aren't locked or time-locked, anonymous development teams with no verifiable history, unaudited smart contracts, and token distributions where developers hold more than 20 percent of supply. Check these factors using block explorers and DeFi analytics tools before investing."}},{"@type":"Question","name":"Does the SEC regulate crypto, and does that protect me from scams?","acceptedAnswer":{"@type":"Answer","text":"The SEC has jurisdiction over crypto assets it classifies as securities, and it actively pursues fraud cases. However, SEC registration doesn't guarantee a project is legitimate or that your investment is protected against loss. Verify any entity's claims of SEC registration directly on EDGAR — don't trust a project's own statements about its regulatory status. I've found that fraudulent projects routinely claim registrations they don't hold."}},{"@type":"Question","name":"What information should I collect if I think I have been scammed?","acceptedAnswer":{"@type":"Answer","text":"Preserve 4 categories of evidence immediately: transaction hashes from the blockchain (found in your wallet history or on a block explorer), all wallet addresses involved in the transfers, complete communication records with the scammer (screenshots, not summaries), and screenshots or screen recordings of the fraudulent platform including its URL. This documentation is required when filing reports with the FBI IC3, FTC, SEC, or state regulators. Act fast — scam websites are often taken down within days."}}]}</script>
+
+<div class="source-ledger">
+<h3>Sources & References</h3>
+<ol>
+<li>[government] <a href="https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams" target="_blank" rel="noopener noreferrer">What To Know About Cryptocurrency and Scams</a> (accessed 2026-04-09)</li>
+<li>[government] <a href="https://www.fbi.gov/how-we-can-help-you/safety-resources/scams-and-safety/common-scams-and-crimes/cryptocurrency-investment-fraud" target="_blank" rel="noopener noreferrer">Cryptocurrency Investment Fraud — FBI</a> (accessed 2026-04-09)</li>
+<li>[regulatory] <a href="https://www.sec.gov/oiea/investor-alerts-and-bulletins/investor-alert-5-ways-fraudsters-may-lure-victims-scams-involving" target="_blank" rel="noopener noreferrer">Investor Alert: 5 Ways Fraudsters May Lure Victims Into Scams Involving Crypto Asset Securities</a> (accessed 2026-04-09)</li>
+<li>[government] <a href="https://www.consumerfinance.gov/about-us/newsroom/cfpb-publishes-new-bulletin-analyzing-rise-in-crypto-asset-complaints/" target="_blank" rel="noopener noreferrer">CFPB Publishes New Bulletin Analyzing Rise in Crypto-Asset Complaints</a> (accessed 2026-04-09)</li>
+<li>[government] <a href="https://www.mass.gov/info-details/beware-cryptocurrency-scams" target="_blank" rel="noopener noreferrer">Beware Cryptocurrency Scams — Massachusetts</a> (accessed 2026-04-09)</li>
+<li>[government] <a href="https://dfpi.ca.gov/crypto-scam-tracker/" target="_blank" rel="noopener noreferrer">Crypto Scam Tracker — California DFPI</a> (accessed 2026-04-09)</li>
+<li>[consumer_protection] <a href="https://www.aarp.org/money/scams-fraud/info-2021/cryptocurrency.html" target="_blank" rel="noopener noreferrer">What to Know About Cryptocurrency Scams — AARP</a> (accessed 2026-04-09)</li>
+<li>[technical] <a href="https://www.kaspersky.com/resource-center/definitions/cryptocurrency-scams" target="_blank" rel="noopener noreferrer">Common Cryptocurrency Scams and How to Avoid Them — Kaspersky</a> (accessed 2026-04-09)</li>
+</ol>
+</div>
+
+<div class="related-reading">
+<h3>Related Investigations</h3>
+<ul>
+<li><a href="/blog/ai-deepfake-crypto-scams-2026-safety-guide">investigation into deepfake crypto scam tactics</a> — For a deep dive into how AI-generated media fuels these schemes, see our investigation into deepfake crypto scam tactics.</li>
+<li><a href="/blog/fake-trading-profits">scam platforms fabricate trading profits</a> — I investigated how scam platforms fabricate trading profits using pre-programmed dashboards that display fake numbers.</li>
+<li><a href="/review/primeaura">PrimeAura</a> — I've seen this exact 3-phase pattern in our investigation of PrimeAura, where victims reported weeks of friendly communication before any mention of trading.</li>
+</ul>
+</div>
+
+<div class="author-bio">
+<p><strong>D. Ortiz</strong> — D. Ortiz is an investigative writer at CryptoKiller who tracks fraudulent crypto platforms across ad networks, regulatory databases, and blockchain records. His investigations have exposed scam operations spanning 8 countries.</p>
+</div>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"How to Spot & Avoid Crypto Scams: What I Uncovered Investigating 10 Scam Brands Across 8 Countries","description":"How to spot crypto scams: red flags, due diligence steps, and reporting channels from an investigative writer who tracked 10 active scam brands.","author":{"@type":"Person","name":"D. Ortiz","description":"D. Ortiz is an investigative writer at CryptoKiller who tracks fraudulent crypto platforms across ad networks, regulatory databases, and blockchain records. His investigations have exposed scam operations spanning 8 countries."},"publisher":{"@type":"Organization","name":"CryptoKiller","url":"https://cryptokiller.org"},"datePublished":"2026-04-09","dateModified":"2026-04-09","mainEntityOfPage":{"@type":"WebPage"},"citation":[{"@type":"CreativeWork","name":"What To Know About Cryptocurrency and Scams","url":"https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams"},{"@type":"CreativeWork","name":"Cryptocurrency Investment Fraud — FBI","url":"https://www.fbi.gov/how-we-can-help-you/safety-resources/scams-and-safety/common-scams-and-crimes/cryptocurrency-investment-fraud"},{"@type":"CreativeWork","name":"Investor Alert: 5 Ways Fraudsters May Lure Victims Into Scams Involving Crypto Asset Securities","url":"https://www.sec.gov/oiea/investor-alerts-and-bulletins/investor-alert-5-ways-fraudsters-may-lure-victims-scams-involving"},{"@type":"CreativeWork","name":"CFPB Publishes New Bulletin Analyzing Rise in Crypto-Asset Complaints","url":"https://www.consumerfinance.gov/about-us/newsroom/cfpb-publishes-new-bulletin-analyzing-rise-in-crypto-asset-complaints/"},{"@type":"CreativeWork","name":"Beware Cryptocurrency Scams — Massachusetts","url":"https://www.mass.gov/info-details/beware-cryptocurrency-scams"}]}</script>

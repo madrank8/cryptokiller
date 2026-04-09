@@ -127,6 +127,10 @@ function processContentBody(html: string): string {
     ''
   );
 
+  out = out.replace(/<figure[^>]*class="[^"]*visual-placeholder[^"]*"[^>]*>[\s\S]*?<\/figure>/g, '');
+
+  out = out.replace(/<br\/>\s*(?=<img\s)/g, '');
+
   return out;
 }
 
