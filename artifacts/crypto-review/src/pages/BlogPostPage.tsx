@@ -153,29 +153,54 @@ export default function BlogPostPage() {
   const heroImage = useMemo(() => post ? resolveHeroImage(post) : null, [post]);
   const persona = post?.authorPersonaId ? WRITER_PERSONAS[post.authorPersonaId] : undefined;
 
+  const jsonLd = useMemo(() => {
+    if (!post) return { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) };
+
+    const articleSchema: Record<string, unknown> = {
+      "@type": "Article",
+      headline: post.headline || post.title,
+      description: post.metaDescription || post.summary,
+      datePublished: post.publishedAt,
+      dateModified: post.updatedAt,
+      author: persona
+        ? { "@type": "Person", name: persona.name, jobTitle: persona.role, url: `${BASE}/about` }
+        : { "@type": "Organization", name: "CryptoKiller", url: BASE },
+      publisher: {
+        "@type": "Organization",
+        name: "CryptoKiller",
+        url: BASE,
+        logo: { "@type": "ImageObject", url: `${BASE}/logo.png` },
+      },
+      mainEntityOfPage: { "@type": "WebPage", "@id": `${BASE}/blog/${slug}` },
+      wordCount: post.wordCount,
+      inLanguage: "en",
+      articleSection: post.contentType || "Crypto Safety",
+      ...(post.targetKeyword ? { keywords: post.targetKeyword } : {}),
+      ...(heroImage?.url ? { image: { "@type": "ImageObject", url: heroImage.url, ...(heroImage.alt ? { caption: heroImage.alt } : {}) } } : {}),
+    };
+
+    const graph: Record<string, unknown>[] = [articleSchema, breadcrumbJsonLd(crumbs)];
+
+    if (Array.isArray(post.faq) && post.faq.length > 0) {
+      graph.push({
+        "@type": "FAQPage",
+        mainEntity: post.faq.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: { "@type": "Answer", text: item.answer },
+        })),
+      });
+    }
+
+    return { "@context": "https://schema.org", "@graph": graph };
+  }, [post, persona, heroImage, slug, crumbs]);
+
   usePageMeta({
     title: post ? `${post.title} | CryptoKiller` : "Blog | CryptoKiller",
     description: post?.metaDescription || post?.summary || "CryptoKiller blog — crypto safety insights and guides.",
     canonical: `${BASE}/blog/${slug}`,
     ogImage: heroImage?.url ?? undefined,
-    jsonLd: post
-      ? {
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: post.headline || post.title,
-          description: post.metaDescription || post.summary,
-          datePublished: post.publishedAt,
-          dateModified: post.updatedAt,
-          author: persona
-            ? { "@type": "Person", name: persona.name, jobTitle: persona.role }
-            : { "@type": "Organization", name: "CryptoKiller" },
-          publisher: { "@type": "Organization", name: "CryptoKiller" },
-          mainEntityOfPage: `${BASE}/blog/${slug}`,
-          wordCount: post.wordCount,
-          ...(heroImage?.url ? { image: heroImage.url } : {}),
-          ...breadcrumbJsonLd(crumbs),
-        }
-      : { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    jsonLd,
   });
 
   const readingMinutes = post ? Math.max(1, Math.ceil(post.wordCount / 250)) : 0;

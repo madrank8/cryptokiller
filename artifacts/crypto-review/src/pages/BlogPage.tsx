@@ -7,6 +7,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { useMemo } from "react";
 
 interface BlogPostSummary {
   id: number;
@@ -165,11 +166,45 @@ export default function BlogPage() {
     { label: "Blog", href: `${BASE}/blog` },
   ];
 
+  const blogJsonLd = useMemo(() => {
+    const graph: Record<string, unknown>[] = [
+      {
+        "@type": "CollectionPage",
+        name: "CryptoKiller Blog",
+        description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety.",
+        url: `${BASE}/blog`,
+        isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: BASE },
+        publisher: {
+          "@type": "Organization",
+          name: "CryptoKiller",
+          url: BASE,
+          logo: { "@type": "ImageObject", url: `${BASE}/logo.png` },
+        },
+      },
+      breadcrumbJsonLd(crumbs),
+    ];
+
+    if (posts && posts.length > 0) {
+      graph[0].mainEntity = {
+        "@type": "ItemList",
+        numberOfItems: posts.length,
+        itemListElement: posts.slice(0, 10).map((p, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: `${BASE}/blog/${p.slug}`,
+          name: p.headline || p.title,
+        })),
+      };
+    }
+
+    return { "@context": "https://schema.org", "@graph": graph };
+  }, [posts, crumbs]);
+
   usePageMeta({
     title: "Blog — Crypto Safety Insights & Guides | CryptoKiller",
     description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety from the CryptoKiller research team.",
     canonical: `${BASE}/blog`,
-    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    jsonLd: blogJsonLd,
   });
 
   const featured = posts?.[0];
