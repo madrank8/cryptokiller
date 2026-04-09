@@ -75,9 +75,10 @@ function processContentBody(html: string): string {
 
   out = out.replace(/\{\{[A-Z_]+:[^}]*\}\}/g, "");
 
-  out = out.replace(/((?:^|\n)\|.+\|(?:\n\|.+\|)+)/g, (tableBlock) => {
-    const rows = tableBlock.trim().split("\n").filter(r => r.trim());
-    if (rows.length < 2) return tableBlock;
+  out = out.replace(/(?:^|\n|>)\s*(\|.+\|(?:\n\|.+\|)+)/g, (fullMatch, tableBlock) => {
+    const prefix = fullMatch.slice(0, fullMatch.length - tableBlock.length);
+    const rows = tableBlock.trim().split("\n").filter((r: string) => r.trim());
+    if (rows.length < 2) return fullMatch;
 
     const parseRow = (row: string) =>
       row.split("|").slice(1, -1).map(c => c.trim());
@@ -97,7 +98,7 @@ function processContentBody(html: string): string {
       }
     }
 
-    if (!headerRow) return tableBlock;
+    if (!headerRow) return fullMatch;
 
     let table = '<table><thead><tr>';
     headerRow.forEach(h => { table += `<th>${escapeHtml(h)}</th>`; });
@@ -108,7 +109,7 @@ function processContentBody(html: string): string {
       table += '</tr>';
     });
     table += '</tbody></table>';
-    return table;
+    return prefix + table;
   });
 
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {

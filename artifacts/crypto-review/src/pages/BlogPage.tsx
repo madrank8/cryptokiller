@@ -26,6 +26,24 @@ interface BlogPostSummary {
 
 const BASE = "https://cryptokiller.org";
 
+const CONTENT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+  listicle: { label: "Listicle", color: "bg-amber-950/60 text-amber-400 border-amber-900/40" },
+  pillar_page: { label: "In-Depth Guide", color: "bg-blue-950/60 text-blue-400 border-blue-900/40" },
+  educational: { label: "Research", color: "bg-emerald-950/60 text-emerald-400 border-emerald-900/40" },
+  how_to: { label: "How-To", color: "bg-purple-950/60 text-purple-400 border-purple-900/40" },
+  case_study: { label: "Case Study", color: "bg-cyan-950/60 text-cyan-400 border-cyan-900/40" },
+};
+
+function ContentTypeBadge({ contentType }: { contentType: string }) {
+  const info = CONTENT_TYPE_LABELS[contentType];
+  if (!info) return null;
+  return (
+    <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border ${info.color}`}>
+      {info.label}
+    </span>
+  );
+}
+
 function PostImage({ url, alt, className }: { url: string | null; alt: string | null; className?: string }) {
   if (url) {
     return (
@@ -84,9 +102,12 @@ function FeaturedPost({ post }: { post: BlogPostSummary }) {
           <PostImage url={post.heroImageUrl} alt={post.heroImageAlt} />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
-            <span className="inline-block text-xs font-semibold uppercase tracking-wider text-red-400 bg-red-950/60 border border-red-900/40 rounded px-2 py-0.5 mb-3">
-              Featured
-            </span>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-block text-xs font-semibold uppercase tracking-wider text-red-400 bg-red-950/60 border border-red-900/40 rounded px-2 py-0.5">
+                Featured
+              </span>
+              <ContentTypeBadge contentType={post.contentType} />
+            </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors leading-tight">
               {post.headline || post.title}
             </h2>
@@ -111,6 +132,9 @@ function HorizontalPostCard({ post }: { post: BlogPostSummary }) {
           <PostImage url={post.heroImageUrl} alt={post.heroImageAlt} />
         </div>
         <div className="flex-1 p-4 sm:p-5 flex flex-col justify-center min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <ContentTypeBadge contentType={post.contentType} />
+          </div>
           <h2 className="text-lg font-bold text-white mb-1.5 group-hover:text-red-400 transition-colors line-clamp-2">
             {post.headline || post.title}
           </h2>
