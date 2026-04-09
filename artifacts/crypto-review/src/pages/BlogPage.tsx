@@ -86,11 +86,6 @@ export default function BlogPage() {
               return (
                 <Link key={post.id} href={`/blog/${post.slug}`}>
                   <article className="bg-slate-900/50 border border-slate-800 rounded-lg p-6 hover:border-slate-700 hover:bg-slate-900/80 transition-colors cursor-pointer">
-                    {post.contentType && (
-                      <span className="inline-block text-xs font-semibold uppercase tracking-wider text-red-400 bg-red-950/40 border border-red-900/30 rounded px-2 py-0.5 mb-3">
-                        {post.contentType.replace(/_/g, " ")}
-                      </span>
-                    )}
                     <h2 className="text-xl font-bold text-white mb-2 group-hover:text-red-400">
                       {post.headline || post.title}
                     </h2>

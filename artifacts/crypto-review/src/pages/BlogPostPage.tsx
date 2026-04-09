@@ -104,11 +104,6 @@ export default function BlogPostPage() {
         {post && (
           <article className="mt-6">
             <header className="mb-8">
-              {post.contentType && (
-                <span className="inline-block text-xs font-semibold uppercase tracking-wider text-red-400 bg-red-950/40 border border-red-900/30 rounded px-2 py-1 mb-4">
-                  {post.contentType.replace(/_/g, " ")}
-                </span>
-              )}
               <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-3">
                 {post.headline || post.title}
               </h1>
