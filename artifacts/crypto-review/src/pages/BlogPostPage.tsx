@@ -44,10 +44,18 @@ interface BlogPost {
 
 const BASE = "https://cryptokiller.org";
 
+function isUsableHeroUrl(url: string): boolean {
+  if (/oaidalleapiprodscus\.blob\.core\.windows\.net/.test(url)) return false;
+  if (/quickchart\.io/.test(url)) return false;
+  if (/mermaid\.ink/.test(url)) return false;
+  return true;
+}
+
 function resolveHeroImage(post: BlogPost): { url: string | null; alt: string | null } {
-  if (post.heroImageUrl) return { url: post.heroImageUrl, alt: post.heroImageAlt };
+  if (post.heroImageUrl && isUsableHeroUrl(post.heroImageUrl)) return { url: post.heroImageUrl, alt: post.heroImageAlt };
   const items = Array.isArray(post.visualMeta) ? post.visualMeta : [];
-  const best = items.find(v => v.url && v.succeeded !== false) ?? items.find(v => !!v.url);
+  const usable = items.filter(v => v.url && isUsableHeroUrl(v.url));
+  const best = usable.find(v => v.succeeded !== false) ?? usable.find(v => !!v.url);
   return { url: best?.url ?? null, alt: best?.altText ?? null };
 }
 

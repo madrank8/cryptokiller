@@ -17,14 +17,26 @@ function isVisualMetaItem(v: unknown): v is VisualMetaItem {
   return typeof v === "object" && v !== null && "url" in v;
 }
 
+function isExpiredTempUrl(url: string): boolean {
+  return /oaidalleapiprodscus\.blob\.core\.windows\.net/.test(url);
+}
+
+function isUsableHeroUrl(url: string): boolean {
+  if (isExpiredTempUrl(url)) return false;
+  if (/quickchart\.io/.test(url)) return false;
+  if (/mermaid\.ink/.test(url)) return false;
+  return true;
+}
+
 function resolveHeroImage(
   heroUrl: string | null,
   heroAlt: string | null,
   visualMeta: unknown
 ): { url: string | null; alt: string | null } {
   const items = Array.isArray(visualMeta) ? visualMeta.filter(isVisualMetaItem) : [];
-  const best = items.find(v => v.url && v.succeeded !== false) ?? items.find(v => !!v.url);
-  if (heroUrl) return { url: heroUrl, alt: heroAlt ?? best?.altText ?? null };
+  const usable = items.filter(v => v.url && isUsableHeroUrl(v.url));
+  const best = usable.find(v => v.succeeded !== false) ?? usable.find(v => !!v.url);
+  if (heroUrl && isUsableHeroUrl(heroUrl)) return { url: heroUrl, alt: heroAlt ?? best?.altText ?? null };
   return { url: best?.url ?? null, alt: best?.altText ?? null };
 }
 
@@ -102,6 +114,18 @@ function processContentBody(html: string): string {
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {
     return `<a href="${sanitizeHref(href)}">${escapeHtml(text)}</a>`;
   });
+
+  out = out.replace(/(?:^|\n)> (.+(?:\n> .+)*)/g, (match) => {
+    const text = match.trim().split("\n").map(l => l.replace(/^>\s?/, "")).join("\n");
+    return `<blockquote>${text}</blockquote>`;
+  });
+
+  out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  out = out.replace(
+    /<figure[^>]*>[\s\S]*?<img\s[^>]*src="https:\/\/oaidalleapiprodscus\.blob\.core\.windows\.net\/[^"]*"[^>]*\/>[\s\S]*?<\/figure>/g,
+    ''
+  );
 
   return out;
 }
