@@ -325,6 +325,24 @@ function processFullArticle(article: unknown): unknown {
   return typeof article === "string" ? processContentBody(article) : article;
 }
 
+interface InternalLinkRaw {
+  text?: string;
+  url?: string;
+  anchor_text?: string;
+  target_slug?: string;
+  context?: string;
+}
+
+function normalizeInternalLinks(links: unknown): { text: string; url: string }[] {
+  if (!Array.isArray(links)) return [];
+  return links
+    .map((l: InternalLinkRaw) => ({
+      text: l.text || l.anchor_text || "",
+      url: l.url || l.target_slug || "",
+    }))
+    .filter(l => l.text && l.url);
+}
+
 const router: IRouter = Router();
 
 router.get("/blog", async (_req, res): Promise<void> => {
@@ -379,12 +397,15 @@ router.get("/blog/:slug", async (req, res): Promise<void> => {
     post.fullArticle
   );
 
+  const internalLinks = normalizeInternalLinks(post.internalLinks);
+
   res.json({
     ...post,
     sections: enrichedSections,
     fullArticle: processFullArticle(post.fullArticle),
     keyTakeaways,
     notForYou,
+    internalLinks,
     publishedAt: post.publishedAt?.toISOString() ?? "",
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
