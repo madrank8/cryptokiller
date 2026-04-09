@@ -22,9 +22,9 @@ function resolveHeroImage(
   heroAlt: string | null,
   visualMeta: unknown
 ): { url: string | null; alt: string | null } {
-  if (heroUrl) return { url: heroUrl, alt: heroAlt };
   const items = Array.isArray(visualMeta) ? visualMeta.filter(isVisualMetaItem) : [];
   const best = items.find(v => v.url && v.succeeded !== false) ?? items.find(v => !!v.url);
+  if (heroUrl) return { url: heroUrl, alt: heroAlt ?? best?.altText ?? null };
   return { url: best?.url ?? null, alt: best?.altText ?? null };
 }
 
