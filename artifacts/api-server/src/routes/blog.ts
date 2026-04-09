@@ -123,6 +123,24 @@ function processContentBody(html: string): string {
 
   out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
+  out = out.replace(/((?:^|\n)\d+\.\s+.+(?:\n\d+\.\s+.+)+)/g, (block) => {
+    const items = block.trim().split("\n").filter(l => l.trim());
+    const lis = items.map(l => {
+      const content = l.replace(/^\d+\.\s+/, '').trim();
+      return `<li>${content}</li>`;
+    }).join('');
+    return `<ol>${lis}</ol>`;
+  });
+
+  out = out.replace(/((?:^|\n)[-*]\s+.+(?:\n[-*]\s+.+)+)/g, (block) => {
+    const items = block.trim().split("\n").filter(l => l.trim());
+    const lis = items.map(l => {
+      const content = l.replace(/^[-*]\s+/, '').trim();
+      return `<li>${content}</li>`;
+    }).join('');
+    return `<ul>${lis}</ul>`;
+  });
+
   out = out.replace(
     /<figure[^>]*>[\s\S]*?<img\s[^>]*src="https:\/\/oaidalleapiprodscus\.blob\.core\.windows\.net\/[^"]*"[^>]*\/>[\s\S]*?<\/figure>/g,
     ''
