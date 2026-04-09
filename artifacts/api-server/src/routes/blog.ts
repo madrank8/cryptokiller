@@ -17,6 +17,7 @@ router.get("/blog", async (_req, res): Promise<void> => {
       wordCount: blogPostsTable.wordCount,
       publishedAt: blogPostsTable.publishedAt,
       targetKeyword: blogPostsTable.targetKeyword,
+      authorPersonaId: blogPostsTable.authorPersonaId,
     })
     .from(blogPostsTable)
     .where(eq(blogPostsTable.status, "published"))
@@ -25,6 +26,7 @@ router.get("/blog", async (_req, res): Promise<void> => {
   res.json(posts.map(p => ({
     ...p,
     publishedAt: p.publishedAt?.toISOString() ?? "",
+    authorPersonaId: p.authorPersonaId ?? null,
   })));
 });
 

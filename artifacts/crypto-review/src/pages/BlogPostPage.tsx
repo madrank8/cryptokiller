@@ -7,6 +7,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 
 interface BlogPost {
   id: number;
@@ -27,6 +28,7 @@ interface BlogPost {
   targetKeyword: string;
   publishedAt: string;
   updatedAt: string;
+  authorPersonaId: string | null;
 }
 
 const BASE = "https://cryptokiller.org";
@@ -158,6 +160,11 @@ export default function BlogPostPage() {
               ) : null}
             </div>
 
+            {(() => {
+              const persona = post.authorPersonaId ? WRITER_PERSONAS[post.authorPersonaId] : undefined;
+              return persona ? <AuthorBox {...persona} /> : <AuthorBox />;
+            })()}
+
             {Array.isArray(post.faq) && post.faq.length > 0 && (
               <section className="mt-12 border-t border-slate-800 pt-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Frequently Asked Questions</h2>
@@ -208,7 +215,6 @@ export default function BlogPostPage() {
               </section>
             )}
 
-            <AuthorBox />
           </article>
         )}
       </main>

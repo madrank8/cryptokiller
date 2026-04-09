@@ -29,6 +29,8 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
   try {
     await client.query("BEGIN");
 
+    const authorPersonaId = content.ai_audit?.writer_persona?.id ?? content.author_persona_id ?? null;
+
     const result = await client.query(
       `INSERT INTO blog_posts (
         external_id, topic_id, content_type, title, headline, slug,
@@ -36,9 +38,10 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         internal_links, sources, word_count, status,
         topic_title, target_keyword, priority_score, search_volume,
         keyword_difficulty, published_at, destination, url,
+        author_persona_id,
         created_at, updated_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW(),NOW()
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
         external_id = EXCLUDED.external_id,
@@ -63,6 +66,7 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         published_at = EXCLUDED.published_at,
         destination = EXCLUDED.destination,
         url = EXCLUDED.url,
+        author_persona_id = EXCLUDED.author_persona_id,
         updated_at = NOW()
       RETURNING id, (xmax = 0) AS inserted`,
       [
@@ -89,6 +93,7 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         content.published_at ?? (content.status === "published" ? new Date().toISOString() : null),
         destination ?? "blog",
         url ?? `/blog/${content.slug}`,
+        authorPersonaId,
       ]
     );
 

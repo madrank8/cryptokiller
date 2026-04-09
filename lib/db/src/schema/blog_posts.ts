@@ -27,6 +27,7 @@ export const blogPostsTable = pgTable("blog_posts", {
   publishedAt: timestamp("published_at", { withTimezone: true }),
   destination: text("destination").notNull().default("blog"),
   url: text("url").notNull().default(""),
+  authorPersonaId: text("author_persona_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

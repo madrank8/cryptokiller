@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, blogPostsTable } from "@workspace/db";
 import {
   platformsTable,
   reviewsTable,
@@ -377,6 +377,75 @@ export async function runSupabaseSync(): Promise<SyncResult> {
 
       syncedReviews++;
     }
+  }
+
+  try {
+    const { data: contentRows, error: contentErr } = await supabase
+      .from("content")
+      .select("*")
+      .eq("status", "published");
+
+    if (contentErr) {
+      log.warn({ error: contentErr }, "Could not fetch content table for blog sync");
+    } else if (contentRows && contentRows.length > 0) {
+      for (const row of contentRows) {
+        if (!row.slug) continue;
+        const personaId = row.ai_audit?.writer_persona?.id ?? null;
+
+        await db
+          .insert(blogPostsTable)
+          .values({
+            externalId: row.id ?? "",
+            topicId: row.topic_id ?? "",
+            contentType: row.content_type ?? "",
+            title: row.title ?? "",
+            headline: row.headline ?? "",
+            slug: row.slug,
+            metaDescription: row.meta_description ?? "",
+            summary: row.summary ?? "",
+            fullArticle: row.full_article ?? "",
+            sections: row.sections ?? [],
+            faq: row.faq ?? [],
+            internalLinks: row.internal_links ?? [],
+            sources: row.sources ?? [],
+            wordCount: row.word_count ?? 0,
+            status: row.status ?? "draft",
+            topicTitle: row.topic_title ?? "",
+            targetKeyword: row.target_keyword ?? "",
+            priorityScore: row.priority_score ?? 0,
+            searchVolume: row.search_volume ?? 0,
+            keywordDifficulty: row.keyword_difficulty ?? 0,
+            publishedAt: row.published_at ? new Date(row.published_at) : new Date(),
+            destination: row.destination ?? "blog",
+            url: row.url ?? `/blog/${row.slug}`,
+            authorPersonaId: personaId,
+          })
+          .onConflictDoUpdate({
+            target: blogPostsTable.slug,
+            set: {
+              externalId: row.id ?? "",
+              topicId: row.topic_id ?? "",
+              contentType: row.content_type ?? "",
+              title: row.title ?? "",
+              headline: row.headline ?? "",
+              metaDescription: row.meta_description ?? "",
+              summary: row.summary ?? "",
+              fullArticle: row.full_article ?? "",
+              sections: row.sections ?? [],
+              faq: row.faq ?? [],
+              internalLinks: row.internal_links ?? [],
+              sources: row.sources ?? [],
+              wordCount: row.word_count ?? 0,
+              status: row.status ?? "draft",
+              publishedAt: row.published_at ? new Date(row.published_at) : new Date(),
+              authorPersonaId: personaId,
+            },
+          });
+      }
+      log.info(`Synced ${contentRows.length} blog posts from content table`);
+    }
+  } catch (err) {
+    log.warn({ error: err }, "content blog sync failed (non-fatal)");
   }
 
   const durationMs = Date.now() - start;
