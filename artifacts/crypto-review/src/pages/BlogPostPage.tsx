@@ -1,13 +1,21 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { Calendar, Clock, ArrowLeft, ExternalLink, BookOpen } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, ExternalLink, BookOpen, User, List } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { useState, useMemo } from "react";
+
+interface VisualMetaItem {
+  url?: string;
+  altText?: string;
+  succeeded?: boolean;
+  type?: string;
+}
 
 interface BlogPost {
   id: number;
@@ -29,9 +37,57 @@ interface BlogPost {
   publishedAt: string;
   updatedAt: string;
   authorPersonaId: string | null;
+  heroImageUrl: string | null;
+  heroImageAlt: string | null;
+  visualMeta: VisualMetaItem[] | null;
 }
 
 const BASE = "https://cryptokiller.org";
+
+function resolveHeroImage(post: BlogPost): { url: string | null; alt: string | null } {
+  if (post.heroImageUrl) return { url: post.heroImageUrl, alt: post.heroImageAlt };
+  const items = Array.isArray(post.visualMeta) ? post.visualMeta : [];
+  const best = items.find(v => v.url && v.succeeded !== false) ?? items.find(v => !!v.url);
+  return { url: best?.url ?? null, alt: best?.altText ?? null };
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function TableOfContents({ sections }: { sections: { heading: string }[] }) {
+  const [open, setOpen] = useState(true);
+  if (sections.length < 3) return null;
+  return (
+    <nav className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 mb-10">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 text-white font-semibold text-sm uppercase tracking-wider w-full"
+      >
+        <List className="h-4 w-4 text-red-400" />
+        Table of Contents
+        <span className="ml-auto text-slate-500 text-xs">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <ol className="mt-4 space-y-2 list-decimal list-inside text-sm">
+          {sections.map((s, i) => (
+            <li key={i}>
+              <a
+                href={`#${slugify(s.heading)}`}
+                className="text-slate-400 hover:text-red-400 transition-colors"
+              >
+                {s.heading}
+              </a>
+            </li>
+          ))}
+        </ol>
+      )}
+    </nav>
+  );
+}
 
 export default function BlogPostPage() {
   const params = useParams<{ slug: string }>();
@@ -53,10 +109,14 @@ export default function BlogPostPage() {
     ...(post ? [{ label: post.title, href: `${BASE}/blog/${post.slug}` }] : []),
   ];
 
+  const heroImage = useMemo(() => post ? resolveHeroImage(post) : null, [post]);
+  const persona = post?.authorPersonaId ? WRITER_PERSONAS[post.authorPersonaId] : undefined;
+
   usePageMeta({
     title: post ? `${post.title} | CryptoKiller` : "Blog | CryptoKiller",
     description: post?.metaDescription || post?.summary || "CryptoKiller blog — crypto safety insights and guides.",
     canonical: `${BASE}/blog/${slug}`,
+    ogImage: heroImage?.url ?? undefined,
     jsonLd: post
       ? {
           "@context": "https://schema.org",
@@ -65,10 +125,13 @@ export default function BlogPostPage() {
           description: post.metaDescription || post.summary,
           datePublished: post.publishedAt,
           dateModified: post.updatedAt,
-          author: { "@type": "Organization", name: "CryptoKiller" },
+          author: persona
+            ? { "@type": "Person", name: persona.name, jobTitle: persona.role }
+            : { "@type": "Organization", name: "CryptoKiller" },
           publisher: { "@type": "Organization", name: "CryptoKiller" },
           mainEntityOfPage: `${BASE}/blog/${slug}`,
           wordCount: post.wordCount,
+          ...(heroImage?.url ? { image: heroImage.url } : {}),
           ...breadcrumbJsonLd(crumbs),
         }
       : { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
@@ -87,6 +150,7 @@ export default function BlogPostPage() {
           <div className="space-y-4 mt-8">
             <Skeleton className="h-10 w-3/4 bg-slate-800" />
             <Skeleton className="h-6 w-1/2 bg-slate-800" />
+            <Skeleton className="aspect-[2/1] w-full bg-slate-800 rounded-xl" />
             <Skeleton className="h-64 w-full bg-slate-800" />
           </div>
         )}
@@ -95,8 +159,8 @@ export default function BlogPostPage() {
           <div className="mt-8 text-center py-16">
             <h1 className="text-3xl font-bold text-white mb-4">Post Not Found</h1>
             <p className="text-slate-400 mb-6">The blog post you're looking for doesn't exist or hasn't been published yet.</p>
-            <Link href="/" className="text-red-400 hover:text-red-300 inline-flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" /> Back to Home
+            <Link href="/blog" className="text-red-400 hover:text-red-300 inline-flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" /> Back to Blog
             </Link>
           </div>
         )}
@@ -104,13 +168,22 @@ export default function BlogPostPage() {
         {post && (
           <article className="mt-6">
             <header className="mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-3">
+              <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-4">
                 {post.headline || post.title}
               </h1>
               {post.summary && (
-                <p className="text-lg text-slate-400 leading-relaxed mb-4">{post.summary}</p>
+                <p className="text-lg text-slate-400 leading-relaxed mb-5">{post.summary}</p>
               )}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500 mb-6">
+                {persona && (
+                  <span className="flex items-center gap-1.5">
+                    <User className="h-4 w-4" />
+                    <span className="text-slate-300">{persona.name}</span>
+                    <span className="text-slate-600">·</span>
+                    <span>{persona.role}</span>
+                  </span>
+                )}
                 {publishedDate && (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
@@ -130,34 +203,86 @@ export default function BlogPostPage() {
                   </span>
                 )}
               </div>
+
+              {heroImage?.url && (
+                <figure className="rounded-xl overflow-hidden border border-slate-800 mb-2">
+                  <img
+                    src={heroImage.url}
+                    alt={heroImage.alt || post.headline || post.title}
+                    className="w-full object-cover max-h-[480px]"
+                  />
+                  {heroImage.alt && (
+                    <figcaption className="text-xs text-slate-500 px-4 py-2.5 bg-slate-900/80 italic">
+                      {heroImage.alt}
+                    </figcaption>
+                  )}
+                </figure>
+              )}
             </header>
 
             <div className="border-t border-slate-800 pt-8">
               {Array.isArray(post.sections) && post.sections.length > 0 ? (
-                <div className="space-y-8">
-                  {post.sections.map((section, i) => (
-                    <section key={i}>
-                      {section.heading && (
-                        <h2 className="text-xl font-bold text-white mb-3">{section.heading}</h2>
-                      )}
-                      <div
-                        className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4 [&_li]:mb-1 [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_strong]:text-white [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-4 [&_h3]:mb-2"
-                        dangerouslySetInnerHTML={{ __html: section.body }}
-                      />
-                    </section>
-                  ))}
-                </div>
+                <>
+                  <TableOfContents sections={post.sections.filter(s => s.heading)} />
+                  <div className="space-y-12">
+                    {post.sections.map((section, i) => (
+                      <section key={i} id={section.heading ? slugify(section.heading) : undefined}>
+                        {section.heading && (
+                          <h2 className="text-2xl font-bold text-white mb-4 scroll-mt-24">{section.heading}</h2>
+                        )}
+                        <div
+                          className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed
+                            [&_p]:mb-4 [&_p]:text-base [&_p]:leading-7
+                            [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4
+                            [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4
+                            [&_li]:mb-1.5 [&_li]:leading-7
+                            [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_a]:underline [&_a]:underline-offset-2
+                            [&_strong]:text-white [&_strong]:font-semibold
+                            [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-3
+                            [&_blockquote]:border-l-2 [&_blockquote]:border-red-500/50 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-slate-400
+                            [&_figure]:my-8 [&_figure]:rounded-xl [&_figure]:overflow-hidden [&_figure]:border [&_figure]:border-slate-800
+                            [&_figure_img]:w-full [&_figure_img]:object-contain [&_figure_img]:bg-slate-900
+                            [&_figcaption]:text-xs [&_figcaption]:text-slate-500 [&_figcaption]:px-4 [&_figcaption]:py-2.5 [&_figcaption]:bg-slate-900/80 [&_figcaption]:italic
+                            [&_img:not(figure_img)]:rounded-xl [&_img:not(figure_img)]:border [&_img:not(figure_img)]:border-slate-800 [&_img:not(figure_img)]:my-6
+                            [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+                            [&_th]:text-left [&_th]:text-white [&_th]:text-sm [&_th]:font-semibold [&_th]:border-b [&_th]:border-slate-700 [&_th]:pb-2 [&_th]:pr-4
+                            [&_td]:text-sm [&_td]:py-2 [&_td]:pr-4 [&_td]:border-b [&_td]:border-slate-800/50"
+                          dangerouslySetInnerHTML={{ __html: section.body }}
+                        />
+                      </section>
+                    ))}
+                  </div>
+                </>
               ) : post.fullArticle ? (
                 <div
-                  className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4 [&_li]:mb-1 [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_strong]:text-white [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-4 [&_h3]:mb-2"
+                  className="prose prose-invert prose-slate max-w-none text-slate-300 leading-relaxed
+                    [&_p]:mb-4 [&_p]:text-base [&_p]:leading-7
+                    [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4
+                    [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4
+                    [&_li]:mb-1.5
+                    [&_a]:text-red-400 [&_a:hover]:text-red-300 [&_a]:underline [&_a]:underline-offset-2
+                    [&_strong]:text-white
+                    [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-10 [&_h2]:mb-4
+                    [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-3
+                    [&_figure]:my-8 [&_figure]:rounded-xl [&_figure]:overflow-hidden [&_figure]:border [&_figure]:border-slate-800
+                    [&_figure_img]:w-full [&_figure_img]:object-contain [&_figure_img]:bg-slate-900
+                    [&_figcaption]:text-xs [&_figcaption]:text-slate-500 [&_figcaption]:px-4 [&_figcaption]:py-2.5 [&_figcaption]:bg-slate-900/80 [&_figcaption]:italic
+                    [&_img:not(figure_img)]:rounded-xl [&_img:not(figure_img)]:border [&_img:not(figure_img)]:border-slate-800 [&_img:not(figure_img)]:my-6"
                   dangerouslySetInnerHTML={{ __html: post.fullArticle }}
                 />
               ) : null}
             </div>
 
             {(() => {
-              const persona = post.authorPersonaId ? WRITER_PERSONAS[post.authorPersonaId] : undefined;
-              return persona ? <AuthorBox {...persona} /> : <AuthorBox />;
+              return persona ? (
+                <div className="mt-12 border-t border-slate-800 pt-8">
+                  <AuthorBox {...persona} />
+                </div>
+              ) : (
+                <div className="mt-12 border-t border-slate-800 pt-8">
+                  <AuthorBox />
+                </div>
+              );
             })()}
 
             {Array.isArray(post.faq) && post.faq.length > 0 && (
@@ -165,10 +290,15 @@ export default function BlogPostPage() {
                 <h2 className="text-2xl font-bold text-white mb-6">Frequently Asked Questions</h2>
                 <div className="space-y-4">
                   {post.faq.map((item, i) => (
-                    <div key={i} className="bg-slate-900/50 border border-slate-800 rounded-lg p-5">
-                      <h3 className="text-white font-semibold mb-2">{item.question}</h3>
-                      <p className="text-slate-400 leading-relaxed">{item.answer}</p>
-                    </div>
+                    <details key={i} className="group bg-slate-900/50 border border-slate-800 rounded-lg">
+                      <summary className="p-5 cursor-pointer text-white font-semibold flex items-center justify-between list-none">
+                        {item.question}
+                        <span className="text-slate-500 group-open:rotate-180 transition-transform ml-3 flex-shrink-0">▾</span>
+                      </summary>
+                      <div className="px-5 pb-5 -mt-1">
+                        <p className="text-slate-400 leading-relaxed">{item.answer}</p>
+                      </div>
+                    </details>
                   ))}
                 </div>
               </section>
@@ -179,14 +309,15 @@ export default function BlogPostPage() {
                 <h2 className="text-2xl font-bold text-white mb-4">Sources</h2>
                 <ul className="space-y-2">
                   {post.sources.map((source, i) => (
-                    <li key={i}>
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-slate-600 text-sm font-mono mt-0.5 w-5 flex-shrink-0 text-right">{i + 1}.</span>
                       <a
                         href={source.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-red-400 hover:text-red-300 inline-flex items-center gap-1.5 text-sm"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                         {source.title || source.url}
                       </a>
                     </li>
