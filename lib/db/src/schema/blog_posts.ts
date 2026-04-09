@@ -28,6 +28,10 @@ export const blogPostsTable = pgTable("blog_posts", {
   destination: text("destination").notNull().default("blog"),
   url: text("url").notNull().default(""),
   authorPersonaId: text("author_persona_id"),
+  heroImageUrl: text("hero_image_url"),
+  heroImageAlt: text("hero_image_alt"),
+  heroImageCredit: text("hero_image_credit"),
+  visualMeta: jsonb("visual_meta").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

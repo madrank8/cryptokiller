@@ -361,7 +361,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
       }
 
       const brandData = (brands as SupaBrand[]).find(b => b.id === supaReview.brand_id);
-      if (brandData?.geo_list?.length > 0) {
+      if (brandData && Array.isArray(brandData.geo_list) && brandData.geo_list.length > 0) {
         const geos = groupGeoList(brandData.geo_list);
         if (geos.length > 0) {
           await db.insert(geoTargetsTable).values(
@@ -419,6 +419,10 @@ export async function runSupabaseSync(): Promise<SyncResult> {
             destination: row.destination ?? "blog",
             url: row.url ?? `/blog/${row.slug}`,
             authorPersonaId: personaId,
+            heroImageUrl: row.hero_image_url ?? null,
+            heroImageAlt: row.hero_image_alt ?? null,
+            heroImageCredit: row.hero_image_credit ?? null,
+            visualMeta: row.visual_meta ?? [],
           })
           .onConflictDoUpdate({
             target: blogPostsTable.slug,
@@ -439,6 +443,10 @@ export async function runSupabaseSync(): Promise<SyncResult> {
               status: row.status ?? "draft",
               publishedAt: row.published_at ? new Date(row.published_at) : new Date(),
               authorPersonaId: personaId,
+              heroImageUrl: row.hero_image_url ?? null,
+              heroImageAlt: row.hero_image_alt ?? null,
+              heroImageCredit: row.hero_image_credit ?? null,
+              visualMeta: row.visual_meta ?? [],
             },
           });
       }

@@ -18,16 +18,27 @@ router.get("/blog", async (_req, res): Promise<void> => {
       publishedAt: blogPostsTable.publishedAt,
       targetKeyword: blogPostsTable.targetKeyword,
       authorPersonaId: blogPostsTable.authorPersonaId,
+      heroImageUrl: blogPostsTable.heroImageUrl,
+      heroImageAlt: blogPostsTable.heroImageAlt,
+      visualMeta: blogPostsTable.visualMeta,
     })
     .from(blogPostsTable)
     .where(eq(blogPostsTable.status, "published"))
     .orderBy(desc(blogPostsTable.publishedAt));
 
-  res.json(posts.map(p => ({
-    ...p,
-    publishedAt: p.publishedAt?.toISOString() ?? "",
-    authorPersonaId: p.authorPersonaId ?? null,
-  })));
+  res.json(posts.map(p => {
+    const vm = Array.isArray(p.visualMeta) ? p.visualMeta as any[] : [];
+    const firstImage = vm.find((v: any) => v.succeeded && v.url);
+    const imageUrl = p.heroImageUrl || firstImage?.url || null;
+    const imageAlt = p.heroImageAlt || firstImage?.altText || null;
+    return {
+      ...p,
+      publishedAt: p.publishedAt?.toISOString() ?? "",
+      authorPersonaId: p.authorPersonaId ?? null,
+      heroImageUrl: imageUrl,
+      heroImageAlt: imageAlt,
+    };
+  }));
 });
 
 router.get("/blog/:slug", async (req, res): Promise<void> => {

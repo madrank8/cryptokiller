@@ -39,9 +39,10 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         topic_title, target_keyword, priority_score, search_volume,
         keyword_difficulty, published_at, destination, url,
         author_persona_id,
+        hero_image_url, hero_image_alt, hero_image_credit, visual_meta,
         created_at, updated_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW(),NOW()
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
         external_id = EXCLUDED.external_id,
@@ -67,6 +68,10 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         destination = EXCLUDED.destination,
         url = EXCLUDED.url,
         author_persona_id = EXCLUDED.author_persona_id,
+        hero_image_url = EXCLUDED.hero_image_url,
+        hero_image_alt = EXCLUDED.hero_image_alt,
+        hero_image_credit = EXCLUDED.hero_image_credit,
+        visual_meta = EXCLUDED.visual_meta,
         updated_at = NOW()
       RETURNING id, (xmax = 0) AS inserted`,
       [
@@ -94,6 +99,10 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         destination ?? "blog",
         url ?? `/blog/${content.slug}`,
         authorPersonaId,
+        content.hero_image_url ?? null,
+        content.hero_image_alt ?? null,
+        content.hero_image_credit ?? null,
+        JSON.stringify(content.visual_meta ?? []),
       ]
     );
 
