@@ -30,6 +30,8 @@ interface BlogPost {
   faq: { question: string; answer: string }[];
   internalLinks: { text: string; url: string }[];
   sources: { title: string; url: string }[];
+  keyTakeaways: string | null;
+  notForYou: string | null;
   wordCount: number;
   status: string;
   topicTitle: string;
@@ -263,6 +265,14 @@ export default function BlogPostPage() {
               {Array.isArray(post.sections) && post.sections.length > 0 ? (
                 <>
                   <TableOfContents sections={post.sections.filter(s => s.heading)} />
+
+                  {post.keyTakeaways && (
+                    <div
+                      className={`mb-10 ${PROSE_CLASSES}`}
+                      dangerouslySetInnerHTML={{ __html: post.keyTakeaways }}
+                    />
+                  )}
+
                   <div className="space-y-12">
                     {post.sections.map((section, i) => (
                       <section key={i} id={section.heading ? slugify(section.heading) : undefined}>
@@ -276,6 +286,13 @@ export default function BlogPostPage() {
                       </section>
                     ))}
                   </div>
+
+                  {post.notForYou && (
+                    <div
+                      className={`mt-12 ${PROSE_CLASSES}`}
+                      dangerouslySetInnerHTML={{ __html: post.notForYou }}
+                    />
+                  )}
                 </>
               ) : post.fullArticle ? (
                 <div

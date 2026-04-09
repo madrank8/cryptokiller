@@ -197,12 +197,128 @@ function processContentBody(html: string): string {
   return out;
 }
 
-function processSections(sections: unknown): unknown {
-  if (!Array.isArray(sections)) return sections;
-  return sections.map((s: { heading?: string; body?: string }) => ({
-    ...s,
-    body: typeof s.body === "string" ? processContentBody(s.body) : s.body,
-  }));
+function extractBlock(html: string, className: string): string | null {
+  const openRe = new RegExp(
+    `<div[^>]*class="[^"]*${className}[^"]*"[^>]*>`,
+    "i"
+  );
+  const m = openRe.exec(html);
+  if (!m) return null;
+
+  let depth = 1;
+  let pos = m.index + m[0].length;
+  while (depth > 0 && pos < html.length) {
+    const nextOpen = html.indexOf("<div", pos);
+    const nextClose = html.indexOf("</div>", pos);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + 4;
+    } else {
+      depth--;
+      if (depth === 0) {
+        return html.slice(m.index, nextClose + 6);
+      }
+      pos = nextClose + 6;
+    }
+  }
+
+  return null;
+}
+
+function splitFullArticleBySections(fullArticle: string): Map<string, string> {
+  const sectionMap = new Map<string, string>();
+  const h2Re = /<h2[^>]*>([\s\S]*?)<\/h2>/gi;
+  const headings: { text: string; index: number }[] = [];
+  let m;
+  while ((m = h2Re.exec(fullArticle)) !== null) {
+    const text = m[1].replace(/<[^>]*>/g, "").trim();
+    headings.push({ text, index: m.index + m[0].length });
+  }
+
+  for (let i = 0; i < headings.length; i++) {
+    const start = headings[i].index;
+    const end = i + 1 < headings.length
+      ? fullArticle.lastIndexOf("<h2", headings[i + 1].index)
+      : fullArticle.length;
+    const body = fullArticle.slice(start, end).trim();
+    sectionMap.set(headings[i].text.toLowerCase(), body);
+  }
+
+  return sectionMap;
+}
+
+function normalizeHeading(h: string): string {
+  return h
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"')
+    .replace(/&ldquo;/g, '"')
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+interface EnrichedResult {
+  sections: unknown;
+  keyTakeaways: string | null;
+  notForYou: string | null;
+}
+
+function enrichSections(
+  sections: unknown,
+  fullArticle: unknown
+): EnrichedResult {
+  let keyTakeaways: string | null = null;
+  let notForYou: string | null = null;
+
+  if (typeof fullArticle === "string") {
+    const ktRaw = extractBlock(fullArticle, "key-takeaways");
+    if (ktRaw) keyTakeaways = processContentBody(ktRaw);
+
+    const nfyRaw = extractBlock(fullArticle, "not-for-you");
+    if (nfyRaw) notForYou = processContentBody(nfyRaw);
+  }
+
+  if (!Array.isArray(sections) || typeof fullArticle !== "string") {
+    return {
+      sections: Array.isArray(sections)
+        ? sections.map((s: { heading?: string; body?: string }) => ({
+            ...s,
+            body: typeof s.body === "string" ? processContentBody(s.body) : s.body,
+          }))
+        : sections,
+      keyTakeaways,
+      notForYou,
+    };
+  }
+
+  const faMap = splitFullArticleBySections(fullArticle);
+
+  const enriched = sections.map((s: { heading?: string; body?: string }) => {
+    if (!s.heading) {
+      return { ...s, body: typeof s.body === "string" ? processContentBody(s.body) : s.body };
+    }
+
+    const key = normalizeHeading(s.heading);
+    const faBody = faMap.get(key);
+
+    if (faBody) {
+      return { ...s, body: processContentBody(faBody) };
+    }
+
+    return { ...s, body: typeof s.body === "string" ? processContentBody(s.body) : s.body };
+  });
+
+  return { sections: enriched, keyTakeaways, notForYou };
 }
 
 function processFullArticle(article: unknown): unknown {
@@ -258,10 +374,17 @@ router.get("/blog/:slug", async (req, res): Promise<void> => {
     return;
   }
 
+  const { sections: enrichedSections, keyTakeaways, notForYou } = enrichSections(
+    post.sections,
+    post.fullArticle
+  );
+
   res.json({
     ...post,
-    sections: processSections(post.sections),
+    sections: enrichedSections,
     fullArticle: processFullArticle(post.fullArticle),
+    keyTakeaways,
+    notForYou,
     publishedAt: post.publishedAt?.toISOString() ?? "",
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
