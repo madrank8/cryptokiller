@@ -1,44 +1,15 @@
 import {
   Shield, Users, Eye, Target, BookOpen, Code,
-  TrendingUp, MapPin, ShieldCheck, Mail
+  TrendingUp, MapPin, ShieldCheck, Mail, ArrowRight
 } from "lucide-react";
+import { Link } from "wouter";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 
-const analysts = [
-  {
-    name: "M. Webb",
-    initials: "MW",
-    role: "Lead Threat Analyst",
-    avatarBg: "bg-blue-900",
-    credentials: "Blockchain Forensics · 9 yrs",
-    specialties: ["Ad Fraud", "Wallet Tracing", "Pig Butchering"],
-    published: "340+ investigations published",
-    bio: "Leads threat assessment and scam classification across all tracked platforms. Specializes in tracing wallet flows and identifying pig-butchering funnel patterns used by organized crypto fraud networks.",
-  },
-  {
-    name: "P. Nair",
-    initials: "PN",
-    role: "Ad Intelligence",
-    avatarBg: "bg-purple-900",
-    credentials: "Cybersecurity · Ex-Platform Trust & Safety",
-    specialties: ["Celebrity Impersonation", "Phishing"],
-    published: "218 investigations published",
-    bio: "Monitors social media ad platforms for fraudulent crypto campaigns. Brings platform-side Trust & Safety experience to identifying celebrity impersonation schemes and phishing funnels at scale.",
-  },
-  {
-    name: "D. Ortiz",
-    initials: "DO",
-    role: "Investigative Writer",
-    avatarBg: "bg-amber-900",
-    credentials: "Investigative Journalism · FinCrime",
-    specialties: ["Rug Pulls", "ICO Fraud"],
-    published: "167 investigations published",
-    bio: "Authors long-form investigation reports with evidence-backed analysis. Covers rug pulls, ICO fraud, and regulatory gaps in the crypto space with a focus on consumer protection.",
-  },
-];
+const analysts = Object.values(WRITER_PERSONAS);
 
 export default function AboutPage() {
   const crumbs = [
@@ -48,7 +19,7 @@ export default function AboutPage() {
 
   usePageMeta({
     title: "About CryptoKiller — Crypto Scam Intelligence Platform",
-    description: "CryptoKiller is a crypto scam intelligence platform. Our analysts investigate fraudulent platforms, track scam ads, and publish evidence-based reviews to protect investors.",
+    description: "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 1,000 fraudulent brands across 84+ countries.",
     canonical: "https://cryptokiller.org/about",
     jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
   });
@@ -62,6 +33,7 @@ export default function AboutPage() {
           { label: "Home", href: "/" },
           { label: "About CryptoKiller" },
         ]} />
+
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-slate-800/60 border border-slate-700/40 text-slate-300 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-5">
             <Users className="h-3.5 w-3.5" />
@@ -70,10 +42,18 @@ export default function AboutPage() {
           <h1 className="text-4xl md:text-5xl font-black text-white mb-5">
             About <span className="text-red-500">CryptoKiller</span>
           </h1>
-          <p className="text-slate-400 max-w-3xl mx-auto leading-relaxed text-lg">
-            CryptoKiller is a crypto scam intelligence platform. Our analysts investigate
-            fraudulent platforms, track scam advertising campaigns across social media,
-            and publish evidence-based reviews to protect investors worldwide.
+          <p className="text-slate-300 max-w-3xl mx-auto leading-relaxed text-lg mb-4">
+            We started CryptoKiller because we kept seeing the same thing: people losing
+            real money to crypto scams that followed the exact same playbook — fake celebrity
+            endorsements, fabricated trading dashboards, pressure tactics on WhatsApp and
+            Telegram. The scams were obvious to anyone who knew what to look for. The problem
+            was that most people didn't.
+          </p>
+          <p className="text-slate-400 max-w-3xl mx-auto leading-relaxed text-base">
+            So we built a platform that does the looking for them. CryptoKiller monitors
+            social media ad networks across 84+ countries, identifies fraudulent crypto
+            campaigns as they launch, and publishes evidence-based investigation reports
+            before the scammers can disappear and rebrand.
           </p>
         </div>
 
@@ -124,17 +104,24 @@ export default function AboutPage() {
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 md:p-10 mb-16">
           <div className="grid md:grid-cols-2 gap-10">
             <div>
-              <h2 className="text-2xl font-black text-white mb-4">Our Mission</h2>
+              <h2 className="text-2xl font-black text-white mb-4">Why We Exist</h2>
               <p className="text-slate-400 leading-relaxed mb-4">
-                CryptoKiller exists to expose cryptocurrency scams through real-time ad
-                surveillance and evidence-based investigation. We monitor social media ad
-                platforms across 84+ countries, identifying fraudulent campaigns as they
-                launch and documenting the evidence before it disappears.
+                Every week, thousands of people search for a crypto platform they've seen
+                advertised on Facebook, Instagram, or YouTube. Most of those ads are placed
+                by scam operations — they run for a few days, collect deposits, then vanish.
+                By the time anyone sounds the alarm, the money is gone and the site has
+                already relaunched under a new name.
+              </p>
+              <p className="text-slate-400 leading-relaxed mb-4">
+                CryptoKiller exists to break that cycle. Our team captures scam ads the moment
+                they go live, documents the evidence — creative assets, targeting data, fake
+                endorsements, wallet activity — and publishes investigation reports that
+                rank in search results right next to the scams themselves.
               </p>
               <p className="text-slate-400 leading-relaxed">
-                Our threat scores are based entirely on verifiable evidence — ad creative
-                counts, geo-targeting data, celebrity impersonation patterns, and wallet
-                activity. We never accept payment to modify or remove listings.
+                When someone googles a suspicious platform, we want our investigation to be
+                the first thing they find. That's the mission. No paywalls, no paid removals,
+                no exceptions.
               </p>
             </div>
             <div className="space-y-4">
@@ -142,17 +129,17 @@ export default function AboutPage() {
                 {
                   icon: <Shield className="h-5 w-5 text-red-400" />,
                   title: "Always Monitoring",
-                  desc: "Our detection systems operate around the clock to identify new scam platforms as they emerge across ad networks.",
+                  desc: "Our systems run around the clock, scanning ad networks for new scam campaigns the moment they launch.",
                 },
                 {
                   icon: <TrendingUp className="h-5 w-5 text-amber-400" />,
-                  title: "Evidence-Based",
-                  desc: "Every investigation is backed by verifiable ad evidence, wallet data, and documented scam funnel patterns.",
+                  title: "Evidence First",
+                  desc: "Every threat score is built on verifiable data — ad counts, geo-targeting, wallet flows, impersonation patterns. No speculation.",
                 },
                 {
                   icon: <Code className="h-5 w-5 text-blue-400" />,
-                  title: "Rapid Detection",
-                  desc: "Automated systems enable fast identification and analysis of fraudulent crypto advertising campaigns at scale.",
+                  title: "No Pay-to-Remove",
+                  desc: "We never accept payment to modify or remove a listing. If it's a scam, it stays on the record.",
                 },
               ].map((item, i) => (
                 <div
@@ -181,11 +168,19 @@ export default function AboutPage() {
             <div className="flex-1 h-px bg-slate-800 ml-3" />
           </div>
 
+          <p className="text-slate-400 text-sm leading-relaxed max-w-3xl mb-8">
+            Our analysts come from cybercrime units, platform Trust & Safety teams, and
+            investigative journalism. They joined CryptoKiller because they wanted to stop
+            reacting to scams after the damage was done — and start exposing them before
+            they reach their next victim.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             {analysts.map((a) => (
-              <div
-                key={a.name}
-                className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-colors"
+              <Link
+                key={a.slug}
+                href={`/author/${a.slug}`}
+                className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-colors block"
               >
                 <div className="flex items-center gap-4 mb-5">
                   <div
@@ -220,12 +215,15 @@ export default function AboutPage() {
                   ))}
                 </div>
 
-                <div className="border-t border-slate-800 pt-4">
+                <div className="border-t border-slate-800 pt-4 flex items-center justify-between">
                   <p className="text-xs text-slate-500">
                     <span className="text-white font-semibold">{a.published}</span>
                   </p>
+                  <span className="text-xs text-red-400 font-semibold inline-flex items-center gap-1">
+                    View profile <ArrowRight className="h-3 w-3" />
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -274,7 +272,7 @@ export default function AboutPage() {
 
         <div className="border-t border-slate-800 pt-8 pb-4 text-center">
           <p className="text-slate-600 text-xs">
-            CryptoKiller runs sophisticated detection systems 24/7 to discover the latest crypto scams.
+            CryptoKiller is operated by DEX Algo Technologies Pte Ltd., registered in Singapore.
             All investigation data is sourced from real-time ad monitoring and community reports.
           </p>
         </div>

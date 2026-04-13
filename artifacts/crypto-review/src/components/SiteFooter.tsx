@@ -1,4 +1,4 @@
-import { Shield, MessageCircle } from "lucide-react";
+import { Shield, MessageCircle, Mail, MapPin } from "lucide-react";
 
 const footerLinks = [
   { label: "Investigations", href: "/investigations" },
@@ -16,7 +16,7 @@ export default function SiteFooter() {
   return (
     <footer className="border-t border-slate-800 bg-slate-950 py-12">
       <div className="container mx-auto px-4 max-w-6xl">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-8">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-8 mb-8">
           <div>
             <a href="/" className="flex items-center gap-2 mb-2">
               <div className="bg-red-600 p-1.5 rounded-md">
@@ -27,9 +27,23 @@ export default function SiteFooter() {
               </span>
               <span className="text-slate-600 text-sm">Scam Intelligence</span>
             </a>
-            <p className="text-slate-500 text-xs max-w-sm leading-relaxed">
+            <p className="text-slate-500 text-xs max-w-sm leading-relaxed mb-4">
               Your definitive intelligence platform exposing cryptocurrency scams through real-time ad surveillance and evidence-based investigation reports.
             </p>
+            <div className="space-y-1.5 text-xs text-slate-500">
+              <p className="text-slate-400 font-semibold">DEX Algo Technologies Pte Ltd.</p>
+              <p className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 shrink-0" />
+                150 Beach Rd., Level 35 Gateway West, Singapore 189720
+              </p>
+              <a
+                href="mailto:contact@cryptokiller.org"
+                className="flex items-center gap-1.5 hover:text-white transition-colors"
+              >
+                <Mail className="h-3 w-3 shrink-0" />
+                contact@cryptokiller.org
+              </a>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm text-slate-500">
             {footerLinks.map(l => (
@@ -38,7 +52,7 @@ export default function SiteFooter() {
           </div>
         </div>
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-600">&copy; {new Date().getFullYear()} CryptoKiller. All investigations are for informational purposes only.</p>
+          <p className="text-xs text-slate-600">&copy; {new Date().getFullYear()} CryptoKiller — DEX Algo Technologies Pte Ltd. All investigations are for informational purposes only.</p>
           <div className="flex items-center gap-4">
             <a
               href="https://wa.me/14155238886"

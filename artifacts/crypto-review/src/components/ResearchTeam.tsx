@@ -1,34 +1,8 @@
+import { Link } from "wouter";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 
-const analysts = [
-  {
-    name: "M. Webb",
-    initials: "MW",
-    role: "Lead Threat Analyst",
-    avatarBg: "bg-blue-900",
-    credentials: "Blockchain Forensics · 9 yrs",
-    specialties: ["Ad Fraud", "Wallet Tracing", "Pig Butchering"],
-    published: "340+ investigations published",
-  },
-  {
-    name: "P. Nair",
-    initials: "PN",
-    role: "Ad Intelligence",
-    avatarBg: "bg-purple-900",
-    credentials: "Cybersecurity · Ex-Platform Trust & Safety",
-    specialties: ["Celebrity Impersonation", "Phishing"],
-    published: "218 investigations published",
-  },
-  {
-    name: "D. Ortiz",
-    initials: "DO",
-    role: "Investigative Writer",
-    avatarBg: "bg-amber-900",
-    credentials: "Investigative Journalism · FinCrime",
-    specialties: ["Rug Pulls", "ICO Fraud"],
-    published: "167 investigations published",
-  },
-];
+const analysts = Object.values(WRITER_PERSONAS);
 
 export default function ResearchTeam() {
   return (
@@ -48,9 +22,10 @@ export default function ResearchTeam() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {analysts.map((a) => (
-            <div
-              key={a.name}
-              className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 hover:-translate-y-1 transition-all duration-200"
+            <Link
+              key={a.slug}
+              href={`/author/${a.slug}`}
+              className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 hover:-translate-y-1 transition-all duration-200 block"
             >
               <div className="flex items-center gap-4 mb-5">
                 <div
@@ -66,8 +41,12 @@ export default function ResearchTeam() {
                 </div>
               </div>
 
-              <p className="text-slate-500 text-xs font-mono leading-relaxed mb-4">
+              <p className="text-slate-500 text-xs font-mono leading-relaxed mb-3">
                 {a.credentials}
+              </p>
+
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">
+                {a.bio}
               </p>
 
               <div className="flex flex-wrap gap-1.5 mb-5">
@@ -81,12 +60,15 @@ export default function ResearchTeam() {
                 ))}
               </div>
 
-              <div className="border-t border-slate-800 pt-4">
+              <div className="border-t border-slate-800 pt-4 flex items-center justify-between">
                 <p className="text-xs text-slate-500">
                   <span className="text-white font-semibold">{a.published}</span>
                 </p>
+                <span className="text-xs text-red-400 font-semibold inline-flex items-center gap-1">
+                  View profile <ArrowRight className="h-3 w-3" />
+                </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 

@@ -13,6 +13,7 @@ import InvestigationsPage from "@/pages/InvestigationsPage";
 import BlogPage from "@/pages/BlogPage";
 import BlogPostPage from "@/pages/BlogPostPage";
 import MethodologyPage from "@/pages/MethodologyPage";
+import AuthorPage from "@/pages/AuthorPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/blog/:slug" component={() => <BlogPostPage />} />
       <Route path="/report" component={() => <ReportPage />} />
       <Route path="/about" component={() => <AboutPage />} />
+      <Route path="/author/:slug" component={() => <AuthorPage />} />
       <Route path="/privacy" component={() => <PrivacyPage />} />
       <Route path="/terms" component={() => <TermsPage />} />
       <Route path="/methodology" component={() => <MethodologyPage />} />

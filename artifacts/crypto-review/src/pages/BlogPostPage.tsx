@@ -163,7 +163,7 @@ export default function BlogPostPage() {
       datePublished: post.publishedAt,
       dateModified: post.updatedAt,
       author: persona
-        ? { "@type": "Person", name: persona.name, jobTitle: persona.role, url: `${BASE}/about` }
+        ? { "@type": "Person", name: persona.name, jobTitle: persona.role, url: `${BASE}/author/${persona.slug}` }
         : { "@type": "Organization", name: "CryptoKiller", url: BASE },
       publisher: {
         "@type": "Organization",
@@ -327,17 +327,9 @@ export default function BlogPostPage() {
               ) : null}
             </div>
 
-            {(() => {
-              return persona ? (
-                <div className="mt-12 border-t border-slate-800 pt-8">
-                  <AuthorBox {...persona} />
-                </div>
-              ) : (
-                <div className="mt-12 border-t border-slate-800 pt-8">
-                  <AuthorBox />
-                </div>
-              );
-            })()}
+            <div className="mt-12 border-t border-slate-800 pt-8">
+              <AuthorBox {...(persona || {})} />
+            </div>
 
             {Array.isArray(post.faq) && post.faq.length > 0 && (
               <section className="mt-12 border-t border-slate-800 pt-8">
