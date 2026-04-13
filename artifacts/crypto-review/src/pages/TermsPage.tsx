@@ -163,6 +163,9 @@ export default function TermsPage() {
           <p>
             Our investigation reports reflect analysis conducted at a specific point in time. Scam operations may change names, domains, or operational patterns after publication. Always conduct your own due diligence before making any financial decision.
           </p>
+          <p>
+            The content on this website is for general informational and educational purposes only and should not be construed as professional advice. We make no warranties or guarantees regarding the accuracy, completeness, or currency of the information provided. For guidance specific to your situation, please consult a qualified professional in the relevant field.
+          </p>
 
           <SectionHeading id="limitation">8. Limitation of Liability</SectionHeading>
           <p>

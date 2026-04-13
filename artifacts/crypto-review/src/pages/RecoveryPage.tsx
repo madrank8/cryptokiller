@@ -62,8 +62,11 @@ export default function RecoveryPage() {
 
         <div className="bg-red-950/30 border border-red-800/40 rounded-xl p-5 mb-10">
           <p className="text-red-300 text-sm font-semibold mb-2">Important Disclaimer</p>
-          <p className="text-slate-300 text-sm leading-relaxed">
+          <p className="text-slate-300 text-sm leading-relaxed mb-3">
             CryptoKiller is not a law firm, financial advisor, or recovery service. This guide is provided for <strong className="text-white">informational purposes only</strong> and does not constitute legal or financial advice. Always consult qualified professionals for advice specific to your situation. Never pay upfront fees to anyone claiming they can recover your funds.
+          </p>
+          <p className="text-slate-300 text-sm leading-relaxed">
+            The content on this website is for general informational and educational purposes only and should not be construed as professional advice. We make no warranties or guarantees regarding the accuracy, completeness, or currency of the information provided. For guidance specific to your situation, please consult a qualified professional in the relevant field.
           </p>
         </div>
 

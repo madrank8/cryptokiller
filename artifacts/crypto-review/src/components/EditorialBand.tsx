@@ -70,8 +70,11 @@ export default function EditorialBand() {
               </p>
             </div>
             <h3 className="text-lg font-bold text-white mb-4">Important Notice</h3>
-            <p className="text-sm text-slate-400 leading-relaxed mb-5">
+            <p className="text-sm text-slate-400 leading-relaxed mb-3">
               CryptoKiller content is for informational purposes only and does not constitute legal or financial advice. Threat scores reflect available evidence at time of publication.
+            </p>
+            <p className="text-sm text-slate-400 leading-relaxed mb-5">
+              The content on this website is for general informational and educational purposes only and should not be construed as professional advice. We make no warranties or guarantees regarding the accuracy, completeness, or currency of the information provided. For guidance specific to your situation, please consult a qualified professional in the relevant field.
             </p>
             <a
               href="/terms"
