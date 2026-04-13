@@ -20,7 +20,6 @@ export default function SiteHeader({ activeNav }: SiteHeaderProps) {
           <span className="text-xl font-bold tracking-tight text-white">
             Crypto<span className="text-red-500">Killer</span>
           </span>
-          <span className="hidden md:block text-xs text-slate-500 ml-1 mt-0.5">by CryptoKiller</span>
         </a>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
           <a
