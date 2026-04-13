@@ -52,4 +52,17 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     yearsExperience: "6 years",
     published: "167 investigations published",
   },
+  majithia: {
+    name: "Y. Majithia",
+    slug: "majithia",
+    initials: "YM",
+    role: "Senior Crypto Journalist & Analyst",
+    credentials: "Crypto Journalism · Content & Editorial Strategy · SEO, AEO & GEO",
+    specialties: ["FinTech Analysis", "B2B Crypto Content", "Editorial Strategy", "Scam Exposure Reporting"],
+    avatarBg: "bg-sky-900",
+    bio: "Senior crypto journalist and content strategist who helps B2B tech and FinTech companies build authority — now channeling that expertise into exposing crypto scams at CryptoKiller.",
+    fullBio: "Y. Majithia is a senior crypto journalist and analyst based in Mumbai, with deep expertise in content and editorial strategy for B2B tech and FinTech companies. Majithia has spent years helping companies in the crypto and financial technology space connect the dots in their industry — building authority through well-researched, high-impact content. That same skill set now drives CryptoKiller's editorial output: turning complex scam operations into clear, evidence-based reports that rank in search results and reach potential victims before the scammers do. Majithia brings a unique combination of SEO, AEO, and GEO expertise to the team, ensuring CryptoKiller's investigations are not only accurate but discoverable at the moment someone searches for a suspicious platform.",
+    yearsExperience: "8 years",
+    published: "95+ investigations published",
+  },
 };
