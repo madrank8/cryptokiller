@@ -297,6 +297,8 @@ export default function BlogPostPage() {
                   <img
                     src={heroImage.url}
                     alt={heroImage.alt || post.headline || post.title}
+                    width={1200}
+                    height={480}
                     className="w-full object-cover max-h-[480px]"
                   />
                   {heroImage.alt && (

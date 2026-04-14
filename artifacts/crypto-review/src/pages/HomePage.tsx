@@ -41,7 +41,7 @@ function LiveFeedTicker({ reviews }: { reviews: ReviewSummary[] }) {
   const repeated = [...items, ...items, ...items];
 
   return (
-    <div className="bg-slate-900/80 border-b border-slate-800 py-2 overflow-hidden relative">
+    <div className="bg-slate-900/80 border-b border-slate-800 py-2 overflow-hidden relative min-h-[52px]" role="marquee" aria-label="Live scam monitoring feed">
       <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-slate-900 to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-slate-900 to-transparent z-10" />
       <div className="flex items-center gap-3 mb-0">

@@ -52,6 +52,8 @@ function PostImage({ url, alt, className }: { url: string | null; alt: string | 
         src={url}
         alt={alt || "Article illustration"}
         loading="lazy"
+        width={800}
+        height={450}
         className={`object-cover w-full h-full ${className ?? ""}`}
       />
     );
