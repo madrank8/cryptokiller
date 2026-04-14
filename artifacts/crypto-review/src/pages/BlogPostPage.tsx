@@ -8,6 +8,7 @@ import SiteFooter from "@/components/SiteFooter";
 import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { BLOG_SCHEMA_MAP } from "@/lib/blogSchemaMap";
 import { useState, useMemo } from "react";
 
 interface VisualMetaItem {
@@ -155,6 +156,9 @@ export default function BlogPostPage() {
 
   const jsonLd = useMemo(() => {
     if (!post) return { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) };
+
+    const curatedSchema = slug ? BLOG_SCHEMA_MAP[slug] : undefined;
+    if (curatedSchema) return curatedSchema as Record<string, unknown>;
 
     const articleSchema: Record<string, unknown> = {
       "@type": "Article",

@@ -1,0 +1,1242 @@
+export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
+  "how-to-spot-crypto-scams": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
+        "name": "CryptoKiller",
+        "url": "https://cryptokiller.org",
+        "description": "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
+        "foundingDate": "2025",
+        "knowsAbout": [
+          "Cryptocurrency Scam Investigation",
+          "Pig Butchering Fraud Detection",
+          "Deepfake Celebrity Endorsement Scams",
+          "Crypto Ad Surveillance",
+          "AI Trading Bot Scam Detection",
+          "Fake Trading Platform Identification",
+          "Blockchain Forensics",
+          "Consumer Protection Intelligence",
+          "Financial Crime Research",
+          "Rug Pull Investigation"
+        ],
+        "sameAs": [],
+        "email": "corrections@cryptokiller.org",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial corrections",
+          "email": "corrections@cryptokiller.org"
+        },
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        "url": "https://cryptokiller.org",
+        "name": "CryptoKiller",
+        "description": "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "Person",
+        "@id": "https://cryptokiller.org/#author-d-ortiz",
+        "name": "D. Ortiz",
+        "jobTitle": "Digital Forensics Specialist",
+        "description": "Investigative journalist turned DeFi security researcher, focused on documenting rug pulls and token exploits with evidence everyday investors can understand.",
+        "worksFor": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "knowsAbout": [
+          "Smart Contract Auditing",
+          "DeFi Security",
+          "Penetration Testing",
+          "Rug Pulls",
+          "Token Exploits",
+          "Wallet Drainers",
+          "Flash Loan Attacks"
+        ]
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-crypto-scams/#webpage",
+        "url": "https://cryptokiller.org/blog/how-to-spot-crypto-scams",
+        "name": "How to Spot Crypto Scams: An Investigation Guide",
+        "isPartOf": {
+          "@id": "https://cryptokiller.org/#website"
+        },
+        "inLanguage": "en",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-crypto-scams/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://cryptokiller.org"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://cryptokiller.org/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "How to Spot Crypto Scams",
+            "item": "https://cryptokiller.org/blog/how-to-spot-crypto-scams"
+          }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-crypto-scams/#article",
+        "headline": "How to Spot Crypto Scams: An Investigation Guide",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00",
+        "author": {
+          "@id": "https://cryptokiller.org/#author-d-ortiz"
+        },
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://cryptokiller.org/blog/how-to-spot-crypto-scams/#webpage"
+        },
+        "articleSection": "Crypto Scam Investigation",
+        "inLanguage": "en",
+        "wordCount": 3000,
+        "about": [
+          {
+            "@type": "Thing",
+            "name": "Cryptocurrency fraud",
+            "sameAs": "https://www.wikidata.org/wiki/Q113556378"
+          },
+          {
+            "@type": "Thing",
+            "name": "Investment fraud",
+            "sameAs": "https://www.wikidata.org/wiki/Q10860474"
+          }
+        ],
+        "mentions": [
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Federal Bureau of Investigation",
+            "sameAs": "https://www.wikidata.org/wiki/Q8333"
+          },
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Federal Trade Commission",
+            "sameAs": "https://www.wikidata.org/wiki/Q548"
+          },
+          {
+            "@type": "GovernmentOrganization",
+            "name": "U.S. Securities and Exchange Commission",
+            "sameAs": "https://www.wikidata.org/wiki/Q953944"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-crypto-scams/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How can I tell if a crypto investment opportunity is a scam?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "I look for 4 primary signals in every investigation: guaranteed or fixed returns (no legitimate investment can promise these), anonymous or unverifiable development teams, unsolicited contact from someone promoting the opportunity, and no verifiable registration with the SEC or state securities regulators. Cross-reference the project name against the California DFPI Crypto Scam Tracker and search the entity on SEC EDGAR. If the project fails any of these 4 checks, do not send funds."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is a pig butchering scam in crypto?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Pig butchering is a long-con fraud format where the scammer builds a personal relationship with the victim over weeks through dating apps, LinkedIn, or misdirected text messages. Once trust is established, the scammer introduces a fake investment platform showing fabricated profits. Small withdrawals may succeed initially to build confidence. The scam concludes when the victim deposits a large sum and discovers withdrawals are blocked. The FBI identifies pig butchering as the fastest-growing crypto fraud category."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can you recover money lost in a crypto scam?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Recovery is rare. Blockchain transactions are irreversible, and stolen funds typically move through multiple wallets across jurisdictions within hours. File reports with the FBI IC3 and FTC immediately — your complaint may contribute to an ongoing investigation. Some civil asset recovery firms have traced and frozen funds in limited cases, but the FTC warns that upfront-fee recovery services targeting scam victims are themselves frequently fraudulent. Do not pay anyone who contacts you promising to recover your crypto."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is it safe to use a crypto exchange I found through a social media ad?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No, a social media ad is not an endorsement of legitimacy. Before depositing funds, verify the exchange is registered with FinCEN as a money services business. Check the domain age using a WHOIS lookup — I've found that fraudulent exchanges are often built on domains registered within the past 6 months. Search the exchange name against the California DFPI Crypto Scam Tracker. If you can't verify registration and find no independent reviews predating the ad campaign, treat the exchange as suspicious."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What should I do if someone online is pressuring me to invest in crypto quickly?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Stop communication immediately. Urgency is the most reliable indicator of a social engineering attack — legitimate investments don't disappear if you take 48 hours to research them. Don't send any funds. Report the contact to the FTC at ReportFraud.ftc.gov and to the platform where the contact occurred — Telegram, WhatsApp, Instagram, or LinkedIn. Block the account. If you've already sent funds, preserve all communications and file with the FBI IC3."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do rug pulls work and how do I spot one before it happens?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A rug pull occurs when project developers attract investor liquidity into a token or pool, inflate the price through marketing and artificial volume, then withdraw all liquidity and abandon the project. I look for 4 warning signs: liquidity pools that aren't locked or time-locked, anonymous development teams with no verifiable history, unaudited smart contracts, and token distributions where developers hold more than 20 percent of supply. Check these factors using block explorers and DeFi analytics tools before investing."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does the SEC regulate crypto, and does that protect me from scams?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The SEC has jurisdiction over crypto assets it classifies as securities, and it actively pursues fraud cases. However, SEC registration doesn't guarantee a project is legitimate or that your investment is protected against loss. Verify any entity's claims of SEC registration directly on EDGAR — don't trust a project's own statements about its regulatory status. I've found that fraudulent projects routinely claim registrations they don't hold."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What information should I collect if I think I have been scammed?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Preserve 4 categories of evidence immediately: transaction hashes from the blockchain (found in your wallet history or on a block explorer), all wallet addresses involved in the transfers, complete communication records with the scammer (screenshots, not summaries), and screenshots or screen recordings of the fraudulent platform including its URL. This documentation is required when filing reports with the FBI IC3, FTC, SEC, or state regulators. Act fast — scam websites are often taken down within days."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "pig-butchering-scam": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
+        "name": "CryptoKiller",
+        "url": "https://cryptokiller.org",
+        "description": "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
+        "foundingDate": "2025",
+        "knowsAbout": [
+          "Cryptocurrency Scam Investigation",
+          "Pig Butchering Fraud Detection",
+          "Deepfake Celebrity Endorsement Scams",
+          "Crypto Ad Surveillance",
+          "AI Trading Bot Scam Detection",
+          "Fake Trading Platform Identification",
+          "Blockchain Forensics",
+          "Consumer Protection Intelligence",
+          "Financial Crime Research",
+          "Rug Pull Investigation"
+        ],
+        "sameAs": [],
+        "email": "corrections@cryptokiller.org",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial corrections",
+          "email": "corrections@cryptokiller.org"
+        },
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        "url": "https://cryptokiller.org",
+        "name": "CryptoKiller",
+        "description": "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "Person",
+        "@id": "https://cryptokiller.org/#author-d-ortiz",
+        "name": "D. Ortiz",
+        "jobTitle": "Digital Forensics Specialist",
+        "description": "Investigative journalist turned DeFi security researcher, focused on documenting rug pulls and token exploits with evidence everyday investors can understand.",
+        "worksFor": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "knowsAbout": [
+          "Smart Contract Auditing",
+          "DeFi Security",
+          "Penetration Testing",
+          "Rug Pulls",
+          "Token Exploits",
+          "Wallet Drainers",
+          "Flash Loan Attacks"
+        ]
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cryptokiller.org/blog/pig-butchering-scam/#webpage",
+        "url": "https://cryptokiller.org/blog/pig-butchering-scam",
+        "name": "Pig Butchering Scam: Inside the $5.6B Romance Fraud",
+        "isPartOf": {
+          "@id": "https://cryptokiller.org/#website"
+        },
+        "inLanguage": "en",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cryptokiller.org/blog/pig-butchering-scam/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://cryptokiller.org"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://cryptokiller.org/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Pig Butchering Scam",
+            "item": "https://cryptokiller.org/blog/pig-butchering-scam"
+          }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": "https://cryptokiller.org/blog/pig-butchering-scam/#article",
+        "headline": "Pig Butchering Scam: Inside the $5.6B Romance Fraud",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00",
+        "author": {
+          "@id": "https://cryptokiller.org/#author-d-ortiz"
+        },
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://cryptokiller.org/blog/pig-butchering-scam/#webpage"
+        },
+        "articleSection": "Crypto Scam Investigation",
+        "inLanguage": "en",
+        "wordCount": 3000,
+        "about": [
+          {
+            "@type": "Thing",
+            "name": "Pig butchering scam",
+            "sameAs": "https://www.wikidata.org/wiki/Q113010974"
+          },
+          {
+            "@type": "Thing",
+            "name": "Romance scam",
+            "sameAs": "https://www.wikidata.org/wiki/Q7362526"
+          }
+        ],
+        "mentions": [
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Federal Bureau of Investigation",
+            "sameAs": "https://www.wikidata.org/wiki/Q8333"
+          },
+          {
+            "@type": "Organization",
+            "name": "Chainalysis",
+            "sameAs": "https://www.wikidata.org/wiki/Q108798498"
+          },
+          {
+            "@type": "Organization",
+            "name": "Brookings Institution",
+            "sameAs": "https://www.wikidata.org/wiki/Q558629"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/blog/pig-butchering-scam/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a pig butchering scam in crypto?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A pig butchering scam is a long-con fraud where criminals build a fake romantic or friendly relationship over weeks — sometimes months — before directing their target to deposit cryptocurrency on a fraudulent trading platform they control. The platform displays fabricated profits to encourage larger deposits. When the victim attempts to withdraw, funds are blocked behind escalating fee demands. The \"pig\" is the victim; the \"butchering\" is the final theft. I've tracked cases where this process extracted six-figure sums from single individuals."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How long does a pig butchering scam typically last before the theft?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The grooming phase lasts between 2 weeks and several months. In the cases I've investigated, the average was 4 to 8 weeks from first contact to first crypto deposit. Scammers deliberately slow the process to maximize emotional investment — the more trust they build, the larger the deposits. After deposits begin, the extraction phase (escalating \"profits\" and blocked withdrawals) can stretch another 2 to 6 weeks before the platform disappears entirely."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can you get your money back after a pig butchering scam?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Full recovery is rare, but partial recovery happens. I've spoken with victims who recovered a portion of their funds through law enforcement seizures after filing with IC3 within 72 hours. Blockchain forensics firms like Chainalysis work with law enforcement to trace fund flows. Civil litigation against exchanges that processed stolen funds has produced settlements in some cases. The most dangerous move is engaging \"recovery agents\" who contact victims unsolicited — these are secondary scams. Report immediately and preserve all evidence."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I know if a crypto trading platform is fake?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Check 3 things: First, verify registration with the SEC (sec.gov/cgi-bin/browse-edgar) or CFTC. No registration means no regulatory oversight. Second, search the platform name plus \"scam\" in IC3 and FTC databases. Third — and this is the clearest signal — if a romantic contact introduced you to the platform, treat it as fraudulent until proven otherwise. Legitimate exchanges don't need dating-app referrals. I've never investigated a pig butchering case where the platform was actually registered."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are the people running pig butchering scams always willing criminals?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Brookings Institution research and law enforcement operations in Myanmar, Cambodia, and Laos have confirmed that many operators are trafficking victims. They're recruited through fake job postings, transported to guarded compounds, and forced to run fraud scripts under threat of beatings and resale. This doesn't reduce the harm to financial victims, but it means the person typing romantic messages may be coerced. International law enforcement now treats compound raids as both anti-fraud and anti-trafficking operations."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What dating apps do pig butchering scammers use most?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Scammers operate across Tinder, Hinge, Bumble, WhatsApp, Instagram, LinkedIn, and Facebook. Increasingly, they bypass dating apps entirely with \"wrong number\" SMS texts — a seemingly accidental message that opens a conversation. In the cases I've reviewed, WhatsApp was the most common platform for sustained grooming after initial contact, because it lacks the content moderation infrastructure of larger dating platforms. No single app is immune."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do AI and deepfakes make pig butchering scams harder to detect?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "AI breaks 3 defenses victims used to rely on. AI-generated photos produce faces with no online history, so reverse-image searches return nothing. Deepfake video call tools allow real-time face-swapping, defeating the \"ask for a video chat\" test. LLM-powered chat scripts let operators with limited English hold emotionally convincing conversations with hundreds of targets simultaneously. I documented these tools in detail in my investigation of deepfake crypto endorsements — the same technology powers romance scam personas."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "celebrity-crypto-scam": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
+        "name": "CryptoKiller",
+        "url": "https://cryptokiller.org",
+        "description": "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
+        "foundingDate": "2025",
+        "knowsAbout": [
+          "Cryptocurrency Scam Investigation",
+          "Pig Butchering Fraud Detection",
+          "Deepfake Celebrity Endorsement Scams",
+          "Crypto Ad Surveillance",
+          "AI Trading Bot Scam Detection",
+          "Fake Trading Platform Identification",
+          "Blockchain Forensics",
+          "Consumer Protection Intelligence",
+          "Financial Crime Research",
+          "Rug Pull Investigation"
+        ],
+        "sameAs": [],
+        "email": "corrections@cryptokiller.org",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial corrections",
+          "email": "corrections@cryptokiller.org"
+        },
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        "url": "https://cryptokiller.org",
+        "name": "CryptoKiller",
+        "description": "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "Person",
+        "@id": "https://cryptokiller.org/#author-d-ortiz",
+        "name": "D. Ortiz",
+        "jobTitle": "Digital Forensics Specialist",
+        "description": "Investigative journalist turned DeFi security researcher, focused on documenting rug pulls and token exploits with evidence everyday investors can understand.",
+        "worksFor": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "knowsAbout": [
+          "Smart Contract Auditing",
+          "DeFi Security",
+          "Penetration Testing",
+          "Rug Pulls",
+          "Token Exploits",
+          "Wallet Drainers",
+          "Flash Loan Attacks"
+        ]
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cryptokiller.org/blog/celebrity-crypto-scam/#webpage",
+        "url": "https://cryptokiller.org/blog/celebrity-crypto-scam",
+        "name": "Celebrity Crypto Scam: Inside Deepfake Endorsements",
+        "isPartOf": {
+          "@id": "https://cryptokiller.org/#website"
+        },
+        "inLanguage": "en",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cryptokiller.org/blog/celebrity-crypto-scam/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://cryptokiller.org"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://cryptokiller.org/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Celebrity Crypto Scam",
+            "item": "https://cryptokiller.org/blog/celebrity-crypto-scam"
+          }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": "https://cryptokiller.org/blog/celebrity-crypto-scam/#article",
+        "headline": "Celebrity Crypto Scam: Inside Deepfake Endorsements",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00",
+        "author": {
+          "@id": "https://cryptokiller.org/#author-d-ortiz"
+        },
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://cryptokiller.org/blog/celebrity-crypto-scam/#webpage"
+        },
+        "articleSection": "Crypto Scam Investigation",
+        "inLanguage": "en",
+        "wordCount": 3000,
+        "about": [
+          {
+            "@type": "Thing",
+            "name": "Deepfake",
+            "sameAs": "https://www.wikidata.org/wiki/Q56272946"
+          },
+          {
+            "@type": "Thing",
+            "name": "Cryptocurrency fraud",
+            "sameAs": "https://www.wikidata.org/wiki/Q113556378"
+          }
+        ],
+        "mentions": [
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Federal Trade Commission",
+            "sameAs": "https://www.wikidata.org/wiki/Q548"
+          },
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Financial Conduct Authority",
+            "sameAs": "https://www.wikidata.org/wiki/Q594507"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/blog/celebrity-crypto-scam/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is Elon Musk actually giving away Bitcoin on YouTube or social media?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. I've tracked dozens of these and every single one is a scam. Musk and his representatives have repeatedly confirmed he runs no crypto giveaway program. The videos circulating on YouTube livestreams and Meta ads are AI-generated deepfakes. The FTC, Scamwatch, and the New York Attorney General have all issued specific warnings about fake Musk Bitcoin giveaways. If a video promises to double your crypto, close the tab."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How much money have people lost to celebrity deepfake crypto scams?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Western Australia's consumer protection agency documented $30 million in losses from celebrity fake investment scams in a single reporting period — and that's one jurisdiction. The FTC's aggregate US figures run into the hundreds of millions annually across all crypto fraud categories that involve celebrity impersonation. CryptoKiller's investigation of 10 scam brands across 8 countries suggests the true global figure is far higher, since most victims never report."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I get my money back if I sent crypto to a fake celebrity giveaway?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Cryptocurrency transactions are irreversible in nearly all cases. I've spoken with victims who never recovered a cent. Some exchanges have frozen wallets linked to known scam operations, but this is rare and depends on speed. Your best chance: report immediately to the FTC (US), Action Fraud (UK), or Scamwatch (Australia) and contact your exchange's fraud team within hours. The faster the report, the higher the slim chance of an asset freeze."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are deepfake crypto ads illegal?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Distributing AI-generated content to defraud investors violates wire fraud statutes (18 U.S.C. § 1343) in the United States, the Financial Services and Markets Act 2000 in the UK, and equivalent consumer protection laws in Australia. The producers, the ad buyers, and the platform operators who knowingly host these ads all face potential criminal and regulatory liability. Enforcement is increasing, but the cross-border nature of these operations makes prosecution slow."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does a celebrity deepfake video look like — can I really spot one?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can, with practice. I've reviewed dozens and the tells are consistent: unnatural blinking patterns, slightly blurred edges around the face and hairline, flat vocal delivery that misses emotional emphasis, and lip movements that lag behind the audio by a fraction of a second. The fastest test is pulling up a verified video of the same celebrity and playing them side by side — the synthetic version's inconsistencies become visible almost immediately."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do real celebrities ever endorse cryptocurrency products?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Some do, but a real endorsement doesn't mean the product is safe or legitimate. The SEC has charged celebrities — including a former NBA star — for promoting crypto tokens without disclosing they were paid to do so. Regulated endorsements require clear disclosure under securities law. If a celebrity crypto promotion doesn't include explicit paid-partnership disclosure and a link to regulatory registration, treat it with the same skepticism you'd apply to a deepfake."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which social media platforms are most used to distribute fake celebrity crypto ads?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Meta platforms — Facebook and Instagram — and YouTube are the primary channels, based on warnings from the New York Attorney General and the UK's FCA. I found these 3 platforms named in every major regulatory alert I reviewed. Telegram and TikTok serve as secondary distribution channels, often hosting the deepfake video content that then gets reposted as paid ads elsewhere. CryptoKiller tracked scam ad creatives across 8 countries, with Meta's ad network appearing as the dominant delivery mechanism."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "how-to-spot-a-deepfake": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
+        "name": "CryptoKiller",
+        "url": "https://cryptokiller.org",
+        "description": "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
+        "foundingDate": "2025",
+        "knowsAbout": [
+          "Cryptocurrency Scam Investigation",
+          "Pig Butchering Fraud Detection",
+          "Deepfake Celebrity Endorsement Scams",
+          "Crypto Ad Surveillance",
+          "AI Trading Bot Scam Detection",
+          "Fake Trading Platform Identification",
+          "Blockchain Forensics",
+          "Consumer Protection Intelligence",
+          "Financial Crime Research",
+          "Rug Pull Investigation"
+        ],
+        "sameAs": [],
+        "email": "corrections@cryptokiller.org",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial corrections",
+          "email": "corrections@cryptokiller.org"
+        },
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        "url": "https://cryptokiller.org",
+        "name": "CryptoKiller",
+        "description": "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "Person",
+        "@id": "https://cryptokiller.org/#author-m-webb",
+        "name": "M. Webb",
+        "jobTitle": "Senior Threat Analyst",
+        "description": "Former cybercrime unit analyst who spent 5 years tracing stolen crypto before joining CryptoKiller to expose scam operations at scale.",
+        "worksFor": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "knowsAbout": [
+          "Blockchain Forensics",
+          "OSINT",
+          "Cybercrime Investigation",
+          "Deepfake Detection",
+          "AI Fraud",
+          "Social Engineering",
+          "Identity Theft"
+        ]
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-a-deepfake/#webpage",
+        "url": "https://cryptokiller.org/blog/how-to-spot-a-deepfake",
+        "name": "How to Spot a Deepfake: 7 Checks for Crypto Investors",
+        "isPartOf": {
+          "@id": "https://cryptokiller.org/#website"
+        },
+        "inLanguage": "en",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-a-deepfake/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://cryptokiller.org"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://cryptokiller.org/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "How to Spot a Deepfake",
+            "item": "https://cryptokiller.org/blog/how-to-spot-a-deepfake"
+          }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-a-deepfake/#article",
+        "headline": "How to Spot a Deepfake: 7 Checks for Crypto Investors",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00",
+        "author": {
+          "@id": "https://cryptokiller.org/#author-m-webb"
+        },
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://cryptokiller.org/blog/how-to-spot-a-deepfake/#webpage"
+        },
+        "articleSection": "Crypto Scam Investigation",
+        "inLanguage": "en",
+        "wordCount": 3000,
+        "about": [
+          {
+            "@type": "Thing",
+            "name": "Deepfake",
+            "sameAs": "https://www.wikidata.org/wiki/Q56272946"
+          }
+        ],
+        "mentions": [
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Federal Bureau of Investigation",
+            "sameAs": "https://www.wikidata.org/wiki/Q8333"
+          },
+          {
+            "@type": "Organization",
+            "name": "Microsoft",
+            "sameAs": "https://www.wikidata.org/wiki/Q2283"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/blog/how-to-spot-a-deepfake/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How can I tell if a celebrity crypto endorsement video is a deepfake?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Pause the video and examine the hairline and eye area for pixel shimmer or irregular blinking. Watch for audio-lip sync delays during fast speech — the mouth shapes will lag or simplify. Check whether the skin texture appears unnaturally smooth compared to verified footage of the same person. Then search the celebrity's official verified social media accounts. If the endorsement does not appear there, treat the video as fabricated. No legitimate celebrity crypto endorsement has ever appeared exclusively through a social media ad."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are deepfake detection tools accurate enough for everyday investors?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Free tools like Microsoft Video Authenticator and Hive Moderation provide a manipulation probability score, not a binary verdict. They catch many deepfakes but are not infallible — heavily compressed videos and newer generation models can evade detection. These tools work best as a second check layered on top of manual visual inspection and source verification. If the tool flags the video as likely manipulated, trust the result. If it returns a clean score, do not treat that as proof of authenticity."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What social media platforms are most used to spread deepfake crypto scams?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Meta platforms — Facebook and Instagram — are the primary distribution channels, according to both the FBI's 2026 reporting and Maryland Attorney General Anthony Brown's April 2026 warning. YouTube is the second most cited platform. CryptoKiller's analysis of 6,007 scam ad creatives found active campaigns across 8 countries, with Meta properties hosting the majority. TikTok and Telegram serve as secondary channels, particularly for retargeting victims who engaged with the initial ad."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can scammers make a deepfake good enough that no one can detect it?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No — not in 2026. High-budget deepfakes are significantly harder to detect visually, and some can pass casual inspection on a phone screen. However, contextual red flags remain visible regardless of video quality. Guaranteed returns, crypto-only deposits, unregistered platforms, and urgency pressure tactics betray the scam even when the video itself looks convincing. The detection question is not \"is this video perfect\" but \"does the investment opportunity around it check out.\" It never does."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is it illegal to create a deepfake of a celebrity for investment fraud?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. The FTC proposed and finalized rules in 2024-2025 specifically targeting AI impersonation of individuals, carrying civil penalties. Perpetrators also face federal wire fraud charges (up to 20 years), aggravated identity theft charges (mandatory 2-year consecutive sentence), and state-level fraud statutes. The legal framework treats deepfake investment fraud as both an impersonation offense and a financial crime. Multiple federal agencies now coordinate enforcement through the FBI's cryptocurrency fraud unit."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What should I do if I already sent money after watching a fake endorsement video?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Contact your bank or crypto exchange within hours — some transfers can be frozen before they clear. File a report with the FBI IC3 at ic3.gov, including the deepfake video URL, wallet addresses, and transaction IDs. Submit a separate report at ReportFraud.ftc.gov. Preserve every piece of evidence immediately: screen-record the scam site, export chat logs, and screenshot transaction confirmations. Do not engage further with the scam operators, even if they promise to return funds — that is a secondary extraction tactic."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I report a deepfake video I see on social media?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Use the platform's built-in reporting tool first — on Facebook and Instagram, select \"Report\" then \"Fraud or scam\" or \"Impersonation.\" On YouTube, use the three-dot menu and select \"Report\" with the fraud category. Then file a separate report with the FBI IC3 at ic3.gov, including a direct link to the video, screenshots, and any associated landing page URLs. Reporting through both the platform and law enforcement increases the likelihood the content is removed and the operators are investigated."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "ai-crypto-trading-bot-scam": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
+        "name": "CryptoKiller",
+        "url": "https://cryptokiller.org",
+        "description": "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
+        "foundingDate": "2025",
+        "knowsAbout": [
+          "Cryptocurrency Scam Investigation",
+          "Pig Butchering Fraud Detection",
+          "Deepfake Celebrity Endorsement Scams",
+          "Crypto Ad Surveillance",
+          "AI Trading Bot Scam Detection",
+          "Fake Trading Platform Identification",
+          "Blockchain Forensics",
+          "Consumer Protection Intelligence",
+          "Financial Crime Research",
+          "Rug Pull Investigation"
+        ],
+        "sameAs": [],
+        "email": "corrections@cryptokiller.org",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial corrections",
+          "email": "corrections@cryptokiller.org"
+        },
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        "url": "https://cryptokiller.org",
+        "name": "CryptoKiller",
+        "description": "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "Person",
+        "@id": "https://cryptokiller.org/#author-m-webb",
+        "name": "M. Webb",
+        "jobTitle": "Senior Threat Analyst",
+        "description": "Former cybercrime unit analyst who spent 5 years tracing stolen crypto before joining CryptoKiller to expose scam operations at scale.",
+        "worksFor": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "knowsAbout": [
+          "Blockchain Forensics",
+          "OSINT",
+          "Cybercrime Investigation",
+          "Deepfake Detection",
+          "AI Fraud",
+          "Social Engineering",
+          "Identity Theft"
+        ]
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam/#webpage",
+        "url": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam",
+        "name": "AI Trading Bot Scams: How 6,007 Fake Ads Target You",
+        "isPartOf": {
+          "@id": "https://cryptokiller.org/#website"
+        },
+        "inLanguage": "en",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://cryptokiller.org"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://cryptokiller.org/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "AI Trading Bot Scams",
+            "item": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam"
+          }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam/#article",
+        "headline": "AI Trading Bot Scams: How 6,007 Fake Ads Target You",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00",
+        "author": {
+          "@id": "https://cryptokiller.org/#author-m-webb"
+        },
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam/#webpage"
+        },
+        "articleSection": "Crypto Scam Investigation",
+        "inLanguage": "en",
+        "wordCount": 3000,
+        "about": [
+          {
+            "@type": "Thing",
+            "name": "Cryptocurrency fraud",
+            "sameAs": "https://www.wikidata.org/wiki/Q113556378"
+          }
+        ],
+        "mentions": [
+          {
+            "@type": "GovernmentOrganization",
+            "name": "U.S. Securities and Exchange Commission",
+            "sameAs": "https://www.wikidata.org/wiki/Q953944"
+          },
+          {
+            "@type": "GovernmentOrganization",
+            "name": "Commodity Futures Trading Commission",
+            "sameAs": "https://www.wikidata.org/wiki/Q1780010"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/blog/ai-crypto-trading-bot-scam/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Can AI trading bots actually guarantee profits in cryptocurrency?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Any AI trading bot or platform that guarantees profits is operating fraudulently. The CFTC issued a direct advisory warning consumers that AI will not turn trading bots into money machines. Cryptocurrency markets are volatile and unpredictable — no algorithm eliminates investment risk. Legitimate financial platforms are legally required to disclose these risks. A guarantee of fixed returns is the single most reliable indicator of fraud in this category."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are all AI trading bots scams?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No, not all automated trading tools are scams. Legitimate algorithmic trading services exist and are registered with regulators like the SEC or CFTC. They disclose all risks and fees, provide realistic performance expectations, and never promise guaranteed returns. The distinction is regulatory registration and risk transparency. Before investing with any platform, verify its registration through FINRA BrokerCheck, the SEC's EDGAR database, or the CFTC's registration directory."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What's the difference between a legitimate trading bot and a scam?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A legitimate trading bot service is registered with financial regulators, discloses risks prominently, and is transparent about its trading strategies and fee structures. A scam promises guaranteed unrealistic returns — such as 30% per month — pressures you to deposit funds quickly, operates without regulatory oversight, and blocks withdrawals behind fake fees. If you cannot verify a platform's registration number in a public regulator database, treat it as fraudulent until proven otherwise."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do scammers create fake profit dashboards?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Scammers build custom websites or apps that display fabricated trading data disconnected from any real exchange. The numbers are programmed to increase on a set schedule, creating the illusion of successful trades. No actual buying or selling occurs. All deposited money goes directly to scammer-controlled wallets. CryptoKiller has documented this pattern across multiple investigated brands — see our detailed analysis of fake trading profit dashboards for specific examples."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How much money do people typically lose to AI trading bot scams?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Victims commonly report losses ranging from $10,000 to over $100,000. These scams are designed to encourage escalating deposits through fabricated profit displays. Some individuals have lost their entire life savings after being deceived by fake dashboards for months. The SEC's 2025 enforcement action against 3 crypto trading platforms involved retail investors who deposited repeatedly based on fictitious account balances."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "If I already deposited money, can I get it back?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Recovery is difficult and rare, but immediate action improves your odds. Report the scam to the FTC at ReportFraud.ftc.gov, file a complaint with the FBI's IC3, and contact your state securities regulator through NASAA. Notify your bank or crypto exchange to request a transaction review. Do not pay anyone who claims they can recover your funds for an upfront fee — this is a secondary recovery scam that specifically targets prior victims."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What should I do if a friend invites me to use their AI trading bot?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Politely decline and exercise caution. Your friend may be an unwitting victim who believes the fabricated profits are real. Instead of joining, ask them for the platform's regulatory registration number and verify it independently through the SEC, CFTC, or FINRA databases. Legitimate investments do not rely on social recruitment. If verification fails, share this guide with your friend — they may not realize they are being deceived."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fake-trading-profits": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cryptokiller.org/#organization",
+        "name": "CryptoKiller",
+        "url": "https://cryptokiller.org",
+        "description": "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
+        "foundingDate": "2025",
+        "knowsAbout": [
+          "Cryptocurrency Scam Investigation",
+          "Pig Butchering Fraud Detection",
+          "Deepfake Celebrity Endorsement Scams",
+          "Crypto Ad Surveillance",
+          "AI Trading Bot Scam Detection",
+          "Fake Trading Platform Identification",
+          "Blockchain Forensics",
+          "Consumer Protection Intelligence",
+          "Financial Crime Research",
+          "Rug Pull Investigation"
+        ],
+        "sameAs": [],
+        "email": "corrections@cryptokiller.org",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial corrections",
+          "email": "corrections@cryptokiller.org"
+        },
+        "areaServed": "Worldwide"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cryptokiller.org/#website",
+        "url": "https://cryptokiller.org",
+        "name": "CryptoKiller",
+        "description": "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "Person",
+        "@id": "https://cryptokiller.org/#author-d-ortiz",
+        "name": "D. Ortiz",
+        "jobTitle": "Digital Forensics Specialist",
+        "description": "Investigative journalist turned DeFi security researcher, focused on documenting rug pulls and token exploits with evidence everyday investors can understand.",
+        "worksFor": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "knowsAbout": [
+          "Smart Contract Auditing",
+          "DeFi Security",
+          "Penetration Testing",
+          "Rug Pulls",
+          "Token Exploits",
+          "Wallet Drainers",
+          "Flash Loan Attacks"
+        ]
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://cryptokiller.org/blog/fake-trading-profits/#webpage",
+        "url": "https://cryptokiller.org/blog/fake-trading-profits",
+        "name": "Fake Trading Profits: Inside Scam Dashboards",
+        "isPartOf": {
+          "@id": "https://cryptokiller.org/#website"
+        },
+        "inLanguage": "en",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://cryptokiller.org/blog/fake-trading-profits/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://cryptokiller.org"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": "https://cryptokiller.org/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Fake Trading Profits",
+            "item": "https://cryptokiller.org/blog/fake-trading-profits"
+          }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": "https://cryptokiller.org/blog/fake-trading-profits/#article",
+        "headline": "Fake Trading Profits: Inside Scam Dashboards",
+        "datePublished": "2026-04-14T10:00:00+03:00",
+        "dateModified": "2026-04-14T10:00:00+03:00",
+        "author": {
+          "@id": "https://cryptokiller.org/#author-d-ortiz"
+        },
+        "publisher": {
+          "@id": "https://cryptokiller.org/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://cryptokiller.org/blog/fake-trading-profits/#webpage"
+        },
+        "articleSection": "Crypto Scam Investigation",
+        "inLanguage": "en",
+        "wordCount": 3000,
+        "about": [
+          {
+            "@type": "Thing",
+            "name": "Cryptocurrency fraud",
+            "sameAs": "https://www.wikidata.org/wiki/Q113556378"
+          },
+          {
+            "@type": "Thing",
+            "name": "Investment fraud",
+            "sameAs": "https://www.wikidata.org/wiki/Q10860474"
+          }
+        ],
+        "mentions": [
+          {
+            "@type": "GovernmentOrganization",
+            "name": "U.S. Securities and Exchange Commission",
+            "sameAs": "https://www.wikidata.org/wiki/Q953944"
+          },
+          {
+            "@type": "Organization",
+            "name": "Netcraft",
+            "sameAs": "https://www.wikidata.org/wiki/Q7001155"
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cryptokiller.org/blog/fake-trading-profits/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How can I tell if my trading platform is showing fake profits?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Profits that never decline are the first signal. Real markets have losing days — Bitcoin, the S&P 500, and gold all experience drops. If your balance only increases, especially in round increments like $50 or $100 gains, the numbers are likely scripted. Check registration first: search SEC EDGAR, FINRA BrokerCheck, or the FCA Register for the platform's name and parent company. If it doesn't appear in any regulator's database, the dashboard is generating figures you want to see — not figures any market produced."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can scam trading platforms look exactly like real ones?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Scammers clone legitimate platforms pixel by pixel, copying regulatory disclaimers, portfolio charts, and login flows. Netcraft found identical source code across hundreds of scam domains. The difference is entirely in the backend: fake platforms generate data from local scripts rather than connecting to real exchanges. A cloned interface with no API connection to a live market is a costume, not a platform. Appearance alone means nothing without verifiable exchange connectivity."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why won't the platform let me withdraw my profits?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Because the profits don't exist. Withdrawal blocks are the primary monetization mechanism. The fees demanded — tax prepayment, VIP unlock, anti-money-laundering deposit — are additional theft. Every dollar sent to \"unlock\" a withdrawal joins your original deposit in the scammer's wallet. The SEC warns that inability to withdraw is the strongest fraud indicator. Do not pay any fee to access your own funds. Ever."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is pig butchering and how does it use fake dashboards?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Pig butchering scams build trust over weeks through social media or dating apps. The scammer cultivates a personal relationship, then introduces a trading platform. The fake dashboard shows mounting profits to justify larger deposits. The name describes fattening the victim with displayed gains before the slaughter — the moment the scammer vanishes with all deposited funds. The dashboard is the visual engine that makes the relationship scam financially productive."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there any way to recover money lost to a fake trading platform?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Crypto transactions are generally irreversible. Report immediately to the FTC at ReportFraud.ftc.gov, the SEC at sec.gov/tcr, and your bank. Bank wire transfers can sometimes be recalled if flagged within hours. Recovery is difficult but not impossible — your report feeds investigations that may prevent the next victim. Avoid recovery services demanding upfront fees. Those are frequently a second scam targeting the same person."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I check if a trading platform is registered and legitimate?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Three databases cover most jurisdictions. In the US: SEC EDGAR and FINRA BrokerCheck. In the UK: the FCA Register. In Australia: ASIC's database. New Zealand's FMA publishes a warning list of confirmed scam platforms. Search the platform name and the company entity behind it. Legitimate platforms appear in at least one public registry. Absence from all of them is definitive. The check takes 5 minutes."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why do fake platforms show AI trading bots generating the profits?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The AI framing answers every inconvenient question. Why can't you see the trade logic? Too complex. Why no verifiable trade records? The algorithm operates at machine speed. Why does it always win? Because it's artificial intelligence. The narrative creates plausible deniability for the absence of any real trading. Real algorithmic trading firms publish audited performance records. Scam platforms publish marketing copy. I've investigated this pattern across multiple AI-branded scams reviewed on CryptoKiller."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What should I do if I already paid a withdrawal fee and still cannot access my funds?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Stop all payments immediately. Every additional fee is another extraction, not a step toward release. Contact your bank or card issuer to dispute charges, specifying fraud. File reports with the FTC at ReportFraud.ftc.gov, the SEC at sec.gov/tcr, and your national financial regulator. Preserve all screenshots, transaction receipts, and chat logs before the platform vanishes. Do not engage further with the operator. They will ask for more."
+            }
+          }
+        ]
+      }
+    ]
+  }
+};
