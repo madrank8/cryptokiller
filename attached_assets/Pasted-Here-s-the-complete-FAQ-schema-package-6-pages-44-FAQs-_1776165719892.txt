@@ -1,0 +1,30 @@
+Here's the complete FAQ schema package — 6 pages, 44 FAQs, fully entity-linked and AEO-optimized.
+
+What's Inside
+Page	FAQs	Author	File
+How to Spot Crypto Scams	8	D. Ortiz	01-how-to-spot-crypto-scams.html
+Pig Butchering Scam	7	D. Ortiz	02-pig-butchering-scam.html
+Celebrity Crypto Scam	7	D. Ortiz	03-celebrity-crypto-scam.html
+How to Spot a Deepfake	7	M. Webb	04-how-to-spot-a-deepfake.html
+AI Trading Bot Scams	7	M. Webb	05-ai-crypto-trading-bot-scam.html
+Fake Trading Profits	8	D. Ortiz	06-fake-trading-profits.html
+Entity Graph (7 entities per page)
+Each page gets a single @graph array with the full connected entity chain:
+
+Organization → WebSite → Person (author) → WebPage → BreadcrumbList → BlogPosting → FAQPage
+
+Why This Maximizes AI Citations
+FAQPage for LLM extraction
+Google killed FAQPage rich results for non-gov sites in 2024 — but AI Overviews, Perplexity, and ChatGPT still parse FAQPage schema as structured Q&A blocks. Every question is written in natural query format matching how users actually ask LLMs (e.g., "What is a pig butchering scam in crypto?").
+
+Wikidata entity linking
+Every BlogPosting has about and mentions properties linked to Wikidata — Cryptocurrency fraud (Q113556378), Pig butchering scam (Q113010974), Deepfake (Q56272946), FBI (Q8333), FTC (Q548), SEC (Q953944). This is how AI systems verify your content covers a specific entity from a credible source, per the GEO/AI visibility layer pattern.
+
+Organization.knowsAbout
+10 topical expertise areas declared on every page — aligns with siteFocusScore from the Google API leak. AI systems use this to evaluate topical authority before citing.
+
+Author E-E-A-T chain
+BlogPosting.author → Person (with jobTitle, knowsAbout, worksFor) → Organization. A complete attribution chain that AI systems trace for credibility evaluation.
+
+Deployment
+Each .html file is a ready-to-paste <script type="application/ld+json"> block. Drop it into the <head> of each page. The cryptokiller-schema.json master file has all 6 schemas in a single array if you prefer programmatic injection.
