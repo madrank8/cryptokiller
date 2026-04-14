@@ -27,8 +27,7 @@ function normalizeCanonical(url: string): string {
 function deriveCanonical(explicit?: string): string {
   if (explicit) return normalizeCanonical(explicit);
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  const search = window.location.search;
-  return normalizeCanonical(`${BASE_URL}${path}${search}`);
+  return normalizeCanonical(`${BASE_URL}${path}`);
 }
 
 export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage }: PageMeta) {
