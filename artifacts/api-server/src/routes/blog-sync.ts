@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
+import { submitToIndexNow } from "../lib/indexnow";
 
 const router: IRouter = Router();
 
@@ -109,10 +110,14 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
     await client.query("COMMIT");
 
     const row = result.rows[0];
+    const blogUrl = `https://cryptokiller.org/blog/${content.slug}`;
+
+    submitToIndexNow([blogUrl]).catch(() => {});
+
     res.json({
       success: true,
       slug: content.slug,
-      url: `https://cryptokiller.org/blog/${content.slug}`,
+      url: blogUrl,
       post_id: row.id,
       action: row.inserted ? "created" : "updated",
     });

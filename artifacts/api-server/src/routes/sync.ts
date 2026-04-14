@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
+import { submitToIndexNow } from "../lib/indexnow";
 
 const router: IRouter = Router();
 
@@ -167,6 +168,9 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     }
 
     await client.query("COMMIT");
+
+    submitToIndexNow([`https://cryptokiller.org/review/${review.slug}`]).catch(() => {});
+
     res.json({ ok: true, reviewId, platformId, slug: review.slug });
   } catch (err) {
     await client.query("ROLLBACK");
