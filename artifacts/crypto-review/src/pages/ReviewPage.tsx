@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import { organizationNode, websiteNode, orgRef } from "@/lib/schemaBuilder";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
   <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2.5 border-b border-slate-800 pb-3">
@@ -503,34 +504,15 @@ function ReviewContent({ slug }: { slug: string }) {
   const jsonLd = useMemo(() => {
     if (!review) return undefined;
 
-    const org = {
-      "@type": "Organization",
-      name: "CryptoKiller",
-      url: "https://cryptokiller.org",
-      logo: "https://cryptokiller.org/favicon.svg",
-    };
-
     const pageUrl = `https://cryptokiller.org/review/${slug}`;
 
     const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
-    const orgRef = { "@id": `${pageUrl}#org` };
+    const orgRefId = orgRef();
     const itemRef = { "@id": `${pageUrl}#platform` };
 
     const graph: Record<string, unknown>[] = [
-      {
-        "@type": "Organization",
-        "@id": `${pageUrl}#org`,
-        name: "CryptoKiller",
-        url: "https://cryptokiller.org",
-        logo: "https://cryptokiller.org/favicon.svg",
-      },
-      {
-        "@type": "WebSite",
-        "@id": "https://cryptokiller.org/#website",
-        name: "CryptoKiller",
-        url: "https://cryptokiller.org",
-        publisher: orgRef,
-      },
+      organizationNode(),
+      websiteNode(),
       {
         "@type": "WebPage",
         "@id": `${pageUrl}#webpage`,
@@ -556,8 +538,8 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} — ${review.threatScore}/100 Threat Score`,
         description: desc,
         url: pageUrl,
-        author: orgRef,
-        publisher: orgRef,
+        author: orgRefId,
+        publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
@@ -578,8 +560,8 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} Review — ${review.threatScore}/100 Threat Score`,
         description: desc,
         url: pageUrl,
-        author: { "@type": "Organization", name: "CryptoKiller Research Team", url: "https://cryptokiller.org/about" },
-        publisher: orgRef,
+        author: orgRefId,
+        publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
@@ -595,8 +577,8 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} Scam Investigation`,
         description: `Is ${review.platformName} a scam? CryptoKiller investigation with threat score, ad evidence, and victim reports.`,
         url: pageUrl,
-        author: { "@type": "Organization", name: "CryptoKiller Research Team", url: "https://cryptokiller.org/about" },
-        publisher: { "@id": "https://cryptokiller.org/#organization" },
+        author: orgRefId,
+        publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: `https://cryptokiller.org/review/${slug}`,

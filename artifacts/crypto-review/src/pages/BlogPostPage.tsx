@@ -9,6 +9,7 @@ import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { BLOG_SCHEMA_MAP } from "@/lib/blogSchemaMap";
+import { organizationNode, websiteNode, personNode, personRef, orgRef, websiteRef } from "@/lib/schemaBuilder";
 import { useState, useMemo } from "react";
 
 interface VisualMetaItem {
@@ -160,34 +161,51 @@ export default function BlogPostPage() {
     const curatedSchema = slug ? BLOG_SCHEMA_MAP[slug] : undefined;
     if (curatedSchema) return curatedSchema as Record<string, unknown>;
 
+    const pageUrl = `${BASE}/blog/${slug}`;
+    const graph: Record<string, unknown>[] = [
+      organizationNode(),
+      websiteNode(),
+    ];
+
+    if (persona) {
+      graph.push(personNode(persona));
+    }
+
+    graph.push({
+      "@type": "WebPage",
+      "@id": `${pageUrl}/#webpage`,
+      url: pageUrl,
+      name: post.headline || post.title,
+      isPartOf: websiteRef(),
+      inLanguage: "en",
+      datePublished: post.publishedAt,
+      dateModified: post.updatedAt,
+    });
+
+    graph.push(breadcrumbJsonLd(crumbs));
+
     const articleSchema: Record<string, unknown> = {
-      "@type": "Article",
+      "@type": "BlogPosting",
+      "@id": `${pageUrl}/#article`,
       headline: post.headline || post.title,
       description: post.metaDescription || post.summary,
       datePublished: post.publishedAt,
       dateModified: post.updatedAt,
-      author: persona
-        ? { "@type": "Person", name: persona.name, jobTitle: persona.role, url: `${BASE}/author/${persona.slug}` }
-        : { "@type": "Organization", name: "CryptoKiller", url: BASE },
-      publisher: {
-        "@type": "Organization",
-        name: "CryptoKiller",
-        url: BASE,
-        logo: { "@type": "ImageObject", url: `${BASE}/logo.png` },
-      },
-      mainEntityOfPage: { "@type": "WebPage", "@id": `${BASE}/blog/${slug}` },
+      author: persona ? personRef(persona) : orgRef(),
+      publisher: orgRef(),
+      mainEntityOfPage: { "@id": `${pageUrl}/#webpage` },
       wordCount: post.wordCount,
       inLanguage: "en",
-      articleSection: post.contentType || "Crypto Safety",
+      articleSection: post.contentType || "Crypto Scam Investigation",
       ...(post.targetKeyword ? { keywords: post.targetKeyword } : {}),
       ...(heroImage?.url ? { image: { "@type": "ImageObject", url: heroImage.url, ...(heroImage.alt ? { caption: heroImage.alt } : {}) } } : {}),
     };
-
-    const graph: Record<string, unknown>[] = [articleSchema, breadcrumbJsonLd(crumbs)];
+    graph.push(articleSchema);
 
     if (Array.isArray(post.faq) && post.faq.length > 0) {
       graph.push({
         "@type": "FAQPage",
+        "@id": `${pageUrl}/#faq`,
         mainEntity: post.faq.map((item) => ({
           "@type": "Question",
           name: item.question,
