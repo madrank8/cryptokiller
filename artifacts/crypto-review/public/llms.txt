@@ -1,0 +1,55 @@
+# CryptoKiller
+
+> CryptoKiller is an independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries. It analyzes scam ads, publishes threat scores, and provides evidence-based investigations to protect consumers from cryptocurrency fraud including pig butchering, rug pulls, phishing, and fake exchanges. CryptoKiller cannot be paid to remove or modify listings — all threat scores are editorially independent.
+
+CryptoKiller operates an ad surveillance network monitoring crypto scam advertisements across 50+ countries 24/7. The platform uses machine learning to detect scam patterns and publishes comprehensive reviews with threat scores, evidence trails, red flags, and funnel breakdowns. All investigations are authored by named analysts (using initials for operational security) with combined experience of 900+ investigations. CryptoKiller does not offer recovery services and charges no fees to victims.
+
+## Docs
+
+- [Methodology](https://cryptokiller.org/methodology): How CryptoKiller investigates crypto scams — intelligence pipeline, ad surveillance process, threat scoring system, and evidence collection methods.
+- [About CryptoKiller](https://cryptokiller.org/about): Background on the organization, analyst team, editorial standards, and operational security protocols.
+- [Editorial Standards](https://cryptokiller.org/about): CryptoKiller's editorial independence policy — threat scores cannot be purchased, modified, or removed by investigated entities.
+- [Recovery Advice](https://cryptokiller.org/recovery): What to do if you've been scammed — steps for victims, how to report, and warnings about fake recovery services.
+
+## Investigations
+
+- [All Investigations](https://cryptokiller.org/investigations): Full archive of published scam investigations with threat scores, verdicts, and evidence.
+- [Senvix Review](https://cryptokiller.org/review/senvix): Blacklisted unregulated scam — avoid all contact.
+- [Trade Vector AI Review](https://cryptokiller.org/review/trade-vector-ai): FCA-warned, unlicensed crypto scam operation.
+- [Immediate Fortune Review](https://cryptokiller.org/review/immediate-fortune): Strong indicators of fraud — avoid entirely.
+- [Evo Trade Review](https://cryptokiller.org/review/evo-trade): Investigation with threat assessment and evidence.
+- [Stable Trader Review](https://cryptokiller.org/review/stable-trader): Investigation with threat assessment and evidence.
+
+## Blog
+
+- [Pig Butchering Scam Guide](https://cryptokiller.org/blog/pig-butchering-scam): How pig butchering scams work, warning signs, and how to protect yourself.
+- [How to Spot a Deepfake](https://cryptokiller.org/blog/how-to-spot-a-deepfake): Guide to identifying AI-generated deepfake videos used in crypto scams.
+- [Celebrity Crypto Scam](https://cryptokiller.org/blog/celebrity-crypto-scam): How scammers use fake celebrity endorsements to promote crypto fraud.
+- [AI Crypto Trading Bot Scam](https://cryptokiller.org/blog/ai-crypto-trading-bot-scam): Exposing fake AI trading bot scams and how to identify them.
+- [How to Spot Crypto Scams](https://cryptokiller.org/blog/how-to-spot-crypto-scams): Comprehensive guide to identifying cryptocurrency scams before you lose money.
+- [Fake Trading Profits](https://cryptokiller.org/blog/fake-trading-profits): How scam platforms fabricate trading profits to lure victims.
+- [AI Deepfake Crypto Scams 2026 Safety Guide](https://cryptokiller.org/blog/ai-deepfake-crypto-scams-2026-safety-guide): Updated 2026 guide to AI-powered deepfake scams targeting crypto investors.
+
+## Report a Scam
+
+- [Submit a Report](https://cryptokiller.org/report): Report a suspected crypto scam — your report builds the evidence trail that protects others.
+
+## Contact
+
+- Email: corrections@cryptokiller.org
+- Website: https://cryptokiller.org
+
+## Legal
+
+- [Privacy Policy](https://cryptokiller.org/privacy): CryptoKiller's data handling and privacy practices.
+- [Terms of Service](https://cryptokiller.org/terms): Terms governing use of the CryptoKiller platform.
+- [Legal Disclaimer](https://cryptokiller.org/about): CryptoKiller provides consumer protection intelligence — not financial or legal advice.
+
+## Key Statistics
+
+- 281,110+ scam ads analyzed
+- 22,033+ brands tracked
+- 84+ countries monitored
+- 900+ investigations published
+- Ad surveillance across 50+ countries, 24/7
+- Contributors in 23 countries

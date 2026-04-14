@@ -1,5 +1,269 @@
+# ============================================================
+# CryptoKiller.org — robots.txt
+# Last updated: 2026-04-14
+# Strategy: Maximum AEO (Answer Engine Optimization) visibility
+# Allow all AI search + citation bots. Allow training bots.
+# Block only internal API routes and non-content paths.
+# ============================================================
+
+# ——————————————————————————————————————————————————————————————
+# DEFAULT RULE — Allow all crawlers full access
+# ——————————————————————————————————————————————————————————————
 User-agent: *
 Allow: /
 Allow: /api/sitemap.xml
 Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /_next/
+Disallow: /auth/
+
+# ——————————————————————————————————————————————————————————————
+# GOOGLE — Search + AI (Gemini, AI Overviews, AI Mode)
+# ——————————————————————————————————————————————————————————————
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: Google-CloudVertexBot
+Allow: /
+
+User-agent: Googlebot-Discovery
+Allow: /
+
+User-agent: Gemini-Deep-Research
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# OPENAI — ChatGPT Search, GPT Citations, User Browsing
+# ——————————————————————————————————————————————————————————————
+# Search indexing — required to appear in ChatGPT search results
+User-agent: OAI-SearchBot
+Allow: /
+
+# Model training crawler
+User-agent: GPTBot
+Allow: /
+
+# User-initiated browsing from ChatGPT conversations
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ChatGPT-User/2.0
+Allow: /
+
+# Operator (agentic browsing)
+User-agent: ChatGPT-Operator
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# ANTHROPIC — Claude Search, Citations, User Browsing
+# ——————————————————————————————————————————————————————————————
+# Chat citation fetch
+User-agent: ClaudeBot
+Allow: /
+
+# Web-focused crawl
+User-agent: claude-web
+Allow: /
+
+# User-initiated fetch (Claude respects robots.txt for this)
+User-agent: Claude-User
+Allow: /
+
+# Claude search indexing
+User-agent: Claude-SearchBot
+Allow: /
+
+# Claude Code (developer tool)
+User-agent: Claude-Code
+Allow: /
+
+# Bulk model training
+User-agent: anthropic-ai
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# PERPLEXITY — Search Index + User-Triggered Fetch
+# ——————————————————————————————————————————————————————————————
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# MICROSOFT — Bing, Copilot
+# ——————————————————————————————————————————————————————————————
+User-agent: Bingbot
+Allow: /
+
+User-agent: BingPreview
+Allow: /
+
+User-agent: MicrosoftPreview
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# xAI — Grok (Live Search, DeepSearch)
+# Note: xAI and Grok lack "bot" in UA — verify middleware allows them
+# ——————————————————————————————————————————————————————————————
+User-agent: xAI
+Allow: /
+
+User-agent: Grok
+Allow: /
+
+User-agent: GrokBot
+Allow: /
+
+User-agent: xAI-Grok
+Allow: /
+
+User-agent: Grok-DeepSearch
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# MISTRAL — Le Chat Citations
+# ——————————————————————————————————————————————————————————————
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: MistralAI-User/1.0
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# APPLE — Siri, Apple Intelligence, Safari Suggestions
+# ——————————————————————————————————————————————————————————————
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# AMAZON — Alexa, Amazon Q, Rufus
+# ——————————————————————————————————————————————————————————————
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Amzn-SearchBot
+Allow: /
+
+User-agent: Amzn-User
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# META — Facebook, Instagram, WhatsApp Link Previews
+# ——————————————————————————————————————————————————————————————
+User-agent: FacebookBot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+User-agent: meta-externalfetcher
+Allow: /
+
+User-agent: meta-webindexer
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# SOCIAL — LinkedIn, Twitter/X, Pinterest
+# ——————————————————————————————————————————————————————————————
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: Pinterestbot
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# DUCKDUCKGO — DuckDuckGo AI Assist
+# ——————————————————————————————————————————————————————————————
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# COHERE — Enterprise AI Search
+# ——————————————————————————————————————————————————————————————
+User-agent: cohere-ai
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# BYTEDANCE — TikTok Search, Doubao
+# ——————————————————————————————————————————————————————————————
+User-agent: Bytespider
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# OTHER AI SEARCH — You.com, iAsk, Liner, Pangu
+# ——————————————————————————————————————————————————————————————
+User-agent: YouBot
+Allow: /
+
+User-agent: iaskspider
+Allow: /
+
+User-agent: iaskspider/2.0
+Allow: /
+
+User-agent: Liner-Bot
+Allow: /
+
+User-agent: PanguBot
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# RESEARCH / COMMON CRAWL (feeds many LLM training pipelines)
+# ——————————————————————————————————————————————————————————————
+User-agent: CCBot
+Allow: /
+
+User-agent: AI2Bot
+Allow: /
+
+User-agent: Diffbot
+Allow: /
+
+User-agent: omgili
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# OTHER SEARCH ENGINES
+# ——————————————————————————————————————————————————————————————
+User-agent: YandexBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: SeznamBot
+Allow: /
+
+User-agent: PetalBot
+Allow: /
+
+User-agent: Mojeekbot
+Allow: /
+
+# ——————————————————————————————————————————————————————————————
+# SITEMAPS
+# ——————————————————————————————————————————————————————————————
 Sitemap: https://cryptokiller.org/api/sitemap.xml
