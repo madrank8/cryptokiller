@@ -17,15 +17,31 @@ const SITE_NAME = "CryptoKiller";
 const BASE_URL = "https://cryptokiller.org";
 const DEFAULT_IMAGE = `${BASE_URL}/opengraph.jpg`;
 
+function normalizeCanonical(url: string): string {
+  if (url === "/" || url === BASE_URL || url === `${BASE_URL}/`) {
+    return `${BASE_URL}/`;
+  }
+  return url.replace(/\/+$/, "");
+}
+
+function deriveCanonical(explicit?: string): string {
+  if (explicit) return normalizeCanonical(explicit);
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const search = window.location.search;
+  return normalizeCanonical(`${BASE_URL}${path}${search}`);
+}
+
 export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage }: PageMeta) {
   useEffect(() => {
     const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
     document.title = fullTitle;
 
+    const resolvedCanonical = deriveCanonical(canonical);
+
     setMeta("description", description);
     setMeta("og:title", fullTitle, true);
     setMeta("og:description", description, true);
-    setMeta("og:url", canonical || BASE_URL, true);
+    setMeta("og:url", resolvedCanonical, true);
     setMeta("og:type", ogType || "website", true);
     setMeta("og:image", ogImage || DEFAULT_IMAGE, true);
     setMeta("twitter:title", fullTitle);
@@ -38,10 +54,13 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
     setLink("prev", prevPage);
     setLink("next", nextPage);
 
-    const linkCanonical = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
-    if (linkCanonical) {
-      linkCanonical.href = canonical || BASE_URL;
+    let linkCanonical = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
+    if (!linkCanonical) {
+      linkCanonical = document.createElement("link");
+      linkCanonical.rel = "canonical";
+      document.head.appendChild(linkCanonical);
     }
+    linkCanonical.href = resolvedCanonical;
 
     let scriptEl = document.querySelector<HTMLScriptElement>("script[data-page-jsonld]");
     if (jsonLd) {
