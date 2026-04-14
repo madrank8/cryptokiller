@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface PageMeta {
   title: string;
@@ -115,4 +115,22 @@ function setMeta(key: string, value: string, isProperty = false) {
     document.head.appendChild(el);
   }
   el.content = value;
+}
+
+export function useGlobalJsonLd(schema: Record<string, unknown>) {
+  const serialized = useRef("");
+  useEffect(() => {
+    const json = JSON.stringify(schema);
+    if (json === serialized.current) return;
+    serialized.current = json;
+
+    let el = document.querySelector<HTMLScriptElement>("script[data-global-jsonld]");
+    if (!el) {
+      el = document.createElement("script");
+      el.type = "application/ld+json";
+      el.setAttribute("data-global-jsonld", "true");
+      document.head.appendChild(el);
+    }
+    el.textContent = json;
+  }, [schema]);
 }

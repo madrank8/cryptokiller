@@ -3,6 +3,7 @@ import type { WriterPersona } from "./writerPersonas";
 const BASE = "https://cryptokiller.org";
 const ORG_ID = `${BASE}/#organization`;
 const WEBSITE_ID = `${BASE}/#website`;
+const LEGAL_ENTITY_ID = `${BASE}/#legal-entity`;
 
 const KNOWS_ABOUT = [
   "Cryptocurrency Scam Investigation",
@@ -17,15 +18,31 @@ const KNOWS_ABOUT = [
   "Rug Pull Investigation",
 ];
 
+export function legalEntityNode(): Record<string, unknown> {
+  return {
+    "@type": "Organization",
+    "@id": LEGAL_ENTITY_ID,
+    name: "DEX Algo Technologies Pte Ltd.",
+    legalName: "DEX Algo Technologies Pte Ltd.",
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "SG",
+      addressLocality: "Singapore",
+    },
+  };
+}
+
 export function organizationNode(): Record<string, unknown> {
   return {
     "@type": "Organization",
     "@id": ORG_ID,
     name: "CryptoKiller",
     url: BASE,
+    logo: `${BASE}/logo.png`,
     description:
       "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
     foundingDate: "2025",
+    parentOrganization: { "@id": LEGAL_ENTITY_ID },
     knowsAbout: KNOWS_ABOUT,
     sameAs: [],
     email: "corrections@cryptokiller.org",
@@ -61,6 +78,7 @@ export function personNode(persona: WriterPersona): Record<string, unknown> {
     jobTitle: persona.role,
     description: persona.bio,
     worksFor: { "@id": ORG_ID },
+    memberOf: { "@id": ORG_ID },
     knowsAbout: persona.specialties,
   };
 }
@@ -76,4 +94,15 @@ export function orgRef(): Record<string, unknown> {
 
 export function websiteRef(): Record<string, unknown> {
   return { "@id": WEBSITE_ID };
+}
+
+export function globalSiteSchema(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      legalEntityNode(),
+      organizationNode(),
+      websiteNode(),
+    ],
+  };
 }

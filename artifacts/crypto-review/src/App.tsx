@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useGlobalJsonLd } from "@/hooks/usePageMeta";
+import { globalSiteSchema } from "@/lib/schemaBuilder";
 import HomePage from "@/pages/HomePage";
 import ReviewPage from "@/pages/ReviewPage";
 import ReportPage from "@/pages/ReportPage";
@@ -38,10 +41,17 @@ function Router() {
   );
 }
 
+function GlobalSchema() {
+  const schema = useMemo(() => globalSiteSchema(), []);
+  useGlobalJsonLd(schema);
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <GlobalSchema />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>

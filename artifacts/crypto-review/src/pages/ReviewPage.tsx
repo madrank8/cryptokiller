@@ -20,7 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
-import { organizationNode, websiteNode, orgRef } from "@/lib/schemaBuilder";
+import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
+import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
   <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2.5 border-b border-slate-800 pb-3">
@@ -510,9 +511,17 @@ function ReviewContent({ slug }: { slug: string }) {
     const orgRefId = orgRef();
     const itemRef = { "@id": `${pageUrl}#platform` };
 
+    const allPersonas = Object.values(WRITER_PERSONAS);
+    const personNodes = allPersonas.map((p) => personNode(p));
+    const personRefs = allPersonas.map((p) => personRef(p));
+
+    const authorValue = personRefs.length > 0 ? personRefs : orgRefId;
+
     const graph: Record<string, unknown>[] = [
+      legalEntityNode(),
       organizationNode(),
       websiteNode(),
+      ...personNodes,
       {
         "@type": "WebPage",
         "@id": `${pageUrl}#webpage`,
@@ -538,7 +547,7 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} — ${review.threatScore}/100 Threat Score`,
         description: desc,
         url: pageUrl,
-        author: orgRefId,
+        author: authorValue,
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -560,7 +569,7 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} Review — ${review.threatScore}/100 Threat Score`,
         description: desc,
         url: pageUrl,
-        author: orgRefId,
+        author: authorValue,
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -577,7 +586,7 @@ function ReviewContent({ slug }: { slug: string }) {
         headline: `${review.platformName} Scam Investigation`,
         description: `Is ${review.platformName} a scam? CryptoKiller investigation with threat score, ad evidence, and victim reports.`,
         url: pageUrl,
-        author: orgRefId,
+        author: authorValue,
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -608,21 +617,23 @@ function ReviewContent({ slug }: { slug: string }) {
         })),
       };
       graph.push(faqNode);
-      const webPage = graph[2] as Record<string, unknown>;
-      webPage.hasPart = { "@id": `${pageUrl}#faq` };
+      const webPage = graph.find((n) => n["@id"] === `${pageUrl}#webpage`);
+      if (webPage) webPage.hasPart = { "@id": `${pageUrl}#faq` };
     }
 
     if (review.redFlags && review.redFlags.length > 0) {
-      const reviewNode = graph[4] as Record<string, unknown>;
-      reviewNode.negativeNotes = {
-        "@type": "ItemList",
-        itemListElement: review.redFlags.map((rf: { title: string; description: string }, i: number) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          name: rf.title,
-          description: rf.description,
-        })),
-      };
+      const reviewNode = graph.find((n) => n["@id"] === `${pageUrl}#review`);
+      if (reviewNode) {
+        reviewNode.negativeNotes = {
+          "@type": "ItemList",
+          itemListElement: review.redFlags.map((rf: { title: string; description: string }, i: number) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: rf.title,
+            description: rf.description,
+          })),
+        };
+      }
     }
 
     return {
