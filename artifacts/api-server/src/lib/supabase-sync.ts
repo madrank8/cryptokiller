@@ -462,7 +462,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
   return { syncedBrands, syncedReviews, durationMs };
 }
 
-const SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const SYNC_INTERVAL_MS = 2 * 60 * 1000;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 let startupTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress = false;
