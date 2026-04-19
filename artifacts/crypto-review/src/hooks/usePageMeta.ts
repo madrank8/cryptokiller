@@ -61,6 +61,10 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
     }
     linkCanonical.href = resolvedCanonical;
 
+    document
+      .querySelectorAll<HTMLScriptElement>("script[data-ssr-jsonld]")
+      .forEach((el) => el.remove());
+
     let scriptEl = document.querySelector<HTMLScriptElement>("script[data-page-jsonld]");
     if (jsonLd) {
       if (!scriptEl) {
