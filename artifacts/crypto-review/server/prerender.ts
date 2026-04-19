@@ -160,9 +160,9 @@ async function renderHome(): Promise<RenderResult> {
     ? new Date(recent[0].updatedAt).toUTCString()
     : undefined;
 
-  const title = "Crypto Scam Checker — Investigate Any Platform | CryptoKiller";
+  const title = "CryptoKiller — Crypto Scam Checker & Investigations";
   const description =
-    "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing, fake exchanges — with evidence and threat scores.";
+    "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.";
 
   const recentList = recent
     .map(
@@ -248,7 +248,7 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
   const title =
     clampedPage > 1
       ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-      : "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller";
+      : "Crypto Scam Investigations — 1,000+ Platforms | CryptoKiller";
   const description =
     "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.";
 
@@ -492,7 +492,7 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 
   if (!row) return renderNotFound(`/blog/${slug}`);
 
-  const title = `${row.headline || row.title} | CryptoKiller`;
+  const title = `${truncate(row.headline || row.title, 55)} | CryptoKiller`;
   const description = truncate(
     row.metaDescription || row.summary || row.headline || row.title,
     160,
@@ -653,7 +653,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
       path: "/about",
       title: "About CryptoKiller — Crypto Scam Intelligence Platform",
       description:
-        "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 1,000 fraudulent brands across 84+ countries.",
+        "CryptoKiller is an independent crypto scam intelligence platform tracking 1,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
       h1: "About CryptoKiller",
       intro:
         "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. (Singapore). We track over 1,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
@@ -663,7 +663,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
       path: "/methodology",
       title: "Investigation Methodology — CryptoKiller",
       description:
-        "How CryptoKiller investigates crypto scams: our evidence-based scoring system, data sources, investigation process, and editorial standards. Every threat score is backed by verifiable public data.",
+        "How CryptoKiller investigates crypto scams — evidence-based scoring, data sources, investigation process, and editorial standards backed by public data.",
       h1: "Investigation Methodology",
       intro:
         "Every CryptoKiller threat score is built from six categories of evidence: ad creative volume, geographic targeting spread, celebrity impersonation, funnel and registration patterns, regulatory and infrastructure signals, and historical pattern matching. Our editorial process moves from automated detection through evidence collection, analysis and scoring, and finally human editorial review before publication.",
@@ -671,7 +671,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
   "/recovery": () =>
     renderStaticPage({
       path: "/recovery",
-      title: "Crypto Scam Recovery Guide — What To Do After Losing Funds | CryptoKiller",
+      title: "Crypto Scam Recovery Guide — CryptoKiller",
       description:
         "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
       h1: "Crypto Scam Recovery Guide",
