@@ -185,6 +185,10 @@ function escapeXml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
+function encodeSlugForLoc(slug: string): string {
+  return escapeXml(encodeURI(slug));
+}
+
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const [rows, blogRows, latestDates] = await Promise.all([
     db
@@ -261,14 +265,14 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
 
   for (const r of rows) {
     const lastmod = r.updatedAt ? new Date(r.updatedAt).toISOString().split("T")[0] : "";
-    xml += `  <url>\n    <loc>${base}/review/${escapeXml(r.slug)}</loc>\n`;
+    xml += `  <url>\n    <loc>${base}/review/${encodeSlugForLoc(r.slug)}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
   }
 
   for (const b of blogRows) {
     const lastmod = b.updatedAt ? new Date(b.updatedAt).toISOString().split("T")[0] : "";
-    xml += `  <url>\n    <loc>${base}/blog/${escapeXml(b.slug)}</loc>\n`;
+    xml += `  <url>\n    <loc>${base}/blog/${encodeSlugForLoc(b.slug)}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
   }
