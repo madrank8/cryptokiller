@@ -1,10 +1,14 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, asc } from "drizzle-orm";
 import {
   db,
   reviewsTable,
   blogPostsTable,
   platformsTable,
   reviewStatsTable,
+  redFlagsTable,
+  faqItemsTable,
+  keyFindingsTable,
+  funnelStagesTable,
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 
@@ -454,7 +458,11 @@ async function renderReview(slug: string): Promise<RenderResult> {
       summary: reviewsTable.summary,
       heroDescription: reviewsTable.heroDescription,
       warningCallout: reviewsTable.warningCallout,
+      methodologyText: reviewsTable.methodologyText,
+      disclaimerText: reviewsTable.disclaimerText,
       metaDescription: reviewsTable.metaDescription,
+      wordCount: reviewsTable.wordCount,
+      readingMinutes: reviewsTable.readingMinutes,
       author: reviewsTable.author,
       investigationDate: reviewsTable.investigationDate,
       updatedAt: reviewsTable.updatedAt,
@@ -463,6 +471,10 @@ async function renderReview(slug: string): Promise<RenderResult> {
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
       celebritiesAbused: reviewStatsTable.celebritiesAbused,
+      weeklyVelocity: reviewStatsTable.weeklyVelocity,
+      firstDetected: reviewStatsTable.firstDetected,
+      lastActive: reviewStatsTable.lastActive,
+      celebrityNames: reviewStatsTable.celebrityNames,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
@@ -471,6 +483,47 @@ async function renderReview(slug: string): Promise<RenderResult> {
     .limit(1);
 
   if (!row || row.status !== "published") return renderNotFound(`/review/${slug}`);
+
+  // ── Fetch all narrative child tables in parallel. Each is an ordered
+  //    list keyed by review_id. Prior to this change none of these were
+  //    rendered into the server HTML, so Google saw ~10% of the actual
+  //    investigation content.
+  const [redFlags, faqItems, keyFindings, funnelStages] = await Promise.all([
+    db
+      .select({
+        emoji: redFlagsTable.emoji,
+        title: redFlagsTable.title,
+        description: redFlagsTable.description,
+      })
+      .from(redFlagsTable)
+      .where(eq(redFlagsTable.reviewId, row.id))
+      .orderBy(asc(redFlagsTable.orderIndex)),
+    db
+      .select({
+        question: faqItemsTable.question,
+        answer: faqItemsTable.answer,
+      })
+      .from(faqItemsTable)
+      .where(eq(faqItemsTable.reviewId, row.id))
+      .orderBy(asc(faqItemsTable.orderIndex)),
+    db
+      .select({ content: keyFindingsTable.content })
+      .from(keyFindingsTable)
+      .where(eq(keyFindingsTable.reviewId, row.id))
+      .orderBy(asc(keyFindingsTable.orderIndex)),
+    db
+      .select({
+        stageNumber: funnelStagesTable.stageNumber,
+        title: funnelStagesTable.title,
+        description: funnelStagesTable.description,
+        statValue: funnelStagesTable.statValue,
+        statLabel: funnelStagesTable.statLabel,
+        bullets: funnelStagesTable.bullets,
+      })
+      .from(funnelStagesTable)
+      .where(eq(funnelStagesTable.reviewId, row.id))
+      .orderBy(asc(funnelStagesTable.stageNumber)),
+  ]);
 
   const platformName = row.platformName || slug;
   const title = `${platformName} Scam Review — Threat Score ${row.threatScore}/100 | CryptoKiller`;
@@ -494,6 +547,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
   if (row.countriesTargeted) stats.push(`<li><strong>${row.countriesTargeted}</strong> countries targeted</li>`);
   if (row.daysActive) stats.push(`<li>Active for <strong>${row.daysActive}</strong> days</li>`);
   if (row.celebritiesAbused) stats.push(`<li><strong>${row.celebritiesAbused}</strong> celebrities impersonated</li>`);
+  if (row.weeklyVelocity) stats.push(`<li><strong>${row.weeklyVelocity}</strong> new ad creatives in the last 7 days</li>`);
 
   // Render multi-paragraph fields by splitting on newlines
   const paragraphize = (txt: string): string =>
@@ -504,6 +558,56 @@ async function renderReview(slug: string): Promise<RenderResult> {
       .map((p) => `<p>${esc(p)}</p>`)
       .join("");
 
+  // ── Build the new long-form sections ──
+
+  const keyFindingsHtml = keyFindings.length
+    ? `<section aria-labelledby="findings-heading"><h2 id="findings-heading">Key findings</h2><ul>${keyFindings
+        .map((k) => `<li>${esc(clean(k.content))}</li>`)
+        .join("")}</ul></section>`
+    : "";
+
+  const redFlagsHtml = redFlags.length
+    ? `<section aria-labelledby="red-flags-heading"><h2 id="red-flags-heading">Red flags we identified</h2>${redFlags
+        .map(
+          (rf) =>
+            `<article class="red-flag"><h3>${esc(rf.emoji || "🚩")} ${esc(rf.title)}</h3>${paragraphize(rf.description)}</article>`,
+        )
+        .join("")}</section>`
+    : "";
+
+  const funnelStagesHtml = funnelStages.length
+    ? `<section aria-labelledby="funnel-heading"><h2 id="funnel-heading">How the ${esc(platformName)} scam funnel works</h2>${funnelStages
+        .map((fs) => {
+          const bullets =
+            Array.isArray(fs.bullets) && fs.bullets.length
+              ? `<ul>${fs.bullets.map((b) => `<li>${esc(String(b))}</li>`).join("")}</ul>`
+              : "";
+          const stat =
+            fs.statValue || fs.statLabel
+              ? `<p><strong>${esc(fs.statValue || "")}</strong>${fs.statValue && fs.statLabel ? " — " : ""}${esc(fs.statLabel || "")}</p>`
+              : "";
+          return `<article class="funnel-stage"><h3>Stage ${fs.stageNumber}: ${esc(fs.title)}</h3>${fs.description ? paragraphize(fs.description) : ""}${stat}${bullets}</article>`;
+        })
+        .join("")}</section>`
+    : "";
+
+  const celebrityNames = Array.isArray(row.celebrityNames) ? row.celebrityNames.filter(Boolean) : [];
+  const celebritiesHtml = celebrityNames.length
+    ? `<section aria-labelledby="celebs-heading"><h2 id="celebs-heading">Celebrities impersonated</h2><p>The ${esc(platformName)} campaign fabricates endorsements from ${celebrityNames.length} public figures, including:</p><ul>${celebrityNames
+        .slice(0, 30)
+        .map((n) => `<li>${esc(String(n))}</li>`)
+        .join("")}</ul></section>`
+    : "";
+
+  const faqHtml = faqItems.length
+    ? `<section aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently asked questions</h2>${faqItems
+        .map(
+          (f) =>
+            `<div class="faq-item"><h3>${esc(f.question)}</h3>${paragraphize(f.answer)}</div>`,
+        )
+        .join("")}</section>`
+    : "";
+
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
@@ -513,52 +617,79 @@ ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</
 ${heroText && heroText !== summaryText ? `<p>${esc(heroText)}</p>` : ""}
 ${summaryText ? `<section><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
 ${stats.length ? `<section><h2>Investigation at a glance</h2><ul>${stats.join("")}</ul></section>` : ""}
+${keyFindingsHtml}
+${redFlagsHtml}
+${funnelStagesHtml}
+${celebritiesHtml}
 ${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
+${faqHtml}
 ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
-<p><strong>Investigation by:</strong> ${esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}</p>
+<p><strong>Investigation by:</strong> ${esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
 </main>${siteFooterHtml()}`;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      legalEntityNode(),
-      organizationNode(),
-      websiteNode(),
-      breadcrumbList([
-        { label: "Home", href: `${BASE}/` },
-        { label: "Investigations", href: `${BASE}/investigations` },
-        { label: `${platformName} Scam Review`, href: canonical },
-      ]),
-      {
-        "@type": ["Review", "Article"],
-        "@id": `${canonical}#review`,
-        headline: title,
-        url: canonical,
-        mainEntityOfPage: canonical,
-        description,
-        inLanguage: "en",
-        isPartOf: { "@id": WEBSITE_ID },
-        publisher: { "@id": ORG_ID },
-        author: { "@type": "Organization", name: row.author || "CryptoKiller Research Team", url: BASE },
-        ...(datePublished ? { datePublished } : {}),
-        ...(dateModified ? { dateModified } : {}),
-        itemReviewed: {
-          "@type": "Service",
-          name: platformName,
-          description: `Crypto trading platform reviewed for scam indicators by CryptoKiller.`,
-        },
-        reviewRating: {
-          "@type": "Rating",
-          ratingValue: Math.max(1, Math.round((100 - row.threatScore) / 20)),
-          bestRating: 5,
-          worstRating: 1,
-        },
-        reviewBody: truncate(summaryText || description, 5000),
+  const reviewBodyText = truncate(
+    [
+      summaryText,
+      keyFindings.map((k) => k.content).join(" "),
+      redFlags.map((r) => `${r.title}. ${r.description}`).join(" "),
+      methodologyText,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    5000,
+  );
+
+  const graph: Record<string, unknown>[] = [
+    legalEntityNode(),
+    organizationNode(),
+    websiteNode(),
+    breadcrumbList([
+      { label: "Home", href: `${BASE}/` },
+      { label: "Investigations", href: `${BASE}/investigations` },
+      { label: `${platformName} Scam Review`, href: canonical },
+    ]),
+    {
+      "@type": ["Review", "Article"],
+      "@id": `${canonical}#review`,
+      headline: title,
+      url: canonical,
+      mainEntityOfPage: canonical,
+      description,
+      inLanguage: "en",
+      isPartOf: { "@id": WEBSITE_ID },
+      publisher: { "@id": ORG_ID },
+      author: { "@type": "Organization", name: row.author || "CryptoKiller Research Team", url: BASE },
+      ...(datePublished ? { datePublished } : {}),
+      ...(dateModified ? { dateModified } : {}),
+      ...(row.wordCount ? { wordCount: row.wordCount } : {}),
+      itemReviewed: {
+        "@type": "Service",
+        name: platformName,
+        description: `Crypto trading platform reviewed for scam indicators by CryptoKiller.`,
       },
-    ],
-  };
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: Math.max(1, Math.round((100 - row.threatScore) / 20)),
+        bestRating: 5,
+        worstRating: 1,
+      },
+      reviewBody: reviewBodyText,
+    },
+  ];
+
+  if (faqItems.length) {
+    graph.push({
+      "@type": "FAQPage",
+      "@id": `${canonical}#faq`,
+      mainEntity: faqItems.map((f) => ({
+        "@type": "Question",
+        name: f.question,
+        acceptedAnswer: { "@type": "Answer", text: f.answer },
+      })),
+    });
+  }
 
   return {
     status: 200,
@@ -568,7 +699,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     ogType: "article",
     ogImage: DEFAULT_OG_IMAGE,
     bodyHtml,
-    jsonLd,
+    jsonLd: { "@context": "https://schema.org", "@graph": graph },
     lastModified,
   };
 }
