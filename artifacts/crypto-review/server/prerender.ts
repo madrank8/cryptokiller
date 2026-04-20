@@ -507,12 +507,48 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
   const heroImage = row.heroImageUrl || DEFAULT_OG_IMAGE;
   const summaryText = clean(row.summary || row.metaDescription || "");
 
+  const sections = Array.isArray(row.sections) ? (row.sections as Array<{ heading?: string; body?: string }>) : [];
+  const faq = Array.isArray(row.faq) ? (row.faq as Array<{ question?: string; answer?: string }>) : [];
+  const sources = Array.isArray(row.sources) ? (row.sources as Array<string | { title?: string; url?: string }>) : [];
+
+  let articleBodyHtml = "";
+  if (row.fullArticle && row.fullArticle.trim().length > 0) {
+    articleBodyHtml = row.fullArticle;
+  } else if (sections.length > 0) {
+    articleBodyHtml = sections
+      .map((s) => `${s.heading ? `<h2>${esc(s.heading)}</h2>` : ""}${s.body ? `<p>${esc(s.body)}</p>` : ""}`)
+      .join("");
+  }
+
+  const faqHtml = faq.length
+    ? `<section aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>${faq
+        .map(
+          (f) =>
+            `<div><h3>${esc(f.question || "")}</h3><p>${esc(f.answer || "")}</p></div>`,
+        )
+        .join("")}</section>`
+    : "";
+
+  const sourcesHtml = sources.length
+    ? `<section aria-labelledby="sources-heading"><h2 id="sources-heading">Sources</h2><ol>${sources
+        .map((s) => {
+          if (typeof s === "string") return `<li>${esc(s)}</li>`;
+          if (s && typeof s === "object" && s.url)
+            return `<li><a href="${esc(s.url)}" rel="noopener nofollow">${esc(s.title || s.url)}</a></li>`;
+          return `<li>${esc(String((s as { title?: string })?.title || ""))}</li>`;
+        })
+        .join("")}</ol></section>`
+    : "";
+
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/blog">Blog</a> · ${esc(row.title)}</nav>
 <article>
 <h1>${esc(row.headline || row.title)}</h1>
+<p><strong>By</strong> ${esc(authorName)}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.wordCount ? ` · ${row.wordCount}-word read` : ""}</p>
 ${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
-<p><strong>By</strong> ${esc(authorName)}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}</p>
+${articleBodyHtml}
+${faqHtml}
+${sourcesHtml}
 <p><a href="/blog">Back to blog</a></p>
 </article>
 </main>${siteFooterHtml()}`;
@@ -546,6 +582,19 @@ ${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
         ...(dateModified ? { dateModified } : {}),
         wordCount: row.wordCount || undefined,
       },
+      ...(faq.length
+        ? [
+            {
+              "@type": "FAQPage",
+              "@id": `${canonical}#faq`,
+              mainEntity: faq.map((f) => ({
+                "@type": "Question",
+                name: f.question || "",
+                acceptedAnswer: { "@type": "Answer", text: f.answer || "" },
+              })),
+            },
+          ]
+        : []),
     ],
   };
 
