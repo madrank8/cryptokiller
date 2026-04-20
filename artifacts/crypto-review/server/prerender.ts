@@ -109,18 +109,93 @@ function siteFooterHtml(): string {
   return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:corrections@cryptokiller.org">Editorial corrections</a></p></footer>`;
 }
 
+interface StaticSection {
+  heading: string;
+  paragraphs: string[];
+  list?: string[];
+}
+
+interface StaticFaq {
+  question: string;
+  answer: string;
+}
+
 interface StaticPageInput {
   path: string;
   title: string;
   description: string;
   h1: string;
   intro: string;
+  sections?: StaticSection[];
+  faq?: StaticFaq[];
   ogType?: string;
   jsonLd?: Record<string, unknown>;
 }
 
 function renderStaticPage(p: StaticPageInput): RenderResult {
   const canonical = `${BASE}${p.path === "/" ? "/" : p.path.replace(/\/+$/, "")}`;
+
+  const sectionsHtml = (p.sections ?? [])
+    .map((s) => {
+      const paras = s.paragraphs.map((para) => `<p>${esc(para)}</p>`).join("");
+      const list = s.list && s.list.length
+        ? `<ul>${s.list.map((li) => `<li>${esc(li)}</li>`).join("")}</ul>`
+        : "";
+      return `<section><h2>${esc(s.heading)}</h2>${paras}${list}</section>`;
+    })
+    .join("");
+
+  const faqHtml = p.faq && p.faq.length
+    ? `<section aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>${p.faq
+        .map(
+          (f) =>
+            `<div><h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p></div>`,
+        )
+        .join("")}</section>`
+    : "";
+
+  const bodyHtml = `${siteHeaderHtml()}<main>
+<nav aria-label="Breadcrumb"><a href="/">Home</a> · ${esc(p.h1)}</nav>
+<article>
+<h1>${esc(p.h1)}</h1>
+<p>${esc(p.intro)}</p>
+${sectionsHtml}
+${faqHtml}
+<p><a href="/">Back to home</a> · <a href="/investigations">Browse investigations</a> · <a href="/blog">Read the blog</a></p>
+</article>
+</main>${siteFooterHtml()}`;
+
+  const baseGraph: Record<string, unknown>[] = [
+    legalEntityNode(),
+    organizationNode(),
+    websiteNode(),
+    breadcrumbList([
+      { label: "Home", href: `${BASE}/` },
+      { label: p.h1, href: canonical },
+    ]),
+    {
+      "@type": "WebPage",
+      "@id": `${canonical}#webpage`,
+      url: canonical,
+      name: p.title,
+      description: p.description,
+      isPartOf: { "@id": WEBSITE_ID },
+      inLanguage: "en",
+    },
+  ];
+
+  if (p.faq && p.faq.length) {
+    baseGraph.push({
+      "@type": "FAQPage",
+      "@id": `${canonical}#faq`,
+      mainEntity: p.faq.map((f) => ({
+        "@type": "Question",
+        name: f.question,
+        acceptedAnswer: { "@type": "Answer", text: f.answer },
+      })),
+    });
+  }
+
   return {
     status: 200,
     title: p.title,
@@ -128,10 +203,10 @@ function renderStaticPage(p: StaticPageInput): RenderResult {
     canonical,
     ogType: p.ogType ?? "website",
     ogImage: DEFAULT_OG_IMAGE,
-    bodyHtml: `${siteHeaderHtml()}<main><h1>${esc(p.h1)}</h1><p>${esc(p.intro)}</p></main>${siteFooterHtml()}`,
+    bodyHtml,
     jsonLd: p.jsonLd ?? {
       "@context": "https://schema.org",
-      "@graph": [legalEntityNode(), organizationNode(), websiteNode()],
+      "@graph": baseGraph,
     },
   };
 }
@@ -409,7 +484,10 @@ async function renderReview(slug: string): Promise<RenderResult> {
   const dateModified = row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined;
 
   const summaryText = clean(row.summary || row.heroDescription || row.verdict || "");
+  const heroText = clean(row.heroDescription);
   const warningText = clean(row.warningCallout);
+  const methodologyText = clean(row.methodologyText);
+  const disclaimerText = clean(row.disclaimerText);
 
   const stats: string[] = [];
   if (row.adCreatives) stats.push(`<li><strong>${row.adCreatives.toLocaleString()}</strong> tracked scam ad creatives</li>`);
@@ -417,15 +495,27 @@ async function renderReview(slug: string): Promise<RenderResult> {
   if (row.daysActive) stats.push(`<li>Active for <strong>${row.daysActive}</strong> days</li>`);
   if (row.celebritiesAbused) stats.push(`<li><strong>${row.celebritiesAbused}</strong> celebrities impersonated</li>`);
 
+  // Render multi-paragraph fields by splitting on newlines
+  const paragraphize = (txt: string): string =>
+    txt
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map((p) => `<p>${esc(p)}</p>`)
+      .join("");
+
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
 <h1>${esc(platformName)} Scam Review — Threat Score ${row.threatScore}/100</h1>
 <p><strong>Verdict:</strong> ${esc(row.verdict || "Confirmed scam")}</p>
 ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
-${summaryText ? `<p>${esc(truncate(summaryText, 600))}</p>` : ""}
-${stats.length ? `<h2>Investigation at a glance</h2><ul>${stats.join("")}</ul>` : ""}
-<p><strong>Investigation by:</strong> ${esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}</p>
+${heroText && heroText !== summaryText ? `<p>${esc(heroText)}</p>` : ""}
+${summaryText ? `<section><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
+${stats.length ? `<section><h2>Investigation at a glance</h2><ul>${stats.join("")}</ul></section>` : ""}
+${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
+${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
+<p><strong>Investigation by:</strong> ${esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}</p>
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
 </main>${siteFooterHtml()}`;
