@@ -734,7 +734,11 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 
   let articleBodyHtml = "";
   if (row.fullArticle && row.fullArticle.trim().length > 0) {
-    articleBodyHtml = row.fullArticle;
+    // Strip any <script> tags (esp. embedded JSON-LD) baked into article content.
+    // Duplicate schema blocks in the body downgrade structured-data trust signals
+    // and are better emitted by the SSR jsonLd pipeline only. Mirrors the same
+    // strip performed in artifacts/api-server/src/routes/blog.ts::processContentBody.
+    articleBodyHtml = row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   } else if (sections.length > 0) {
     articleBodyHtml = sections
       .map((s) => `${s.heading ? `<h2>${esc(s.heading)}</h2>` : ""}${s.body ? `<p>${esc(s.body)}</p>` : ""}`)
