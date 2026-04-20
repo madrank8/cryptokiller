@@ -11,6 +11,19 @@ import {
   funnelStagesTable,
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
+import {
+  resolveAbout,
+  resolveMentions,
+  buildCitations,
+  buildClaimReviews,
+  buildItemList,
+  buildHowTo,
+  buildDataset,
+  buildQuotations,
+  buildSpeakable,
+  publisherLogoImage,
+  heroImageNode,
+} from "../src/lib/blogSchemaEnrichment.js";
 
 const BASE = "https://cryptokiller.org";
 const DEFAULT_OG_IMAGE = `${BASE}/opengraph.jpg`;
@@ -778,49 +791,108 @@ ${sourcesHtml}
 </article>
 </main>${siteFooterHtml()}`;
 
+  // ── Build the enriched @graph ─────────────────────────────────────────────
+  // Order: legal entity → organisation → website → breadcrumb → author →
+  // about[] entities → mention[] entities → Article (citing everything above
+  // via @id refs) → FAQPage → ClaimReview[] → ItemList → HowTo → Dataset →
+  // Quotation[]. All extended nodes are additive — if the DB field is absent
+  // or empty, the node is simply omitted. Base Article + FAQPage always emit.
+  const aboutNodes    = resolveAbout(row.aboutSlugs);
+  const mentionNodes  = resolveMentions(row.mentionSlugs);
+  const citationNodes = buildCitations(row.citations);
+  const claimNodes    = buildClaimReviews(row.claims, canonical, persona?.name);
+  const itemListNode  = buildItemList(row.itemList, canonical);
+  const howToNode     = buildHowTo(row.howTo, canonical);
+  const datasetNode   = buildDataset(row.dataset);
+  const quotationNodes = buildQuotations(row.quotes);
+
+  // Upgrade the base Organization.logo to a full ImageObject (Rich Results
+  // requires this for Article.publisher). We shallow-clone the base node and
+  // replace the `logo` field with the @id-referenced ImageObject.
+  const orgLogo = publisherLogoImage();
+  const orgNode = { ...organizationNode(), logo: { "@id": `${BASE}/#organization-logo` } };
+
+  // Author with sameAs (only persona-linked authors; fall back to Organization
+  // when no persona is set — we never fabricate sameAs for missing authors).
+  const authorNode: Record<string, unknown> = persona
+    ? {
+        "@type": "Person",
+        "@id": `${BASE}/#author-${persona.slug}`,
+        name: persona.name,
+        url: `${BASE}/author/${persona.slug}`,
+        jobTitle: persona.role,
+        description: persona.bio,
+        knowsAbout: persona.specialties,
+        worksFor: { "@id": ORG_ID },
+        memberOf: { "@id": ORG_ID },
+        // No verified external profiles yet; leave sameAs off rather than
+        // invent entries. Add them here once the personas have verified URLs.
+      }
+    : { "@type": "Organization", name: authorName, url: BASE };
+
+  const articleNode: Record<string, unknown> = {
+    "@type": "Article",
+    "@id": `${canonical}#article`,
+    headline: truncate(row.headline || row.title, 110),
+    ...(row.alternativeHeadline ? { alternativeHeadline: row.alternativeHeadline } : {}),
+    description,
+    url: canonical,
+    mainEntityOfPage: canonical,
+    image: heroImageNode(heroImage, null),
+    inLanguage: "en",
+    isPartOf: { "@id": WEBSITE_ID },
+    publisher: { "@id": ORG_ID },
+    author: persona ? { "@id": `${BASE}/#author-${persona.slug}` } : authorNode,
+    ...(datePublished ? { datePublished } : {}),
+    ...(dateModified ? { dateModified } : {}),
+    wordCount: row.wordCount || undefined,
+    articleSection: row.contentType || "Crypto Scam Investigation",
+    ...(row.targetKeyword ? { keywords: row.targetKeyword } : {}),
+    // about[] and mentions[] reference the entity nodes by @type/name. Schema
+    // parsers will happily correlate these back when the full node is in @graph.
+    ...(aboutNodes.length ? { about: aboutNodes } : {}),
+    ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
+    ...(citationNodes.length ? { citation: citationNodes } : {}),
+    speakable: buildSpeakable(row.speakableSelectors),
+  };
+
+  const graph: Record<string, unknown>[] = [
+    legalEntityNode(),
+    orgNode,
+    orgLogo,                       // ImageObject referenced by orgNode.logo.@id
+    websiteNode(),
+    breadcrumbList([
+      { label: "Home", href: `${BASE}/` },
+      { label: "Blog", href: `${BASE}/blog` },
+      { label: row.headline || row.title, href: canonical },
+    ]),
+  ];
+
+  if (persona) graph.push(authorNode);
+
+  graph.push(articleNode);
+
+  if (faq.length) {
+    graph.push({
+      "@type": "FAQPage",
+      "@id": `${canonical}#faq`,
+      mainEntity: faq.map((f) => ({
+        "@type": "Question",
+        name: f.question || "",
+        acceptedAnswer: { "@type": "Answer", text: f.answer || "" },
+      })),
+    });
+  }
+
+  for (const claim of claimNodes) graph.push(claim);
+  if (itemListNode) graph.push(itemListNode);
+  if (howToNode) graph.push(howToNode);
+  if (datasetNode) graph.push(datasetNode);
+  for (const quote of quotationNodes) graph.push(quote);
+
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@graph": [
-      legalEntityNode(),
-      organizationNode(),
-      websiteNode(),
-      breadcrumbList([
-        { label: "Home", href: `${BASE}/` },
-        { label: "Blog", href: `${BASE}/blog` },
-        { label: row.headline || row.title, href: canonical },
-      ]),
-      {
-        "@type": "Article",
-        "@id": `${canonical}#article`,
-        headline: truncate(row.headline || row.title, 110),
-        description,
-        url: canonical,
-        mainEntityOfPage: canonical,
-        image: heroImage,
-        inLanguage: "en",
-        isPartOf: { "@id": WEBSITE_ID },
-        publisher: { "@id": ORG_ID },
-        author: persona
-          ? { "@type": "Person", name: persona.name, url: `${BASE}/author/${persona.slug}`, jobTitle: persona.role }
-          : { "@type": "Organization", name: authorName, url: BASE },
-        ...(datePublished ? { datePublished } : {}),
-        ...(dateModified ? { dateModified } : {}),
-        wordCount: row.wordCount || undefined,
-      },
-      ...(faq.length
-        ? [
-            {
-              "@type": "FAQPage",
-              "@id": `${canonical}#faq`,
-              mainEntity: faq.map((f) => ({
-                "@type": "Question",
-                name: f.question || "",
-                acceptedAnswer: { "@type": "Answer", text: f.answer || "" },
-              })),
-            },
-          ]
-        : []),
-    ],
+    "@graph": graph,
   };
 
   return {
