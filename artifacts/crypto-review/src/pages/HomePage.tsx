@@ -409,7 +409,12 @@ function WarningBanner() {
 }
 
 export default function HomePage() {
+  // Orval's generated `UseQueryOptions` type demands `queryKey` but the runtime
+  // defaults it via getListReviewsQueryKey(). Suppress the field-level error
+  // rather than redeclaring the generated default (which would couple us to
+  // the exact QueryKey shape). Applied consistently in InvestigationsPage too.
   const { data: reviews, isLoading, error } = useListReviews({
+    // @ts-expect-error — queryKey defaults at runtime; omitted by design.
     query: { refetchInterval: 60_000 },
   });
 

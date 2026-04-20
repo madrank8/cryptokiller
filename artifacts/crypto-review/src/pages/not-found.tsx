@@ -12,7 +12,7 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans">
-      <SiteHeader activeNav="" />
+      <SiteHeader />
       <div className="flex items-center justify-center py-32">
         <div className="text-center">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
