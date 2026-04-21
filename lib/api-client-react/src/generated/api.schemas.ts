@@ -60,6 +60,59 @@ export interface GeoTarget {
   orderIndex: number;
 }
 
+/**
+ * Inline image placed between review sections. Populated by the admin polish pipeline (Imagen) and referenced from rich content sections on the review page.
+
+ */
+export interface ContentImage {
+  url: string;
+  alt: string;
+  credit?: string | null;
+  creditUrl?: string | null;
+  /** Section anchor identifier (e.g. "section-1", "section-2") */
+  placement?: string | null;
+}
+
+export type VisualMetaType =
+  (typeof VisualMetaType)[keyof typeof VisualMetaType];
+
+export const VisualMetaType = {
+  IMAGE: "IMAGE",
+  CHART: "CHART",
+  DIAGRAM: "DIAGRAM",
+  INFOGRAPHIC: "INFOGRAPHIC",
+} as const;
+
+/**
+ * Polish-pipeline visual placeholder resolved to a chart, diagram, or infographic. Items where succeeded=false were never resolved by the pipeline and are skipped when rendering.
+
+ */
+export interface VisualMeta {
+  type: VisualMetaType;
+  url?: string | null;
+  altText: string;
+  description: string;
+  succeeded: boolean;
+  originalType?: string;
+  width?: number | null;
+  height?: number | null;
+}
+
+/**
+ * Typed citation entry shown in the review's Sources section and on the JSON-LD Review@graph citation[] property.
+
+ */
+export interface ReviewSource {
+  title: string;
+  url: string;
+  /** Free-form; in practice one of regulatory | news | investigation | research | primary | government | consumer_protection */
+  type?: string;
+  accessed_date?: string;
+  authors?: string[];
+  publisher?: string;
+  date?: string;
+}
+
 export interface ReviewFull {
   id: number;
   slug: string;
@@ -91,6 +144,22 @@ export interface ReviewFull {
   geoTargets: GeoTarget[];
   celebrityNames: string[];
   allCountryCodes: string[];
+  /** Top-of-page hero image URL. Null when the polish pipeline has not produced one yet. */
+  heroImageUrl?: string | null;
+  /** Accessibility text for the hero image. */
+  heroImageAlt?: string | null;
+  /** Inline section images placed between content blocks. */
+  contentImages: ContentImage[];
+  /** Chart/diagram/infographic metadata. Only succeeded=true entries are rendered. */
+  visualMeta: VisualMeta[];
+  /** Victim next-steps content. May be empty before the polish pipeline runs. */
+  protectionSteps: string;
+  /** Typed citations shown in the Sources section and mirrored on the JSON-LD citation[]. */
+  sources: ReviewSource[];
+  /** 'This review may not apply if...' qualifier surfaced as a safety-net aside. */
+  notForYou: string;
+  /** YMYL author expertise block demonstrating first-hand domain knowledge. */
+  expertiseDepth: string;
 }
 
 export interface RelatedReview {

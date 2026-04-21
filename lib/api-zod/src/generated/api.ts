@@ -104,6 +104,95 @@ export const GetReviewResponse = zod.object({
   ),
   celebrityNames: zod.array(zod.string()),
   allCountryCodes: zod.array(zod.string()),
+  heroImageUrl: zod
+    .string()
+    .nullish()
+    .describe(
+      "Top-of-page hero image URL. Null when the polish pipeline has not produced one yet.",
+    ),
+  heroImageAlt: zod
+    .string()
+    .nullish()
+    .describe("Accessibility text for the hero image."),
+  contentImages: zod
+    .array(
+      zod
+        .object({
+          url: zod.string(),
+          alt: zod.string(),
+          credit: zod.string().nullish(),
+          creditUrl: zod.string().nullish(),
+          placement: zod
+            .string()
+            .nullish()
+            .describe(
+              'Section anchor identifier (e.g. \"section-1\", \"section-2\")',
+            ),
+        })
+        .describe(
+          "Inline image placed between review sections. Populated by the admin polish pipeline (Imagen) and referenced from rich content sections on the review page.\n",
+        ),
+    )
+    .describe("Inline section images placed between content blocks."),
+  visualMeta: zod
+    .array(
+      zod
+        .object({
+          type: zod.enum(["IMAGE", "CHART", "DIAGRAM", "INFOGRAPHIC"]),
+          url: zod.string().nullish(),
+          altText: zod.string(),
+          description: zod.string(),
+          succeeded: zod.boolean(),
+          originalType: zod.string().optional(),
+          width: zod.number().nullish(),
+          height: zod.number().nullish(),
+        })
+        .describe(
+          "Polish-pipeline visual placeholder resolved to a chart, diagram, or infographic. Items where succeeded=false were never resolved by the pipeline and are skipped when rendering.\n",
+        ),
+    )
+    .describe(
+      "Chart\/diagram\/infographic metadata. Only succeeded=true entries are rendered.",
+    ),
+  protectionSteps: zod
+    .string()
+    .describe(
+      "Victim next-steps content. May be empty before the polish pipeline runs.",
+    ),
+  sources: zod
+    .array(
+      zod
+        .object({
+          title: zod.string(),
+          url: zod.string(),
+          type: zod
+            .string()
+            .optional()
+            .describe(
+              "Free-form; in practice one of regulatory | news | investigation | research | primary | government | consumer_protection",
+            ),
+          accessed_date: zod.string().optional(),
+          authors: zod.array(zod.string()).optional(),
+          publisher: zod.string().optional(),
+          date: zod.string().optional(),
+        })
+        .describe(
+          "Typed citation entry shown in the review's Sources section and on the JSON-LD Review@graph citation[] property.\n",
+        ),
+    )
+    .describe(
+      "Typed citations shown in the Sources section and mirrored on the JSON-LD citation[].",
+    ),
+  notForYou: zod
+    .string()
+    .describe(
+      "'This review may not apply if...' qualifier surfaced as a safety-net aside.",
+    ),
+  expertiseDepth: zod
+    .string()
+    .describe(
+      "YMYL author expertise block demonstrating first-hand domain knowledge.",
+    ),
 });
 
 /**

@@ -284,6 +284,91 @@ components:
         - countryCodes
         - orderIndex
 
+    ContentImage:
+      type: object
+      description: >
+        Inline image placed between review sections. Populated by the admin
+        polish pipeline (Imagen) and referenced from rich content sections
+        on the review page.
+      properties:
+        url:
+          type: string
+        alt:
+          type: string
+        credit:
+          type: string
+          nullable: true
+        creditUrl:
+          type: string
+          nullable: true
+        placement:
+          type: string
+          nullable: true
+          description: Section anchor identifier (e.g. "section-1", "section-2")
+      required:
+        - url
+        - alt
+
+    VisualMeta:
+      type: object
+      description: >
+        Polish-pipeline visual placeholder resolved to a chart, diagram, or
+        infographic. Items where succeeded=false were never resolved by the
+        pipeline and are skipped when rendering.
+      properties:
+        type:
+          type: string
+          enum: [IMAGE, CHART, DIAGRAM, INFOGRAPHIC]
+        url:
+          type: string
+          nullable: true
+        altText:
+          type: string
+        description:
+          type: string
+        succeeded:
+          type: boolean
+        originalType:
+          type: string
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+      required:
+        - type
+        - altText
+        - description
+        - succeeded
+
+    ReviewSource:
+      type: object
+      description: >
+        Typed citation entry shown in the review's Sources section and on
+        the JSON-LD Review@graph citation[] property.
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        type:
+          type: string
+          description: Free-form; in practice one of regulatory | news | investigation | research | primary | government | consumer_protection
+        accessed_date:
+          type: string
+        authors:
+          type: array
+          items:
+            type: string
+        publisher:
+          type: string
+        date:
+          type: string
+      required:
+        - title
+        - url
+
     ReviewFull:
       type: object
       properties:
@@ -361,6 +446,38 @@ components:
           type: array
           items:
             type: string
+        heroImageUrl:
+          type: string
+          nullable: true
+          description: Top-of-page hero image URL. Null when the polish pipeline has not produced one yet.
+        heroImageAlt:
+          type: string
+          nullable: true
+          description: Accessibility text for the hero image.
+        contentImages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentImage"
+          description: Inline section images placed between content blocks.
+        visualMeta:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisualMeta"
+          description: Chart/diagram/infographic metadata. Only succeeded=true entries are rendered.
+        protectionSteps:
+          type: string
+          description: Victim next-steps content. May be empty before the polish pipeline runs.
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewSource"
+          description: Typed citations shown in the Sources section and mirrored on the JSON-LD citation[].
+        notForYou:
+          type: string
+          description: "'This review may not apply if...' qualifier surfaced as a safety-net aside."
+        expertiseDepth:
+          type: string
+          description: YMYL author expertise block demonstrating first-hand domain knowledge.
       required:
         - id
         - slug
@@ -392,6 +509,12 @@ components:
         - geoTargets
         - celebrityNames
         - allCountryCodes
+        - contentImages
+        - visualMeta
+        - protectionSteps
+        - sources
+        - notForYou
+        - expertiseDepth
 
     RelatedReview:
       type: object
