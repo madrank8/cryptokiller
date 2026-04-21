@@ -479,6 +479,18 @@ async function renderReview(slug: string): Promise<RenderResult> {
       author: reviewsTable.author,
       investigationDate: reviewsTable.investigationDate,
       updatedAt: reviewsTable.updatedAt,
+      // Rich-content columns (migration 0002). Select them alongside the
+      // existing scalar review fields so the SSR can render hero image,
+      // inline images, sources, protection steps, "not for you", and
+      // expertise-depth sections without extra round-trips.
+      heroImageUrl: reviewsTable.heroImageUrl,
+      heroImageAlt: reviewsTable.heroImageAlt,
+      contentImages: reviewsTable.contentImages,
+      visualMeta: reviewsTable.visualMeta,
+      protectionSteps: reviewsTable.protectionSteps,
+      sources: reviewsTable.sources,
+      notForYou: reviewsTable.notForYou,
+      expertiseDepth: reviewsTable.expertiseDepth,
       platformName: platformsTable.name,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -621,21 +633,95 @@ async function renderReview(slug: string): Promise<RenderResult> {
         .join("")}</section>`
     : "";
 
+  // ── Rich content sections (migration 0002 columns) ──
+  // All are optional — emit empty string if the column is null/empty so the
+  // HTML stays clean for legacy reviews that haven't been re-synced yet.
+
+  const heroImageHtml = row.heroImageUrl
+    ? `<figure class="review-hero"><img src="${esc(row.heroImageUrl)}" alt="${esc(row.heroImageAlt || platformName + ' scam investigation')}" loading="eager" fetchpriority="high" width="1200" height="630" /></figure>`
+    : "";
+
+  const contentImages = Array.isArray(row.contentImages) ? row.contentImages : [];
+  const renderedContentImages = new Set<string>();
+  const contentImageByPlacement = (placement: string): string => {
+    const found = contentImages.find((c) => c && c.placement === placement && c.url);
+    if (!found || renderedContentImages.has(found.url)) return "";
+    renderedContentImages.add(found.url);
+    const credit = found.credit
+      ? `<figcaption>${esc(found.credit)}${found.creditUrl ? ` — <a href="${esc(found.creditUrl)}" rel="nofollow">source</a>` : ""}</figcaption>`
+      : "";
+    return `<figure class="review-content-image"><img src="${esc(found.url)}" alt="${esc(found.alt || "")}" loading="lazy" />${credit}</figure>`;
+  };
+
+  // visual_meta entries are chart/diagram/infographic metadata with a
+  // `succeeded` flag. Only render items that succeeded (i.e. polish pipeline
+  // resolved the placeholder into a real asset). Skip bare IMAGE entries —
+  // those overlap with content_images and would double-render.
+  const succeededVisuals = Array.isArray(row.visualMeta)
+    ? row.visualMeta.filter((v) => v && v.succeeded && v.url && v.type && v.type !== "IMAGE")
+    : [];
+  const visualsHtml = succeededVisuals.length
+    ? `<section aria-labelledby="visuals-heading"><h2 id="visuals-heading">Evidence visuals</h2>${succeededVisuals
+        .map(
+          (v) => `<figure class="review-visual review-visual-${v.type.toLowerCase()}"><img src="${esc(v.url!)}" alt="${esc(v.altText || v.description || "")}" loading="lazy" />${v.description ? `<figcaption>${esc(v.description)}</figcaption>` : ""}</figure>`,
+        )
+        .join("")}</section>`
+    : "";
+
+  const protectionStepsText = clean(row.protectionSteps);
+  const protectionStepsHtml = protectionStepsText
+    ? `<section aria-labelledby="protection-heading"><h2 id="protection-heading">If you've been targeted by ${esc(platformName)}</h2>${paragraphize(protectionStepsText)}</section>`
+    : "";
+
+  const notForYouText = clean(row.notForYou);
+  const notForYouHtml = notForYouText
+    ? `<aside class="review-not-for-you" aria-labelledby="not-for-you-heading"><h2 id="not-for-you-heading">When this review may not apply</h2>${paragraphize(notForYouText)}</aside>`
+    : "";
+
+  const expertiseDepthText = clean(row.expertiseDepth);
+  const expertiseDepthHtml = expertiseDepthText
+    ? `<section aria-labelledby="expertise-heading"><h2 id="expertise-heading">Why trust this investigation</h2>${paragraphize(expertiseDepthText)}</section>`
+    : "";
+
+  const sources = Array.isArray(row.sources) ? row.sources : [];
+  const sourcesHtml = sources.length
+    ? `<section aria-labelledby="sources-heading"><h2 id="sources-heading">Sources &amp; references</h2><ol class="review-sources">${sources
+        .map((s) => {
+          if (!s || !s.url) return "";
+          const typeBadge = s.type ? ` <span class="source-type">[${esc(s.type)}]</span>` : "";
+          const meta = [s.publisher, s.date, s.accessed_date && `accessed ${s.accessed_date}`]
+            .filter(Boolean)
+            .map((m) => esc(String(m)))
+            .join(" · ");
+          return `<li><a href="${esc(s.url)}" rel="nofollow noopener" target="_blank">${esc(s.title || s.url)}</a>${typeBadge}${meta ? ` <small>${meta}</small>` : ""}</li>`;
+        })
+        .filter(Boolean)
+        .join("")}</ol></section>`
+    : "";
+
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
 <h1>${esc(platformName)} Scam Review — Threat Score ${row.threatScore}/100</h1>
+${heroImageHtml}
 <p><strong>Verdict:</strong> ${esc(row.verdict || "Confirmed scam")}</p>
 ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
 ${heroText && heroText !== summaryText ? `<p>${esc(heroText)}</p>` : ""}
 ${summaryText ? `<section><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
 ${stats.length ? `<section><h2>Investigation at a glance</h2><ul>${stats.join("")}</ul></section>` : ""}
 ${keyFindingsHtml}
+${contentImageByPlacement("section-1")}
 ${redFlagsHtml}
+${contentImageByPlacement("section-2")}
 ${funnelStagesHtml}
+${visualsHtml}
 ${celebritiesHtml}
 ${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
+${expertiseDepthHtml}
+${protectionStepsHtml}
 ${faqHtml}
+${sourcesHtml}
+${notForYouHtml}
 ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
 <p><strong>Investigation by:</strong> ${esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
@@ -677,6 +763,43 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       ...(datePublished ? { datePublished } : {}),
       ...(dateModified ? { dateModified } : {}),
       ...(row.wordCount ? { wordCount: row.wordCount } : {}),
+      // image is a strong structured-data signal for Google's rich cards and
+      // the image-tab indexing pipeline. Use the hero first, fall back to any
+      // successfully-resolved visual_meta asset. Omit entirely if nothing
+      // resolved so we don't emit a dangling image field.
+      ...(row.heroImageUrl
+        ? {
+            image: {
+              "@type": "ImageObject",
+              url: row.heroImageUrl,
+              caption: row.heroImageAlt || `${platformName} scam investigation visual`,
+            },
+          }
+        : succeededVisuals.length && succeededVisuals[0].url
+          ? {
+              image: {
+                "@type": "ImageObject",
+                url: succeededVisuals[0].url,
+                caption: succeededVisuals[0].altText || succeededVisuals[0].description || "",
+              },
+            }
+          : {}),
+      // citation[] mirrors schema.org's typed citation list. Regulatory and
+      // news sources are the highest-value signal here (YMYL) — include the
+      // full sources array so Google can evaluate corroboration depth.
+      ...(sources.length
+        ? {
+            citation: sources
+              .filter((s) => s && s.url)
+              .map((s) => ({
+                "@type": "CreativeWork",
+                url: s.url,
+                name: s.title || s.url,
+                ...(s.publisher ? { publisher: { "@type": "Organization", name: s.publisher } } : {}),
+                ...(s.date ? { datePublished: s.date } : {}),
+              })),
+          }
+        : {}),
       itemReviewed: {
         "@type": "Service",
         name: platformName,
