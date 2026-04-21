@@ -1,6 +1,16 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startSyncScheduler, stopSyncScheduler } from "./lib/supabase-sync";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-04-21 — Architecture A: the Vercel admin's /api/sync/review webhook
+// is now the single source of truth for review data. The old 2-minute
+// `startSyncScheduler` loop that re-pulled from Supabase has been retired
+// because it raced with and silently overwrote the webhook's richer payload
+// (missing threat_score, funnel stages, FAQ, key findings, sources, images,
+// protection steps, etc). The scheduler's export is still available for a
+// manual one-shot rescue via POST /sync/supabase — but is no longer called
+// automatically at boot.
+// ─────────────────────────────────────────────────────────────────────────────
 
 const rawPort = process.env["PORT"];
 
@@ -23,16 +33,12 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-
-  startSyncScheduler();
 });
 
 process.on("SIGTERM", () => {
-  stopSyncScheduler();
   process.exit(0);
 });
 
 process.on("SIGINT", () => {
-  stopSyncScheduler();
   process.exit(0);
 });

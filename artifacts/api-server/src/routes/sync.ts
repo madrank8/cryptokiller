@@ -36,8 +36,19 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         platform_id, slug, status, threat_score, verdict, summary,
         hero_description, warning_callout, investigation_date,
         methodology_text, disclaimer_text, meta_description,
-        word_count, reading_minutes, author, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW())
+        word_count, reading_minutes, author,
+        hero_image_url, hero_image_alt, content_images, visual_meta,
+        protection_steps, sources, not_for_you, expertise_depth,
+        created_at, updated_at
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,
+        $7,$8,$9,
+        $10,$11,$12,
+        $13,$14,$15,
+        $16,$17,$18,$19,
+        $20,$21,$22,$23,
+        NOW(),NOW()
+      )
       ON CONFLICT (slug) DO UPDATE SET
         platform_id = EXCLUDED.platform_id,
         status = EXCLUDED.status,
@@ -53,6 +64,14 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         word_count = EXCLUDED.word_count,
         reading_minutes = EXCLUDED.reading_minutes,
         author = EXCLUDED.author,
+        hero_image_url = EXCLUDED.hero_image_url,
+        hero_image_alt = EXCLUDED.hero_image_alt,
+        content_images = EXCLUDED.content_images,
+        visual_meta = EXCLUDED.visual_meta,
+        protection_steps = EXCLUDED.protection_steps,
+        sources = EXCLUDED.sources,
+        not_for_you = EXCLUDED.not_for_you,
+        expertise_depth = EXCLUDED.expertise_depth,
         updated_at = NOW()
       RETURNING id`,
       [
@@ -71,6 +90,18 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         review.word_count ?? 0,
         review.reading_minutes ?? 0,
         review.author ?? "Crypto Killer Research Team",
+        // Rich-content columns (migration 0002_review_rich_content). Fall
+        // back to safe empty defaults if the webhook caller hasn't been
+        // updated yet — this keeps the endpoint backward-compatible with
+        // the old Vercel shaper while the new one is rolling out.
+        review.hero_image_url ?? null,
+        review.hero_image_alt ?? null,
+        JSON.stringify(Array.isArray(review.content_images) ? review.content_images : []),
+        JSON.stringify(Array.isArray(review.visual_meta) ? review.visual_meta : []),
+        review.protection_steps ?? "",
+        JSON.stringify(Array.isArray(review.sources) ? review.sources : []),
+        review.not_for_you ?? "",
+        review.expertise_depth ?? "",
       ]
     );
     const reviewId = reviewResult.rows[0].id;

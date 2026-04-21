@@ -68,6 +68,17 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       readingMinutes: reviewsTable.readingMinutes,
       author: reviewsTable.author,
       metaDescription: reviewsTable.metaDescription,
+      // Rich-content columns (migration 0002). Surface them on the public
+      // API so the React CSR hydration and any external consumers (next
+      // site builds, downstream dashboards) can render the full review.
+      heroImageUrl: reviewsTable.heroImageUrl,
+      heroImageAlt: reviewsTable.heroImageAlt,
+      contentImages: reviewsTable.contentImages,
+      visualMeta: reviewsTable.visualMeta,
+      protectionSteps: reviewsTable.protectionSteps,
+      sources: reviewsTable.sources,
+      notForYou: reviewsTable.notForYou,
+      expertiseDepth: reviewsTable.expertiseDepth,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -105,6 +116,17 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     ...row,
     investigationDate: row.investigationDate?.toISOString() ?? "",
     metaDescription: row.metaDescription ?? "",
+    // Normalise the rich-content fields so clients always get a consistent
+    // shape regardless of whether the row has been re-synced under the new
+    // schema or still has pre-migration null/empty values.
+    heroImageUrl: row.heroImageUrl ?? null,
+    heroImageAlt: row.heroImageAlt ?? null,
+    contentImages: Array.isArray(row.contentImages) ? row.contentImages : [],
+    visualMeta: Array.isArray(row.visualMeta) ? row.visualMeta : [],
+    protectionSteps: row.protectionSteps ?? "",
+    sources: Array.isArray(row.sources) ? row.sources : [],
+    notForYou: row.notForYou ?? "",
+    expertiseDepth: row.expertiseDepth ?? "",
     adCreatives: row.adCreatives ?? 0,
     countriesTargeted: row.countriesTargeted ?? 0,
     daysActive: row.daysActive ?? 0,
