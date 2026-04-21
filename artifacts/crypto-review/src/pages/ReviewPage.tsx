@@ -806,22 +806,34 @@ function ReviewContent({ slug }: { slug: string }) {
           <VelocityWidget velocity={review.weeklyVelocity} platformName={review.platformName} />
         </div>
 
-        {/* KEY TAKEAWAYS */}
-        {review.summary && review.summary.trim().length > 0 && (
-        <div className="mb-12 bg-red-950/20 border border-red-900/40 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
-            <AlertOctagon className="h-5 w-5" /> Key Takeaways
-          </h3>
-          <ul className="space-y-3">
-            {review.summary.split("\n").filter(Boolean).map((point, i) => (
-              <li key={i} className="flex gap-3 items-start text-sm text-slate-300 leading-relaxed">
-                <X className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                {point}
-              </li>
-            ))}
-          </ul>
-        </div>
-        )}
+        {/* KEY TAKEAWAYS — sourced from keyFindings (the Supabase
+            key_takeaways jsonb array, mapped on the Vercel shaper to
+            key_findings rows). review.summary is the short hero lede
+            and does NOT contain bullet data, despite historical code
+            that split it on newlines. Falling back to summary keeps
+            rows that predate the shaper migration from rendering
+            empty. */}
+        {(() => {
+          const bullets = Array.isArray(review.keyFindings) && review.keyFindings.length > 0
+            ? review.keyFindings.map((k) => k.content).filter(Boolean)
+            : (review.summary || "").split("\n").map((s) => s.trim()).filter(Boolean);
+          if (bullets.length === 0) return null;
+          return (
+            <div className="mb-12 bg-red-950/20 border border-red-900/40 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
+                <AlertOctagon className="h-5 w-5" /> Key Takeaways
+              </h3>
+              <ul className="space-y-3">
+                {bullets.map((point, i) => (
+                  <li key={i} className="flex gap-3 items-start text-sm text-slate-300 leading-relaxed">
+                    <X className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
 
         {/* MAIN 2-COL GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-14">
@@ -974,22 +986,13 @@ function ReviewContent({ slug }: { slug: string }) {
               </section>
             )}
 
-            {/* KEY FINDINGS */}
-            {review.keyFindings.length > 0 && (
-              <section>
-                <SectionTitle icon={<Microscope className="h-6 w-6" />}>Key Investigation Findings</SectionTitle>
-                <div className="space-y-4">
-                  {review.keyFindings.map((finding, i) => (
-                    <div key={i} className="flex gap-3 items-start p-4 rounded-lg bg-slate-900/40 border border-slate-800/50">
-                      <div className="shrink-0 mt-0.5 w-5 h-5 rounded bg-amber-950/60 border border-amber-800/50 flex items-center justify-center">
-                        <span className="text-amber-400 text-xs font-bold">{i + 1}</span>
-                      </div>
-                      <p className="text-slate-300 text-sm leading-relaxed">{finding.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* KEY INVESTIGATION FINDINGS — removed 2026-04-21. The same
+                keyFindings data now powers the Key Takeaways box at the top
+                of the page (above this 2-col grid). Rendering it here as a
+                separate section duplicated content and made the page feel
+                repetitive. If a distinct "investigation timeline" style
+                section is wanted later, source it from a new field rather
+                than re-using key_findings. */}
 
             {/* EVIDENCE VISUALS — charts/diagrams/infographics resolved by the
                 polish pipeline. IMAGE-type entries overlap with contentImages
