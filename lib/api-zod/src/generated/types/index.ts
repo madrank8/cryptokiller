@@ -17,6 +17,7 @@ export * from "./redFlag";
 export * from "./relatedReview";
 export * from "./reportResult";
 export * from "./reviewFull";
+export * from "./reviewFullThreatTier";
 export * from "./reviewSource";
 export * from "./reviewSummary";
 export * from "./scamReportPayload";

@@ -352,12 +352,37 @@ function InvestigationTimeline({ firstDetected, lastActive, daysActive, adCreati
   );
 }
 
-function ShareWidget({ platformName }: { platformName: string }) {
+function ShareWidget({
+  platformName,
+  frameAsScam,
+  threatLabel,
+}: {
+  platformName: string;
+  // Mirrors the SSR prerender tier decision — when frameAsScam is false,
+  // the share/embed/copy strings switch to hedged investigative language
+  // so we don't ship "confirmed crypto scam" on a score-3 review. Both
+  // fields are optional because the API backfills them with defaults
+  // (frameAsScam=false) for pre-migration-0003 rows, so the hedged branch
+  // is the safer default.
+  frameAsScam?: boolean;
+  threatLabel?: string | null;
+}) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const pageUrl = typeof window !== "undefined" ? window.location.href : "";
 
-  const embedCode = `<a href="${pageUrl}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#1e1b2e;border:1px solid #dc2626;border-radius:8px;color:#fca5a5;font-size:13px;text-decoration:none;font-family:system-ui"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>${platformName} — Confirmed Scam</a>`;
+  // Tier-aware copy. Confirmed/high tiers get the declarative language
+  // (Google indexes these as confirmed-scam pages, users share them as
+  // warnings); everything else gets "investigation" framing that matches
+  // what the SSR <h1> / <title> now say.
+  const shareBadge = frameAsScam
+    ? "Confirmed Scam"
+    : threatLabel ?? "Under Investigation";
+  const shareCopyText = frameAsScam
+    ? `${platformName} is a confirmed crypto scam. Read the full investigation: ${pageUrl}`
+    : `${platformName} is under investigation by CryptoKiller. Read the full report: ${pageUrl}`;
+
+  const embedCode = `<a href="${pageUrl}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#1e1b2e;border:1px solid #dc2626;border-radius:8px;color:#fca5a5;font-size:13px;text-decoration:none;font-family:system-ui"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>${platformName} — ${shareBadge}</a>`;
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -373,13 +398,13 @@ function ShareWidget({ platformName }: { platformName: string }) {
       </div>
       <div className="grid grid-cols-2 gap-2 mb-3">
         <button
-          onClick={() => copyToClipboard(`${platformName} is a confirmed crypto scam. Read the full investigation: ${pageUrl}`, "twitter")}
+          onClick={() => copyToClipboard(shareCopyText, "twitter")}
           className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 transition-colors"
         >
           <Twitter className="h-4 w-4" /> {copied === "twitter" ? "Copied!" : "Twitter"}
         </button>
         <button
-          onClick={() => copyToClipboard(`Check out this scam investigation on ${platformName}: ${pageUrl}`, "facebook")}
+          onClick={() => copyToClipboard(frameAsScam ? `Check out this scam investigation on ${platformName}: ${pageUrl}` : `Check out this CryptoKiller investigation on ${platformName}: ${pageUrl}`, "facebook")}
           className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-300 transition-colors"
         >
           <Facebook className="h-4 w-4" /> {copied === "facebook" ? "Copied!" : "Facebook"}
@@ -397,7 +422,7 @@ function ShareWidget({ platformName }: { platformName: string }) {
         className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-red-950/30 hover:bg-red-950/50 border border-red-900/40 text-sm text-red-300 transition-colors"
       >
         <Code className="h-4 w-4" />
-        {copied === "embed" ? "Copied!" : "Copy Warning Badge"}
+        {copied === "embed" ? "Copied!" : frameAsScam ? "Copy Warning Badge" : "Copy Investigation Badge"}
       </button>
     </div>
   );
@@ -1258,7 +1283,11 @@ function ReviewContent({ slug }: { slug: string }) {
             </Card>
 
             {/* SHARE WIDGET */}
-            <ShareWidget platformName={review.platformName} />
+            <ShareWidget
+              platformName={review.platformName}
+              frameAsScam={review.frameAsScam}
+              threatLabel={review.threatLabel}
+            />
 
             {/* SIDEBAR SOURCES — compact preview of the top sources. Links to
                 the full Sources & References section in the main column via

@@ -193,6 +193,36 @@ export const GetReviewResponse = zod.object({
     .describe(
       "YMYL author expertise block demonstrating first-hand domain knowledge.",
     ),
+  threatTier: zod
+    .union([
+      zod.literal("confirmed"),
+      zod.literal("high"),
+      zod.literal("elevated"),
+      zod.literal("watchlist"),
+      zod.literal("low"),
+      zod.literal(null),
+    ])
+    .nullish()
+    .describe(
+      "Severity tier from classifyThreat() on the Vercel side (source of truth lib\/threat-score.js). Drives the H1\/title label and all declarative-scam language gating on the client. Null for reviews synced before migration 0003, in which case the client should fall back to deriving a tier from threatScore.",
+    ),
+  threatLabel: zod
+    .string()
+    .nullish()
+    .describe(
+      'Human-readable tier label shown in the severity chip (\"Confirmed Scam\", \"Low Signal\", etc). Paired with threatBadge.',
+    ),
+  threatBadge: zod
+    .string()
+    .nullish()
+    .describe(
+      'Short uppercase badge text (\"SCAM\", \"CAUTION\", \"WATCHLIST\", \"LOW\").',
+    ),
+  frameAsScam: zod
+    .boolean()
+    .describe(
+      "True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share\/embed\/copy strings must use hedged language when this is false.",
+    ),
 });
 
 /**
