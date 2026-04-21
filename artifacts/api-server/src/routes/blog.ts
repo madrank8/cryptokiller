@@ -59,6 +59,13 @@ function sanitizeHref(href: string): string {
 function processContentBody(html: string): string {
   let out = html;
 
+  // Strip any <script> tags (esp. embedded JSON-LD) from article body.
+  // The site's canonical structured data is emitted by the SSR pipeline and the
+  // BlogPostPage jsonLd hook — inline scripts from the content generator duplicate
+  // schema blocks, downgrade Google's structured-data trust signals, and can leak
+  // stale @type definitions. We remove them unconditionally here.
+  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+
   out = out.replace(/\(ESTABLISHED\)/g, "");
 
   out = out.replace(/\{\{VERIFY:[^}]*\}\}/g, "");

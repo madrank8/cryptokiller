@@ -32,6 +32,24 @@ export const blogPostsTable = pgTable("blog_posts", {
   heroImageAlt: text("hero_image_alt"),
   heroImageCredit: text("hero_image_credit"),
   visualMeta: jsonb("visual_meta").notNull().default([]),
+
+  // ── Schema enrichment (v1) ─────────────────────────────────────────────────
+  // These columns mirror the public.content enrichment fields on Supabase and
+  // let us emit richer Schema.org @graph nodes: ClaimReview[], HowTo, ItemList,
+  // Dataset, Quotation[], Speakable, about[], mentions[], alternativeHeadline,
+  // and author sameAs signal (via persona id). See migration in lib/db/migrations
+  // and the SSR generator in artifacts/crypto-review/server/prerender.ts.
+  alternativeHeadline: text("alternative_headline"),
+  aboutSlugs: jsonb("about_slugs").notNull().default([]),
+  mentionSlugs: jsonb("mention_slugs").notNull().default([]),
+  speakableSelectors: jsonb("speakable_selectors").notNull().default([]),
+  citations: jsonb("citations").notNull().default([]),
+  dataset: jsonb("dataset"),
+  itemList: jsonb("item_list"),
+  howTo: jsonb("how_to"),
+  quotes: jsonb("quotes").notNull().default([]),
+  claims: jsonb("claims").notNull().default([]),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -175,7 +175,10 @@ function LoadingSkeleton({ viewMode }: { viewMode: ViewMode }) {
 }
 
 export default function InvestigationsPage() {
+  // See HomePage.tsx for the rationale — Orval's `UseQueryOptions` demands
+  // `queryKey` but the runtime defaults it via getListReviewsQueryKey().
   const { data: reviews, isLoading, isError } = useListReviews({
+    // @ts-expect-error — queryKey defaults at runtime; omitted by design.
     query: { refetchInterval: 60_000 },
   });
 

@@ -10,6 +10,19 @@ import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { BLOG_SCHEMA_MAP } from "@/lib/blogSchemaMap";
 import { organizationNode, websiteNode, personNode, personRef, orgRef, websiteRef } from "@/lib/schemaBuilder";
+import {
+  resolveAbout,
+  resolveMentions,
+  buildCitations,
+  buildClaimReviews,
+  buildItemList,
+  buildHowTo,
+  buildDataset,
+  buildQuotations,
+  buildSpeakable,
+  publisherLogoImage,
+  heroImageNode,
+} from "@/lib/blogSchemaEnrichment";
 import { useState, useMemo } from "react";
 
 interface VisualMetaItem {
@@ -44,6 +57,20 @@ interface BlogPost {
   heroImageUrl: string | null;
   heroImageAlt: string | null;
   visualMeta: VisualMetaItem[] | null;
+
+  // Schema enrichment (v1) — see lib/db/src/schema/blog_posts.ts. All optional
+  // on the wire; BlogPost defaults them in the jsonLd builder so old posts
+  // without these fields render the base @graph.
+  alternativeHeadline?: string | null;
+  aboutSlugs?: string[] | null;
+  mentionSlugs?: string[] | null;
+  speakableSelectors?: string[] | null;
+  citations?: unknown[] | null;
+  dataset?: unknown;
+  itemList?: unknown;
+  howTo?: unknown;
+  quotes?: unknown[] | null;
+  claims?: unknown[] | null;
 }
 
 const BASE = "https://cryptokiller.org";
@@ -162,8 +189,26 @@ export default function BlogPostPage() {
     if (curatedSchema) return curatedSchema as Record<string, unknown>;
 
     const pageUrl = `${BASE}/blog/${slug}`;
+
+    // Enrichment nodes — see artifacts/crypto-review/src/lib/blogSchemaEnrichment.ts.
+    // Mirrors the SSR @graph built in server/prerender.ts::renderBlogPost so the
+    // hydrated DOM matches what Googlebot sees pre-JS.
+    const aboutNodes     = resolveAbout(post.aboutSlugs);
+    const mentionNodes   = resolveMentions(post.mentionSlugs);
+    const citationNodes  = buildCitations(post.citations);
+    const claimNodes     = buildClaimReviews(post.claims, pageUrl, persona?.name);
+    const itemListNode   = buildItemList(post.itemList, pageUrl);
+    const howToNode      = buildHowTo(post.howTo, pageUrl);
+    const datasetNode    = buildDataset(post.dataset);
+    const quotationNodes = buildQuotations(post.quotes);
+
+    // Upgrade the base organization.logo to a full ImageObject (Rich Results).
+    const orgLogo = publisherLogoImage();
+    const orgNode = { ...organizationNode(), logo: { "@id": `${BASE}/#organization-logo` } };
+
     const graph: Record<string, unknown>[] = [
-      organizationNode(),
+      orgNode,
+      orgLogo,
       websiteNode(),
     ];
 
@@ -188,6 +233,7 @@ export default function BlogPostPage() {
       "@type": "BlogPosting",
       "@id": `${pageUrl}/#article`,
       headline: post.headline || post.title,
+      ...(post.alternativeHeadline ? { alternativeHeadline: post.alternativeHeadline } : {}),
       description: post.metaDescription || post.summary,
       datePublished: post.publishedAt,
       dateModified: post.updatedAt,
@@ -198,7 +244,11 @@ export default function BlogPostPage() {
       inLanguage: "en",
       articleSection: post.contentType || "Crypto Scam Investigation",
       ...(post.targetKeyword ? { keywords: post.targetKeyword } : {}),
-      ...(heroImage?.url ? { image: { "@type": "ImageObject", url: heroImage.url, ...(heroImage.alt ? { caption: heroImage.alt } : {}) } } : {}),
+      ...(heroImage?.url ? { image: heroImageNode(heroImage.url, heroImage.alt) } : {}),
+      ...(aboutNodes.length ? { about: aboutNodes } : {}),
+      ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
+      ...(citationNodes.length ? { citation: citationNodes } : {}),
+      speakable: buildSpeakable(post.speakableSelectors),
     };
     graph.push(articleSchema);
 
@@ -213,6 +263,12 @@ export default function BlogPostPage() {
         })),
       });
     }
+
+    for (const claim of claimNodes) graph.push(claim);
+    if (itemListNode) graph.push(itemListNode);
+    if (howToNode) graph.push(howToNode);
+    if (datasetNode) graph.push(datasetNode);
+    for (const quote of quotationNodes) graph.push(quote);
 
     return { "@context": "https://schema.org", "@graph": graph };
   }, [post, persona, heroImage, slug, crumbs]);

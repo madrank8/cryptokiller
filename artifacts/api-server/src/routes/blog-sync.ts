@@ -32,6 +32,27 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
 
     const authorPersonaId = content.ai_audit?.writer_persona?.id ?? content.author_persona_id ?? null;
 
+    // ── Schema enrichment (v1) ─────────────────────────────────────────────
+    // Payloads from the Vercel admin may include these fields either at the
+    // top level of `content` or nested under `content.ai_audit`. We accept
+    // both locations and fall back to safe defaults so legacy posts keep
+    // syncing without error. See lib/db/src/schema/blog_posts.ts for the
+    // matching Drizzle schema and lib/db/migrations/0001_schema_enrichment.sql
+    // for the raw SQL. The SSR @graph generator in prerender.ts is the only
+    // consumer today; the API route forwards these fields to the client too.
+    const alternativeHeadline =
+      content.alternative_headline ?? content.ai_audit?.alternative_headline ?? null;
+    const aboutSlugs      = content.about_slugs        ?? content.ai_audit?.about_slugs        ?? [];
+    const mentionSlugs    = content.mention_slugs      ?? content.ai_audit?.mention_slugs      ?? [];
+    const speakableSelectors =
+      content.speakable_selectors ?? content.ai_audit?.speakable_selectors ?? [];
+    const citations       = content.citations          ?? content.ai_audit?.citations          ?? [];
+    const dataset         = content.dataset            ?? content.ai_audit?.dataset            ?? null;
+    const itemList        = content.item_list          ?? content.ai_audit?.item_list          ?? null;
+    const howTo           = content.how_to             ?? content.ai_audit?.how_to             ?? null;
+    const quotes          = content.quotes             ?? content.ai_audit?.quotes             ?? [];
+    const claims          = content.claims             ?? content.ai_audit?.claims             ?? [];
+
     const result = await client.query(
       `INSERT INTO blog_posts (
         external_id, topic_id, content_type, title, headline, slug,
@@ -41,9 +62,13 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         keyword_difficulty, published_at, destination, url,
         author_persona_id,
         hero_image_url, hero_image_alt, hero_image_credit, visual_meta,
+        alternative_headline, about_slugs, mention_slugs, speakable_selectors,
+        citations, dataset, item_list, how_to, quotes, claims,
         created_at, updated_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,NOW(),NOW()
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+        $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,
+        NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
         external_id = EXCLUDED.external_id,
@@ -73,6 +98,16 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         hero_image_alt = EXCLUDED.hero_image_alt,
         hero_image_credit = EXCLUDED.hero_image_credit,
         visual_meta = EXCLUDED.visual_meta,
+        alternative_headline = EXCLUDED.alternative_headline,
+        about_slugs = EXCLUDED.about_slugs,
+        mention_slugs = EXCLUDED.mention_slugs,
+        speakable_selectors = EXCLUDED.speakable_selectors,
+        citations = EXCLUDED.citations,
+        dataset = EXCLUDED.dataset,
+        item_list = EXCLUDED.item_list,
+        how_to = EXCLUDED.how_to,
+        quotes = EXCLUDED.quotes,
+        claims = EXCLUDED.claims,
         updated_at = NOW()
       RETURNING id, (xmax = 0) AS inserted`,
       [
@@ -104,6 +139,16 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         content.hero_image_alt ?? null,
         content.hero_image_credit ?? null,
         JSON.stringify(content.visual_meta ?? []),
+        alternativeHeadline,
+        JSON.stringify(aboutSlugs),
+        JSON.stringify(mentionSlugs),
+        JSON.stringify(speakableSelectors),
+        JSON.stringify(citations),
+        dataset ? JSON.stringify(dataset) : null,
+        itemList ? JSON.stringify(itemList) : null,
+        howTo ? JSON.stringify(howTo) : null,
+        JSON.stringify(quotes),
+        JSON.stringify(claims),
       ]
     );
 

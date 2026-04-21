@@ -192,26 +192,28 @@ export default function MethodologyPage() {
     description: "How CryptoKiller investigates crypto scams: our evidence-based scoring system, data sources, investigation process, and editorial standards. Every threat score is backed by verifiable public data.",
     canonical: "https://cryptokiller.org/methodology",
     ogType: "article",
-    jsonLd: [
-      { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
-      {
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        name: "Investigation Methodology",
-        description: "How CryptoKiller investigates crypto scams: our evidence-based scoring system, data sources, investigation process, and editorial standards.",
-        url: "https://cryptokiller.org/methodology",
-        publisher: {
-          "@type": "Organization",
-          name: "CryptoKiller",
-          url: "https://cryptokiller.org",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        breadcrumbJsonLd(crumbs),
+        {
+          "@type": "WebPage",
+          name: "Investigation Methodology",
+          description: "How CryptoKiller investigates crypto scams: our evidence-based scoring system, data sources, investigation process, and editorial standards.",
+          url: "https://cryptokiller.org/methodology",
+          publisher: {
+            "@type": "Organization",
+            name: "CryptoKiller",
+            url: "https://cryptokiller.org",
+          },
+          isPartOf: {
+            "@type": "WebSite",
+            name: "CryptoKiller",
+            url: "https://cryptokiller.org",
+          },
         },
-        isPartOf: {
-          "@type": "WebSite",
-          name: "CryptoKiller",
-          url: "https://cryptokiller.org",
-        },
-      },
-    ],
+      ],
+    },
   });
 
   return (
