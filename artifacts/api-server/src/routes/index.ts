@@ -7,6 +7,7 @@ import blogSyncRouter from "./blog-sync";
 import blogRouter from "./blog";
 import reportsRouter from "./reports";
 import whatsappRouter from "./whatsapp";
+import adminMaintenanceRouter from "./admin-maintenance";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(blogSyncRouter);
 router.use(blogRouter);
 router.use(reportsRouter);
 router.use(whatsappRouter);
+router.use(adminMaintenanceRouter);
 
 export default router;
