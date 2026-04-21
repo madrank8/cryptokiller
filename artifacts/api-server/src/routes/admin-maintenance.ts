@@ -80,6 +80,11 @@ const PATCHABLE_COLUMNS = [
 
 type PatchableColumn = typeof PATCHABLE_COLUMNS[number];
 
+// `alternative_headline` is a plain TEXT column; everything else is JSONB.
+// Node-postgres sends raw JS values through, but Postgres JSONB columns
+// require a JSON string, not a JS object — so we serialise those explicitly.
+const TEXT_COLUMNS = new Set<PatchableColumn>(["alternative_headline"]);
+
 router.post("/admin/patch-blog-enrichment", async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
@@ -100,7 +105,17 @@ router.post("/admin/patch-blog-enrichment", async (req, res): Promise<void> => {
     for (const col of PATCHABLE_COLUMNS) {
       if (col in fields) {
         accepted.push(col);
-        values.push(fields[col]);
+        const raw = fields[col];
+        // TEXT columns take the raw value; JSONB columns need JSON.stringify
+        // (pg would otherwise send "[object Object]" which Postgres rejects).
+        // Null stays null for both kinds so a field can be explicitly cleared.
+        const bind =
+          raw === null || raw === undefined
+            ? null
+            : TEXT_COLUMNS.has(col)
+              ? raw
+              : JSON.stringify(raw);
+        values.push(bind);
         // $1 = slug (WHERE), so column placeholders start at $2
         setClauses.push(`${col} = $${values.length + 1}`);
       }
