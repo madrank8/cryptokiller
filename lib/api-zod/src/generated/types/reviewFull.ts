@@ -5,11 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ContentImage } from "./contentImage";
 import type { FaqItem } from "./faqItem";
 import type { FunnelStage } from "./funnelStage";
 import type { GeoTarget } from "./geoTarget";
 import type { KeyFinding } from "./keyFinding";
 import type { RedFlag } from "./redFlag";
+import type { ReviewSource } from "./reviewSource";
+import type { VisualMeta } from "./visualMeta";
 
 export interface ReviewFull {
   id: number;
@@ -42,4 +45,20 @@ export interface ReviewFull {
   geoTargets: GeoTarget[];
   celebrityNames: string[];
   allCountryCodes: string[];
+  /** Top-of-page hero image URL. Null when the polish pipeline has not produced one yet. */
+  heroImageUrl?: string | null;
+  /** Accessibility text for the hero image. */
+  heroImageAlt?: string | null;
+  /** Inline section images placed between content blocks. */
+  contentImages: ContentImage[];
+  /** Chart/diagram/infographic metadata. Only succeeded=true entries are rendered. */
+  visualMeta: VisualMeta[];
+  /** Victim next-steps content. May be empty before the polish pipeline runs. */
+  protectionSteps: string;
+  /** Typed citations shown in the Sources section and mirrored on the JSON-LD citation[]. */
+  sources: ReviewSource[];
+  /** 'This review may not apply if...' qualifier surfaced as a safety-net aside. */
+  notForYou: string;
+  /** YMYL author expertise block demonstrating first-hand domain knowledge. */
+  expertiseDepth: string;
 }

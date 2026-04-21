@@ -636,6 +636,25 @@ function ReviewContent({ slug }: { slug: string }) {
       }
     }
 
+    // Attach hero image + typed citations to the Review node. Matches the
+    // SSR renderer in server/prerender.ts so the crawler-visible and
+    // hydrated JSON-LD stay in lockstep.
+    const reviewNode = graph.find((n) => n["@id"] === `${pageUrl}#review`);
+    if (reviewNode && review.heroImageUrl) {
+      reviewNode.image = review.heroImageUrl;
+    }
+    if (reviewNode && Array.isArray(review.sources) && review.sources.length > 0) {
+      reviewNode.citation = review.sources
+        .filter((s) => s && s.url)
+        .map((s) => ({
+          "@type": "CreativeWork",
+          name: s.title,
+          url: s.url,
+          ...(s.publisher ? { publisher: { "@type": "Organization", name: s.publisher } } : {}),
+          ...(s.date ? { datePublished: s.date } : {}),
+        }));
+    }
+
     return {
       "@context": "https://schema.org",
       "@graph": graph,
@@ -696,6 +715,23 @@ function ReviewContent({ slug }: { slug: string }) {
               CONFIRMED SCAM
             </Badge>
           </div>
+
+          {/* HERO IMAGE — polish-pipeline-generated visual above the fold.
+              Eager-loaded with high fetch priority because it's LCP. Width/height
+              hints are the canonical 1200x630 render but CSS scales responsively. */}
+          {review.heroImageUrl && (
+            <figure className="mb-6 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+              <img
+                src={review.heroImageUrl}
+                alt={review.heroImageAlt || `${review.platformName} scam investigation`}
+                width={1200}
+                height={630}
+                loading="eager"
+                fetchPriority="high"
+                className="w-full h-auto"
+              />
+            </figure>
+          )}
 
           <p className="text-lg text-slate-300 max-w-4xl leading-relaxed mb-6"
             dangerouslySetInnerHTML={{ __html: review.heroDescription.replace(
@@ -796,13 +832,65 @@ function ReviewContent({ slug }: { slug: string }) {
             {/* INVESTIGATION SUMMARY */}
             <section>
               <SectionTitle icon={<FileText className="h-6 w-6" />}>Investigation Summary</SectionTitle>
-              {review.heroDescription.split("\n\n").map((para, i) => (
-                <p key={i} className="text-slate-300 leading-relaxed mb-4">{para}</p>
-              ))}
-              {review.warningCallout && (
-                <div className="bg-slate-900 border border-red-900/50 rounded-lg p-4 mt-4">
-                  <p className="text-red-300 text-sm font-semibold leading-relaxed">
-                    ⚠️ {review.warningCallout}
+              {(() => {
+                // Interleave content images by placement between the
+                // hero-description paragraphs. The admin polish pipeline
+                // tags each image with a `section-N` placement, which lets
+                // us drop the right visual after the right paragraph
+                // without us needing to care about ordering here.
+                const paragraphs = review.heroDescription.split("\n\n");
+                const images = Array.isArray(review.contentImages) ? review.contentImages : [];
+                const rendered = new Set<string>();
+                const imageForParagraph = (idx: number) => {
+                  const placement = `section-${idx + 1}`;
+                  const match = images.find((c) => c && c.placement === placement && c.url && !rendered.has(c.url));
+                  if (!match) return null;
+                  rendered.add(match.url);
+                  return match;
+                };
+                return paragraphs.map((para, i) => {
+                  const img = imageForParagraph(i);
+                  return (
+                    <div key={i}>
+                      <p className="text-slate-300 leading-relaxed mb-4">{para}</p>
+                      {img && (
+                        <figure className="my-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+                          <img
+                            src={img.url}
+                            alt={img.alt || ""}
+                            loading="lazy"
+                            className="w-full h-auto"
+                          />
+                          {img.credit && (
+                            <figcaption className="px-4 py-2 text-xs text-slate-500 border-t border-slate-800">
+                              {img.credit}
+                              {img.creditUrl && (
+                                <>
+                                  {" — "}
+                                  <a href={img.creditUrl} rel="nofollow" className="text-slate-400 hover:text-slate-200 underline decoration-dotted underline-offset-2">
+                                    source
+                                  </a>
+                                </>
+                              )}
+                            </figcaption>
+                          )}
+                        </figure>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+              {/* NOT-FOR-YOU qualifier — safety-net for legitimately-named
+                  entities that could share a brand name with the scam campaign.
+                  Prefer the new rich-content field when present; fall back to
+                  the legacy warningCallout scalar for older rows. */}
+              {(review.notForYou || review.warningCallout) && (
+                <div className="bg-slate-900 border border-amber-900/50 rounded-lg p-4 mt-4">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-2">
+                    ⚠️ This review may not apply to you if…
+                  </p>
+                  <p className="text-amber-100/80 text-sm leading-relaxed">
+                    {review.notForYou || review.warningCallout}
                   </p>
                 </div>
               )}
@@ -903,6 +991,41 @@ function ReviewContent({ slug }: { slug: string }) {
               </section>
             )}
 
+            {/* EVIDENCE VISUALS — charts/diagrams/infographics resolved by the
+                polish pipeline. IMAGE-type entries overlap with contentImages
+                (rendered inline above) so we skip them here to avoid double
+                rendering. Only succeeded=true entries are shown. */}
+            {(() => {
+              const visuals = (Array.isArray(review.visualMeta) ? review.visualMeta : [])
+                .filter((v) => v && v.succeeded && v.url && v.type && v.type !== "IMAGE");
+              if (visuals.length === 0) return null;
+              return (
+                <section>
+                  <SectionTitle icon={<BarChart2 className="h-6 w-6" />}>Evidence Visuals</SectionTitle>
+                  <div className="space-y-6">
+                    {visuals.map((v, i) => (
+                      <figure
+                        key={i}
+                        className={`overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 review-visual review-visual-${v.type.toLowerCase()}`}
+                      >
+                        <img
+                          src={v.url!}
+                          alt={v.altText || v.description || ""}
+                          loading="lazy"
+                          className="w-full h-auto"
+                        />
+                        {v.description && (
+                          <figcaption className="px-4 py-3 text-sm text-slate-400 border-t border-slate-800 leading-relaxed">
+                            {v.description}
+                          </figcaption>
+                        )}
+                      </figure>
+                    ))}
+                  </div>
+                </section>
+              );
+            })()}
+
             {/* CELEBRITY GALLERY */}
             <CelebrityGallery names={review.celebrityNames} />
 
@@ -921,6 +1044,17 @@ function ReviewContent({ slug }: { slug: string }) {
             {/* WHAT TO DO */}
             <section>
               <SectionTitle icon={<CheckCircle className="h-6 w-6" />}>What To Do If You've Been Scammed</SectionTitle>
+              {/* PROTECTION STEPS — narrative next-steps content from the
+                  polish pipeline. When populated, precedes the generic action
+                  grid below with victim-specific guidance (time-sensitive
+                  chargeback windows, locale-specific reporting bodies, etc.). */}
+              {review.protectionSteps && (
+                <div className="mb-6 space-y-4">
+                  {review.protectionSteps.split("\n\n").map((para, i) => (
+                    <p key={i} className="text-slate-300 text-sm leading-relaxed">{para}</p>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { icon: <FileText className="h-5 w-5 text-blue-400" />, title: "Report to the FBI IC3", sub: "ic3.gov", bg: "bg-blue-500/10", border: "border-blue-900/30" },
@@ -976,6 +1110,58 @@ function ReviewContent({ slug }: { slug: string }) {
                 {review.methodologyText.split("\n\n").map((para, i) => (
                   <p key={i} className="text-slate-400 text-sm leading-relaxed mb-4">{para}</p>
                 ))}
+              </section>
+            )}
+
+            {/* EXPERTISE DEPTH — YMYL author knowledge block. Demonstrates
+                first-hand investigation experience to reviewers and search
+                engines (E-E-A-T signal). Populated by the polish pipeline
+                from the author persona's domain-evidence statements. */}
+            {review.expertiseDepth && (
+              <section>
+                <SectionTitle icon={<Users className="h-6 w-6" />}>Our Investigation Expertise</SectionTitle>
+                {review.expertiseDepth.split("\n\n").map((para, i) => (
+                  <p key={i} className="text-slate-400 text-sm leading-relaxed mb-4">{para}</p>
+                ))}
+              </section>
+            )}
+
+            {/* SOURCES — typed citations. Also surfaces as citation[] on the
+                Review@graph JSON-LD node so GEO engines can cite the
+                investigation rather than the aggregator. */}
+            {Array.isArray(review.sources) && review.sources.length > 0 && (
+              <section>
+                <SectionTitle icon={<BookOpen className="h-6 w-6" />}>Sources &amp; References</SectionTitle>
+                <ol className="space-y-3 border border-slate-800 rounded-xl bg-slate-900/40 p-5">
+                  {review.sources.map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm">
+                      <span className="shrink-0 mt-0.5 w-6 h-6 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={s.url}
+                          rel="nofollow noopener"
+                          target="_blank"
+                          className="text-slate-200 hover:text-red-400 font-medium break-words"
+                        >
+                          {s.title}
+                          <ExternalLink className="h-3 w-3 inline ml-1 align-text-top text-slate-500" />
+                        </a>
+                        <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                          {s.type && (
+                            <span className="uppercase tracking-wider font-semibold text-slate-400">
+                              {s.type.replace(/_/g, " ")}
+                            </span>
+                          )}
+                          {s.publisher && <span>{s.publisher}</span>}
+                          {s.date && <span>{s.date}</span>}
+                          {s.accessed_date && <span>accessed {s.accessed_date}</span>}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
               </section>
             )}
 
@@ -1071,27 +1257,51 @@ function ReviewContent({ slug }: { slug: string }) {
             {/* SHARE WIDGET */}
             <ShareWidget platformName={review.platformName} />
 
-            {/* SOURCES */}
+            {/* SIDEBAR SOURCES — compact preview of the top sources. Links to
+                the full Sources & References section in the main column via
+                an anchor. Falls back to a generic regulator list when no
+                typed sources are populated on the review yet (e.g., before
+                the polish pipeline has run on a given review). */}
             <Card className="bg-slate-900 border-slate-800">
               <CardHeader className="pb-3 border-b border-slate-800">
-                <CardTitle className="text-sm text-slate-300">Sources & References</CardTitle>
+                <CardTitle className="text-sm text-slate-300">Sources &amp; References</CardTitle>
               </CardHeader>
               <CardContent className="pt-3 space-y-2">
-                {[
-                  { label: "FCA Warning List", url: "fca.org.uk" },
-                  { label: "SEC EDGAR Search", url: "sec.gov" },
-                  { label: "ASIC Moneysmart", url: "moneysmart.gov.au" },
-                  { label: "FBI IC3", url: "ic3.gov" },
-                  { label: "FTC Report Fraud", url: "reportfraud.ftc.gov" },
-                  { label: "Action Fraud UK", url: "actionfraud.police.uk" },
-                  { label: "CySEC Warning List", url: "cysec.org.cy" },
-                ].map((s, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 cursor-pointer transition-colors">
-                    <ExternalLink className="h-3 w-3 text-slate-600 shrink-0" />
-                    <span>{s.label}</span>
-                    <span className="text-slate-600 text-xs ml-auto">{s.url}</span>
-                  </div>
-                ))}
+                {Array.isArray(review.sources) && review.sources.length > 0 ? (
+                  review.sources.slice(0, 5).map((s, i) => (
+                    <a
+                      key={i}
+                      href={s.url}
+                      rel="nofollow noopener"
+                      target="_blank"
+                      className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3 text-slate-600 shrink-0" />
+                      <span className="truncate flex-1">{s.title}</span>
+                      {s.type && (
+                        <span className="text-slate-600 text-[10px] uppercase tracking-wider shrink-0">
+                          {s.type.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </a>
+                  ))
+                ) : (
+                  [
+                    { label: "FCA Warning List", url: "fca.org.uk" },
+                    { label: "SEC EDGAR Search", url: "sec.gov" },
+                    { label: "ASIC Moneysmart", url: "moneysmart.gov.au" },
+                    { label: "FBI IC3", url: "ic3.gov" },
+                    { label: "FTC Report Fraud", url: "reportfraud.ftc.gov" },
+                    { label: "Action Fraud UK", url: "actionfraud.police.uk" },
+                    { label: "CySEC Warning List", url: "cysec.org.cy" },
+                  ].map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-slate-400">
+                      <ExternalLink className="h-3 w-3 text-slate-600 shrink-0" />
+                      <span>{s.label}</span>
+                      <span className="text-slate-600 text-xs ml-auto">{s.url}</span>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>

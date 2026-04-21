@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./contentImage";
 export * from "./errorResponse";
 export * from "./faqItem";
 export * from "./funnelStage";
@@ -16,6 +17,7 @@ export * from "./redFlag";
 export * from "./relatedReview";
 export * from "./reportResult";
 export * from "./reviewFull";
+export * from "./reviewSource";
 export * from "./reviewSummary";
 export * from "./scamReportPayload";
 export * from "./syncFaqItem";
@@ -25,3 +27,5 @@ export * from "./syncKeyFinding";
 export * from "./syncRedFlag";
 export * from "./syncResult";
 export * from "./syncReviewPayload";
+export * from "./visualMeta";
+export * from "./visualMetaType";
