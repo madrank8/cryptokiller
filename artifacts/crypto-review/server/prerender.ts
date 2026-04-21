@@ -31,6 +31,107 @@ const ORG_ID = `${BASE}/#organization`;
 const WEBSITE_ID = `${BASE}/#website`;
 const LEGAL_ENTITY_ID = `${BASE}/#legal-entity`;
 
+// ─── Review tier helpers (migration 0003) ───
+//
+// These mirror the tier decisions made in Vercel's lib/threat-score.js (source
+// of truth) so the prerender can fall back to a locally-computed tier when a
+// review row predates migration 0003 and has null threat_tier. The Vercel side
+// always ships tier metadata on sync, so in practice this fallback only fires
+// for rows synced before RP1/RP2 landed.
+//
+// Keep the tier labels and thresholds in lockstep with lib/threat-score.js on
+// the Vercel side. If that file changes, update this block too.
+
+type ReviewTier = "confirmed" | "high" | "elevated" | "watchlist" | "low";
+
+interface TierInfo {
+  tier: ReviewTier;
+  label: string;        // Human-readable badge text ("Confirmed Scam", "Low Signal")
+  badge: string;        // Short chip text ("SCAM", "CAUTION", "WATCHLIST")
+  frameAsScam: boolean; // True only for confirmed + high
+}
+
+function tierFromScore(score: number): TierInfo {
+  if (score >= 80) return { tier: "confirmed", label: "Confirmed Scam",        badge: "SCAM",      frameAsScam: true };
+  if (score >= 60) return { tier: "high",      label: "High Risk",             badge: "HIGH RISK", frameAsScam: true };
+  if (score >= 40) return { tier: "elevated",  label: "Elevated Concern",      badge: "CAUTION",   frameAsScam: false };
+  if (score >= 20) return { tier: "watchlist", label: "On Watchlist",          badge: "WATCHLIST", frameAsScam: false };
+  return               { tier: "low",        label: "Low Signal",            badge: "LOW",       frameAsScam: false };
+}
+
+// Resolve the tier for a review row, preferring what the Vercel sync-shape
+// already classified. If the DB column is null (pre-RP1 data), compute from
+// the score instead of assuming "confirmed" — that was the silent bug behind
+// the Affitto Casa page rendering "CONFIRMED SCAM" at score 3.
+function resolveReviewTier(row: {
+  threatScore: number | null;
+  threatTier: string | null;
+  threatLabel: string | null;
+  threatBadge: string | null;
+  frameAsScam: boolean | null;
+}): TierInfo {
+  const score = row.threatScore ?? 0;
+  const fallback = tierFromScore(score);
+  const tier = (row.threatTier as ReviewTier | null) ?? fallback.tier;
+  return {
+    tier,
+    label: row.threatLabel ?? fallback.label,
+    badge: row.threatBadge ?? fallback.badge,
+    frameAsScam: row.frameAsScam ?? fallback.frameAsScam,
+  };
+}
+
+// Title headline label. For confirmed/high tiers we ship "Scam Review"
+// (the aggressive variant Google has been indexing for high-score brands);
+// for elevated/watchlist/low we ship "Investigation" which matches the
+// hedged investigative voice PR4 on the Vercel side enforces in the body.
+function reviewHeadlineLabel(tier: TierInfo): string {
+  return tier.frameAsScam ? "Scam Review" : "Investigation";
+}
+
+// Tier → star-rating polarity. Mirrors lib/review-schema.js resolveReviewRating
+// on the Vercel side. Confirmed/high → 1 star, elevated → 2, watchlist → 3.
+// low tier returns null — we do NOT ship a star rating on low-signal reviews
+// because Google's Rich Results renders reviewRating as actual stars, and an
+// inverted rating on a hedged review is worse than no rating.
+function reviewRatingForTier(tier: TierInfo): { value: number; explanation: string } | null {
+  switch (tier.tier) {
+    case "confirmed": return { value: 1, explanation: "Confirmed scam. Avoid all contact." };
+    case "high":      return { value: 1, explanation: "Very high risk. Evidence of fraudulent activity." };
+    case "elevated":  return { value: 2, explanation: "Multiple serious red flags. Exercise extreme caution." };
+    case "watchlist": return { value: 3, explanation: "Under investigation. Verify before depositing." };
+    case "low":       return null;
+  }
+}
+
+// Whitelist of schema.org @types accepted for itemReviewed. Anything outside
+// this set falls back to "Thing". Mirrors lib/review-schema.js on the Vercel
+// side. Brand.entity_type isn't persisted on the Replit side yet, so for now
+// the review prerender uses the default "Thing" when the writer hasn't
+// included one on the row — this is better than the previous hardcoded
+// "Service" + "Crypto trading platform" description which misrepresented
+// every non-crypto scam.
+const VALID_ENTITY_TYPES = new Set([
+  "Product",
+  "Service",
+  "SoftwareApplication",
+  "MobileApplication",
+  "FinancialProduct",
+  "InvestmentFund",
+  "RealEstateAgent",
+  "LocalBusiness",
+  "Organization",
+  "WebSite",
+  "Thing",
+]);
+
+function resolveItemReviewedType(entityType: unknown): string {
+  if (typeof entityType === "string" && VALID_ENTITY_TYPES.has(entityType)) {
+    return entityType;
+  }
+  return "Thing";
+}
+
 export interface RenderResult {
   status: number;
   title: string;
@@ -491,6 +592,28 @@ async function renderReview(slug: string): Promise<RenderResult> {
       sources: reviewsTable.sources,
       notForYou: reviewsTable.notForYou,
       expertiseDepth: reviewsTable.expertiseDepth,
+      // Tier metadata (migration 0003). Drives the <title>, <h1>, schema
+      // itemReviewed/reviewRating polarity, and the severity chip.
+      threatTier: reviewsTable.threatTier,
+      threatLabel: reviewsTable.threatLabel,
+      threatBadge: reviewsTable.threatBadge,
+      frameAsScam: reviewsTable.frameAsScam,
+      // Schema enrichment (migration 0003). Feeds the ClaimReview, HowTo,
+      // ItemList, Dataset, Quotation, and Speakable nodes via the builders
+      // in lib/blogSchemaEnrichment.ts — same surface as renderBlogPost
+      // already uses for blog posts.
+      authorPersonaId: reviewsTable.authorPersonaId,
+      alternativeHeadline: reviewsTable.alternativeHeadline,
+      targetKeyword: reviewsTable.targetKeyword,
+      aboutSlugs: reviewsTable.aboutSlugs,
+      mentionSlugs: reviewsTable.mentionSlugs,
+      speakableSelectors: reviewsTable.speakableSelectors,
+      citations: reviewsTable.citations,
+      dataset: reviewsTable.dataset,
+      itemList: reviewsTable.itemList,
+      howTo: reviewsTable.howTo,
+      quotes: reviewsTable.quotes,
+      claims: reviewsTable.claims,
       platformName: platformsTable.name,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -551,7 +674,29 @@ async function renderReview(slug: string): Promise<RenderResult> {
   ]);
 
   const platformName = row.platformName || slug;
-  const title = `${platformName} Scam Review — Threat Score ${row.threatScore}/100 | CryptoKiller`;
+
+  // Resolve tier from stored metadata (preferred) or compute from score.
+  // This is what fixes the Affitto Casa "Threat Score 0/100" + "CONFIRMED
+  // SCAM" bugs — the row now carries tier info from Vercel sync-shape, and
+  // even when it doesn't we compute a score-based tier locally rather than
+  // defaulting to confirmed/scam/0.
+  const tier = resolveReviewTier({
+    threatScore: row.threatScore,
+    threatTier: row.threatTier,
+    threatLabel: row.threatLabel,
+    threatBadge: row.threatBadge,
+    frameAsScam: row.frameAsScam,
+  });
+  const headlineLabel = reviewHeadlineLabel(tier);
+
+  // <title> — tier-aware. Only include the score when it's non-zero;
+  // shipping "Threat Score 0/100" on a review that lost its score during
+  // sync is worse than omitting it. Score > 0 is the floor; below that
+  // the writer's alternative_headline (if present) takes the slot.
+  const scoreSuffix = row.threatScore && row.threatScore > 0 ? ` — Threat Score ${row.threatScore}/100` : "";
+  const title = row.alternativeHeadline
+    ? `${truncate(row.alternativeHeadline, 55)} | CryptoKiller`
+    : `${platformName} ${headlineLabel}${scoreSuffix} | CryptoKiller`;
   const description = truncate(
     row.metaDescription || row.heroDescription || row.summary || `${platformName} crypto scam investigation. Threat score ${row.threatScore}/100. Evidence, red flags, ad surveillance, and verdict from the CryptoKiller research team.`,
     160,
@@ -702,9 +847,9 @@ async function renderReview(slug: string): Promise<RenderResult> {
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
-<h1>${esc(platformName)} Scam Review — Threat Score ${row.threatScore}/100</h1>
+<h1>${esc(platformName)} ${headlineLabel}${scoreSuffix}</h1>
 ${heroImageHtml}
-<p><strong>Verdict:</strong> ${esc(row.verdict || "Confirmed scam")}</p>
+<p><strong>Verdict:</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>
 ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
 ${heroText && heroText !== summaryText ? `<p>${esc(heroText)}</p>` : ""}
 ${summaryText ? `<section><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
@@ -747,7 +892,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     breadcrumbList([
       { label: "Home", href: `${BASE}/` },
       { label: "Investigations", href: `${BASE}/investigations` },
-      { label: `${platformName} Scam Review`, href: canonical },
+      { label: `${platformName} ${headlineLabel}`, href: canonical },
     ]),
     {
       "@type": ["Review", "Article"],
@@ -801,16 +946,38 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
           }
         : {}),
       itemReviewed: {
-        "@type": "Service",
+        // Default @type is "Thing" — the broadest schema.org type. We'd
+        // ideally read brand.entity_type from the platforms table (populated
+        // by Vercel admin), but that column doesn't exist on Replit yet.
+        // For now "Thing" is correct-if-vague; the Vercel review-schema PR
+        // (crypto-killer #9) derives this from brand.entity_type when
+        // populated, and we'll mirror that here in a follow-up once the
+        // platforms table gains the column.
+        "@type": resolveItemReviewedType(undefined),
         name: platformName,
-        description: `Crypto trading platform reviewed for scam indicators by CryptoKiller.`,
+        description: row.heroDescription || row.summary
+          ? truncate(clean(row.heroDescription || row.summary), 250)
+          : `Platform under investigation by CryptoKiller. Threat score ${row.threatScore}/100 (${tier.label}).`,
       },
-      reviewRating: {
-        "@type": "Rating",
-        ratingValue: Math.max(1, Math.round((100 - row.threatScore) / 20)),
-        bestRating: 5,
-        worstRating: 1,
-      },
+      // reviewRating with correct polarity: high tiers → 1 star (worst),
+      // low tier → no rating node at all. See lib/review-schema.js on the
+      // Vercel side for the same decision tree. Google Rich Results renders
+      // reviewRating AS STARS, so an inverted formula (the old bug) shipped
+      // "5 stars for this scam" to Google — absence here is always safer
+      // than an inverted star rating.
+      ...(() => {
+        const rating = reviewRatingForTier(tier);
+        if (!rating) return {};
+        return {
+          reviewRating: {
+            "@type": "Rating",
+            ratingValue: rating.value,
+            bestRating: 5,
+            worstRating: 1,
+            ratingExplanation: `${rating.explanation} Based on ${row.adCreatives ?? 0} ad creatives across ${row.countriesTargeted ?? 0} countries over ${row.daysActive ?? 0} days.`,
+          },
+        };
+      })(),
       reviewBody: reviewBodyText,
     },
   ];
@@ -826,6 +993,68 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       })),
     });
   }
+
+  // ─── Schema enrichment nodes (migration 0003) ───
+  //
+  // Each builder is null/empty-safe at the input boundary. They emit a node
+  // only when the source field has usable data. Review rows predating the
+  // 0003 sync (or brands the writer hasn't re-generated under PR2 on the
+  // Vercel side) will have empty/null enrichment fields — those silently
+  // produce no extra graph nodes, preserving backward compat.
+  //
+  // Same surface used by renderBlogPost() below, so the entity graph stays
+  // consistent between reviews and blog posts (critical for ENTITY_REGISTRY
+  // cross-references and the knowledge graph relationships Google infers).
+  //
+  // Speakable lives on the Article node itself rather than as a separate
+  // @graph entry — attached via the existing review node (it was absent
+  // before; adding it here). The rest are top-level graph nodes.
+  const aboutNodes    = resolveAbout(row.aboutSlugs);
+  const mentionNodes  = resolveMentions(row.mentionSlugs);
+  const citationNodes = buildCitations(row.citations);
+  const claimNodes    = buildClaimReviews(row.claims, canonical, row.author ?? undefined);
+  const itemListNode  = buildItemList(row.itemList, canonical);
+  const howToNode     = buildHowTo(row.howTo, canonical);
+  const datasetNode   = buildDataset(row.dataset);
+  const quotationNodes = buildQuotations(row.quotes);
+  const speakableSpec = buildSpeakable(row.speakableSelectors);
+
+  // Patch the existing Review+Article node in place to attach about[],
+  // mentions[], citation[] (from typed citations), speakable, and
+  // alternativeHeadline/keywords from the enrichment fields. We look up
+  // by @id rather than array index so future insertions into the base
+  // graph don't silently attach enrichment to the wrong entry.
+  const reviewNodeId = `${canonical}#review`;
+  const reviewNode = graph.find((n) => n && n["@id"] === reviewNodeId) as Record<string, unknown> | undefined;
+  if (reviewNode) {
+    if (aboutNodes.length) {
+      reviewNode.about = aboutNodes;
+    }
+    if (mentionNodes.length) {
+      reviewNode.mentions = mentionNodes;
+    }
+    // Prefer typed citations (schema.org CreativeWork enum) over the raw
+    // sources array already emitted by the legacy citation block. If both
+    // exist, typed wins — it's richer and came from the writer's own
+    // citation list, not inferred from the sources table.
+    if (citationNodes.length) {
+      reviewNode.citation = citationNodes;
+    }
+    if (row.alternativeHeadline) {
+      reviewNode.alternativeHeadline = row.alternativeHeadline;
+    }
+    if (row.targetKeyword) {
+      reviewNode.keywords = row.targetKeyword;
+    }
+    reviewNode.speakable = speakableSpec;
+  }
+
+  // Push the standalone enrichment nodes as siblings in the graph.
+  for (const claim of claimNodes) graph.push(claim);
+  if (itemListNode) graph.push(itemListNode);
+  if (howToNode) graph.push(howToNode);
+  if (datasetNode) graph.push(datasetNode);
+  for (const quote of quotationNodes) graph.push(quote);
 
   return {
     status: 200,
