@@ -200,56 +200,77 @@ export function resolveMentions(slugs: unknown): Record<string, unknown>[] {
 }
 
 // ─── Citation[] (schema.org citation property on Article) ───────────────────
-// Accepts { title, url, type?, authors?, publisher?, date? }[]. Falls back to
-// CreativeWork if type is missing or unrecognised.
+// Canonical input shape (from Vercel's content generator):
+//   { name, url, type?, publisher?, datePublished? }
+// Legacy shape (from earlier iterations) was { title, url, date } — both are
+// accepted here so migrated rows keep rendering even if the producer shape
+// changes ahead of a data backfill. Falls back to CreativeWork if type is
+// missing or unrecognised.
 
 export interface CitationInput {
+  // Canonical keys
+  name?: string;
+  datePublished?: string;
+  // Legacy keys kept for backwards compatibility
   title?: string;
+  date?: string;
+  // Common to both
   url?: string;
   type?: string;
   authors?: string[];
   publisher?: string;
-  date?: string;
 }
 
 const CITATION_TYPE_WHITELIST = new Set([
   "ScholarlyArticle", "NewsArticle", "Report", "Dataset", "Book",
-  "WebPage", "Article", "CreativeWork",
+  "WebPage", "Article", "CreativeWork", "GovernmentService",
 ]);
 
 export function buildCitations(input: unknown): Record<string, unknown>[] {
   if (!Array.isArray(input)) return [];
   const out: Record<string, unknown>[] = [];
   for (const c of input as CitationInput[]) {
-    if (!c || typeof c !== "object" || !c.url || !c.title) continue;
+    if (!c || typeof c !== "object" || !c.url) continue;
+    // Accept either canonical `name` or legacy `title`. Skip if neither.
+    const label = c.name ?? c.title;
+    if (!label) continue;
     const type = c.type && CITATION_TYPE_WHITELIST.has(c.type) ? c.type : "CreativeWork";
     const node: Record<string, unknown> = {
       "@type": type,
-      name: c.title,
+      name: label,
       url: c.url,
     };
     if (c.publisher) node.publisher = { "@type": "Organization", name: c.publisher };
     if (Array.isArray(c.authors) && c.authors.length) {
       node.author = c.authors.map((n) => ({ "@type": "Person", name: n }));
     }
-    if (c.date) node.datePublished = c.date;
+    const dp = c.datePublished ?? c.date;
+    if (dp) node.datePublished = dp;
     out.push(node);
   }
   return out;
 }
 
 // ─── ClaimReview[] ──────────────────────────────────────────────────────────
-// Array of { claim: string, rating: 1-5, ratingLabel?: string }. Each item
-// becomes its own schema.org ClaimReview node that Google Fact Check Explorer
-// can surface. We set the reviewing Org to CryptoKiller and the itemReviewed
-// to a Claim wrapping the raw claim text.
+// Canonical input shape (from Vercel's content generator):
+//   { claimReviewed, ratingValue, ratingLabel?, originator? }
+// Legacy shape was { claim, rating, firstAppearance? } — both accepted.
+// Each item becomes its own schema.org ClaimReview node that Google Fact
+// Check Explorer can surface. We set the reviewing Org to CryptoKiller and
+// the itemReviewed to a Claim wrapping the raw claim text.
 
 export interface ClaimInput {
+  // Canonical keys
+  claimReviewed?: string;
+  ratingValue?: number;
+  originator?: string;
+  // Legacy keys kept for backwards compatibility
   claim?: string;
   rating?: number;
+  firstAppearance?: string;
+  // Common
   ratingLabel?: string;
   claimAppearedAt?: string;
-  firstAppearance?: string;
 }
 
 export function buildClaimReviews(
@@ -260,9 +281,32 @@ export function buildClaimReviews(
   if (!Array.isArray(input)) return [];
   const out: Record<string, unknown>[] = [];
   (input as ClaimInput[]).forEach((c, i) => {
-    if (!c || typeof c !== "object" || !c.claim) return;
-    const rating = typeof c.rating === "number" ? Math.max(1, Math.min(5, c.rating)) : 1;
+    if (!c || typeof c !== "object") return;
+    // Accept either `claimReviewed` (canonical) or `claim` (legacy).
+    const claimText = c.claimReviewed ?? c.claim;
+    if (!claimText) return;
+    // Accept either `ratingValue` (canonical) or `rating` (legacy).
+    const ratingRaw = typeof c.ratingValue === "number"
+      ? c.ratingValue
+      : typeof c.rating === "number"
+        ? c.rating
+        : 1;
+    const rating = Math.max(1, Math.min(5, ratingRaw));
     const label = c.ratingLabel ?? (rating === 1 ? "False" : rating === 2 ? "Mostly False" : rating === 3 ? "Mixed" : rating === 4 ? "Mostly True" : "True");
+    // `originator` describes who propagates the claim; `firstAppearance` is a
+    // URL where the claim first surfaced. They're not equivalent — originator
+    // goes into itemReviewed.author (a named Person/Org); firstAppearance goes
+    // into itemReviewed.appearance (a CreativeWork URL).
+    const itemReviewed: Record<string, unknown> = {
+      "@type": "Claim",
+      datePublished: c.claimAppearedAt,
+    };
+    if (c.originator) {
+      itemReviewed.author = { "@type": "Organization", name: c.originator };
+    }
+    if (c.firstAppearance) {
+      itemReviewed.appearance = { "@type": "CreativeWork", url: c.firstAppearance };
+    }
     out.push({
       "@type": "ClaimReview",
       "@id": `${pageUrl}#claim-${i + 1}`,
@@ -271,12 +315,8 @@ export function buildClaimReviews(
       author: personaName
         ? { "@type": "Person", name: personaName }
         : { "@id": `${BASE}/#organization` },
-      claimReviewed: c.claim,
-      itemReviewed: {
-        "@type": "Claim",
-        appearance: c.firstAppearance ? { "@type": "CreativeWork", url: c.firstAppearance } : undefined,
-        datePublished: c.claimAppearedAt,
-      },
+      claimReviewed: claimText,
+      itemReviewed,
       reviewRating: {
         "@type": "Rating",
         ratingValue: rating,
@@ -290,27 +330,55 @@ export function buildClaimReviews(
 }
 
 // ─── ItemList (ranked list node) ────────────────────────────────────────────
-// Accepts { name?, items: [{ name, url?, description? }] } and emits a single
-// ItemList node. Returns null if missing.
+// Canonical input shape (from Vercel's content generator): a bare array of
+//   [{ name, description?, entitySlug? }, ...]
+// Legacy shape was { name?, description?, items: [{ name, url?, description? }] }.
+// Both accepted. Returns null if no items.
+
+export interface ItemListItemInput {
+  name?: string;
+  url?: string;
+  description?: string;
+  entitySlug?: string;
+}
 
 export interface ItemListInput {
   name?: string;
   description?: string;
-  items?: Array<{ name?: string; url?: string; description?: string }>;
+  items?: ItemListItemInput[];
 }
 
 export function buildItemList(input: unknown, pageUrl: string): Record<string, unknown> | null {
-  if (!input || typeof input !== "object") return null;
-  const il = input as ItemListInput;
-  if (!Array.isArray(il.items) || il.items.length === 0) return null;
+  if (!input) return null;
+
+  // Normalise both shapes into { name?, description?, items: [...] }.
+  let name: string | undefined;
+  let description: string | undefined;
+  let items: ItemListItemInput[] = [];
+
+  if (Array.isArray(input)) {
+    // Canonical shape — bare array of items.
+    items = input as ItemListItemInput[];
+  } else if (typeof input === "object") {
+    const il = input as ItemListInput;
+    if (!Array.isArray(il.items) || il.items.length === 0) return null;
+    name = il.name;
+    description = il.description;
+    items = il.items;
+  } else {
+    return null;
+  }
+
+  if (!items.length) return null;
+
   return {
     "@type": "ItemList",
     "@id": `${pageUrl}#itemlist`,
-    ...(il.name ? { name: il.name } : {}),
-    ...(il.description ? { description: il.description } : {}),
-    numberOfItems: il.items.length,
+    ...(name ? { name } : {}),
+    ...(description ? { description } : {}),
+    numberOfItems: items.length,
     itemListOrder: "https://schema.org/ItemListOrderAscending",
-    itemListElement: il.items.map((item, i) => ({
+    itemListElement: items.map((item, i) => ({
       "@type": "ListItem",
       position: i + 1,
       name: item.name ?? `Item ${i + 1}`,
@@ -386,8 +454,20 @@ export function buildDataset(input: unknown): Record<string, unknown> | null {
 
 // ─── Quotation[] ────────────────────────────────────────────────────────────
 
+// ─── Quotation[] ────────────────────────────────────────────────────────────
+// Canonical input shape (from Vercel's content generator):
+//   { text, speakerName?, speakerSlug?, citationUrl?, publishedDate? }
+// Legacy shape was { text, spokenBy, spokenByRole?, source?, sourceUrl?, date? }.
+// Both accepted.
+
 export interface QuoteInput {
   text?: string;
+  // Canonical keys
+  speakerName?: string;
+  speakerSlug?: string;
+  citationUrl?: string;
+  publishedDate?: string;
+  // Legacy keys kept for backwards compatibility
   spokenBy?: string;
   spokenByRole?: string;
   source?: string;
@@ -404,19 +484,25 @@ export function buildQuotations(input: unknown): Record<string, unknown>[] {
       "@type": "Quotation",
       text: q.text,
     };
-    if (q.spokenBy) {
+    // Speaker: accept canonical `speakerName` or legacy `spokenBy`.
+    const speaker = q.speakerName ?? q.spokenBy;
+    if (speaker) {
       node.spokenByCharacter = {
         "@type": "Person",
-        name: q.spokenBy,
+        name: speaker,
         ...(q.spokenByRole ? { jobTitle: q.spokenByRole } : {}),
       };
     }
-    if (q.source || q.sourceUrl) {
+    // Source: accept canonical `citationUrl` or legacy `source`/`sourceUrl`.
+    const srcUrl = q.citationUrl ?? q.sourceUrl;
+    const srcName = q.source;
+    const srcDate = q.publishedDate ?? q.date;
+    if (srcUrl || srcName) {
       node.isBasedOn = {
         "@type": "CreativeWork",
-        ...(q.source ? { name: q.source } : {}),
-        ...(q.sourceUrl ? { url: q.sourceUrl } : {}),
-        ...(q.date ? { datePublished: q.date } : {}),
+        ...(srcName ? { name: srcName } : {}),
+        ...(srcUrl ? { url: srcUrl } : {}),
+        ...(srcDate ? { datePublished: srcDate } : {}),
       };
     }
     out.push(node);
