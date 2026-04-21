@@ -79,6 +79,16 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       sources: reviewsTable.sources,
       notForYou: reviewsTable.notForYou,
       expertiseDepth: reviewsTable.expertiseDepth,
+      // Tier metadata (migration 0003). Exposed on the API so the client-side
+      // React hydration can gate declarative-scam copy (embed button text,
+      // share/copy strings) on frameAsScam, matching the tier-aware rendering
+      // the SSR now does. The 12 schema-enrichment fields are intentionally
+      // NOT surfaced here — they're consumed by prerender.ts for JSON-LD only
+      // and don't need to cross the wire to the browser.
+      threatTier: reviewsTable.threatTier,
+      threatLabel: reviewsTable.threatLabel,
+      threatBadge: reviewsTable.threatBadge,
+      frameAsScam: reviewsTable.frameAsScam,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -127,6 +137,14 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     sources: Array.isArray(row.sources) ? row.sources : [],
     notForYou: row.notForYou ?? "",
     expertiseDepth: row.expertiseDepth ?? "",
+    // Tier metadata defaults: pre-migration-0003 rows return null/false so
+    // the client's tierFromScore fallback kicks in (same logic as the SSR
+    // prerender). frameAsScam defaults to false — hedged is always safer
+    // than declarative when we don't know the tier.
+    threatTier: row.threatTier ?? null,
+    threatLabel: row.threatLabel ?? null,
+    threatBadge: row.threatBadge ?? null,
+    frameAsScam: row.frameAsScam ?? false,
     adCreatives: row.adCreatives ?? 0,
     countriesTargeted: row.countriesTargeted ?? 0,
     daysActive: row.daysActive ?? 0,

@@ -11,6 +11,7 @@ import type { FunnelStage } from "./funnelStage";
 import type { GeoTarget } from "./geoTarget";
 import type { KeyFinding } from "./keyFinding";
 import type { RedFlag } from "./redFlag";
+import type { ReviewFullThreatTier } from "./reviewFullThreatTier";
 import type { ReviewSource } from "./reviewSource";
 import type { VisualMeta } from "./visualMeta";
 
@@ -61,4 +62,12 @@ export interface ReviewFull {
   notForYou: string;
   /** YMYL author expertise block demonstrating first-hand domain knowledge. */
   expertiseDepth: string;
+  /** Severity tier from classifyThreat() on the Vercel side (source of truth lib/threat-score.js). Drives the H1/title label and all declarative-scam language gating on the client. Null for reviews synced before migration 0003, in which case the client should fall back to deriving a tier from threatScore. */
+  threatTier?: ReviewFullThreatTier;
+  /** Human-readable tier label shown in the severity chip ("Confirmed Scam", "Low Signal", etc). Paired with threatBadge. */
+  threatLabel?: string | null;
+  /** Short uppercase badge text ("SCAM", "CAUTION", "WATCHLIST", "LOW"). */
+  threatBadge?: string | null;
+  /** True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share/embed/copy strings must use hedged language when this is false. */
+  frameAsScam: boolean;
 }

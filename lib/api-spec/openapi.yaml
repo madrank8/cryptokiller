@@ -478,6 +478,31 @@ components:
         expertiseDepth:
           type: string
           description: YMYL author expertise block demonstrating first-hand domain knowledge.
+        threatTier:
+          type: string
+          nullable: true
+          enum: [confirmed, high, elevated, watchlist, low, null]
+          description: >-
+            Severity tier from classifyThreat() on the Vercel side (source of truth
+            lib/threat-score.js). Drives the H1/title label and all declarative-scam
+            language gating on the client. Null for reviews synced before migration 0003,
+            in which case the client should fall back to deriving a tier from threatScore.
+        threatLabel:
+          type: string
+          nullable: true
+          description: >-
+            Human-readable tier label shown in the severity chip ("Confirmed Scam",
+            "Low Signal", etc). Paired with threatBadge.
+        threatBadge:
+          type: string
+          nullable: true
+          description: Short uppercase badge text ("SCAM", "CAUTION", "WATCHLIST", "LOW").
+        frameAsScam:
+          type: boolean
+          description: >-
+            True only for confirmed+high tiers (~top 0.42% of brands by scam_score after
+            the 2026-04 recalibration). Gates declarative scam copy on the client —
+            share/embed/copy strings must use hedged language when this is false.
       required:
         - id
         - slug
@@ -515,6 +540,7 @@ components:
         - sources
         - notForYou
         - expertiseDepth
+        - frameAsScam
 
     RelatedReview:
       type: object
