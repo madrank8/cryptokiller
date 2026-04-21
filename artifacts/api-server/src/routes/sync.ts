@@ -39,6 +39,10 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         word_count, reading_minutes, author,
         hero_image_url, hero_image_alt, content_images, visual_meta,
         protection_steps, sources, not_for_you, expertise_depth,
+        threat_tier, threat_label, threat_badge, frame_as_scam,
+        author_persona_id, alternative_headline, target_keyword,
+        about_slugs, mention_slugs, speakable_selectors, citations,
+        dataset, item_list, how_to, quotes, claims,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,
@@ -47,6 +51,10 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         $13,$14,$15,
         $16,$17,$18,$19,
         $20,$21,$22,$23,
+        $24,$25,$26,$27,
+        $28,$29,$30,
+        $31,$32,$33,$34,
+        $35,$36,$37,$38,$39,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -72,6 +80,22 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         sources = EXCLUDED.sources,
         not_for_you = EXCLUDED.not_for_you,
         expertise_depth = EXCLUDED.expertise_depth,
+        threat_tier = EXCLUDED.threat_tier,
+        threat_label = EXCLUDED.threat_label,
+        threat_badge = EXCLUDED.threat_badge,
+        frame_as_scam = EXCLUDED.frame_as_scam,
+        author_persona_id = EXCLUDED.author_persona_id,
+        alternative_headline = EXCLUDED.alternative_headline,
+        target_keyword = EXCLUDED.target_keyword,
+        about_slugs = EXCLUDED.about_slugs,
+        mention_slugs = EXCLUDED.mention_slugs,
+        speakable_selectors = EXCLUDED.speakable_selectors,
+        citations = EXCLUDED.citations,
+        dataset = EXCLUDED.dataset,
+        item_list = EXCLUDED.item_list,
+        how_to = EXCLUDED.how_to,
+        quotes = EXCLUDED.quotes,
+        claims = EXCLUDED.claims,
         updated_at = NOW()
       RETURNING id`,
       [
@@ -102,6 +126,31 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         JSON.stringify(Array.isArray(review.sources) ? review.sources : []),
         review.not_for_you ?? "",
         review.expertise_depth ?? "",
+        // Tier metadata (migration 0003). Populated by Vercel sync-shape's
+        // classifyThreat() output. frame_as_scam defaults to false, so the
+        // prerender picks tier-appropriate hedged language when the caller
+        // doesn't supply tier metadata at all.
+        review.threat_tier ?? null,
+        review.threat_label ?? null,
+        review.threat_badge ?? null,
+        review.frame_as_scam ?? false,
+        // Schema enrichment (migration 0003). Each jsonb field stringified
+        // for pg binding — mirrors the pattern established for the rich
+        // content columns above. Array fields default to []; scalar object
+        // fields (dataset/item_list/how_to) default to null so the absence
+        // of the node is distinguishable from an empty node.
+        review.author_persona_id ?? null,
+        review.alternative_headline ?? null,
+        review.target_keyword ?? null,
+        JSON.stringify(Array.isArray(review.about_slugs) ? review.about_slugs : []),
+        JSON.stringify(Array.isArray(review.mention_slugs) ? review.mention_slugs : []),
+        JSON.stringify(Array.isArray(review.speakable_selectors) ? review.speakable_selectors : []),
+        JSON.stringify(Array.isArray(review.citations) ? review.citations : (Array.isArray(review.typed_citations) ? review.typed_citations : [])),
+        review.dataset ? JSON.stringify(review.dataset) : null,
+        review.item_list ? JSON.stringify(review.item_list) : null,
+        review.how_to ? JSON.stringify(review.how_to) : null,
+        JSON.stringify(Array.isArray(review.quotes) ? review.quotes : []),
+        JSON.stringify(Array.isArray(review.claims) ? review.claims : []),
       ]
     );
     const reviewId = reviewResult.rows[0].id;
