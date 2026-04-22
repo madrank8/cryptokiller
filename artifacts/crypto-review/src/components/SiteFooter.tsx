@@ -1,4 +1,4 @@
-import { Shield, MessageCircle, Mail, MapPin } from "lucide-react";
+import { Shield, MessageCircle, Mail, MapPin, Clock } from "lucide-react";
 
 const footerLinks = [
   { label: "Investigations", href: "/investigations" },
@@ -43,6 +43,14 @@ export default function SiteFooter() {
                 <Mail className="h-3 w-3 shrink-0" />
                 contact@cryptokiller.org
               </a>
+              <div className="flex items-start gap-1.5 pt-1">
+                <Clock className="h-3 w-3 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-slate-400 font-semibold">Hours</p>
+                  <p>Monday–Friday: 9:00AM–5:00PM</p>
+                  <p>Saturday &amp; Sunday: 11:00AM–3:00PM</p>
+                </div>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm text-slate-500">
