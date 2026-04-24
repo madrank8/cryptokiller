@@ -264,6 +264,10 @@ export interface ClaimInput {
   claimReviewed?: string;
   ratingValue?: number;
   originator?: string;
+  // 2026-04-24+ canonical: single URL string (or null) pointing to where the
+  // false claim was made. The Vercel-side /api/admin/reviews/validate-publish
+  // normalizer guarantees this shape; legacy tag-array shapes degrade to null.
+  appearance?: string | string[] | null;
   // Legacy keys kept for backwards compatibility
   claim?: string;
   rating?: number;
@@ -277,6 +281,19 @@ export function buildClaimReviews(
   input: unknown,
   pageUrl: string,
   personaName?: string,
+  /**
+   * Parent review/article `datePublished` threaded down so the ClaimReview
+   * node inherits the publication date instead of drifting to render-time
+   * `new Date()`. Omit when unknown rather than fabricate.
+   */
+  parentDatePublished?: string,
+  /**
+   * Brand name for `itemReviewed.author` when `claim.originator` is missing.
+   * For a brand-level claim the originator is the brand itself; we never
+   * hardcode "Unknown scam operators" — the editorial voice does not belong
+   * in schema that Google Fact Check Explorer can surface.
+   */
+  brandName?: string,
 ): Record<string, unknown>[] {
   if (!Array.isArray(input)) return [];
   const out: Record<string, unknown>[] = [];
@@ -285,6 +302,30 @@ export function buildClaimReviews(
     // Accept either `claimReviewed` (canonical) or `claim` (legacy).
     const claimText = c.claimReviewed ?? c.claim;
     if (!claimText) return;
+
+    // ─── appearance normalisation ───
+    // Canonical 2026-04-24+ shape is a single URL string (or null). Legacy
+    // shapes (tag arrays like ['ad-campaigns','fake-social-proof'], objects)
+    // are treated as null so old rows gracefully degrade — we'd rather skip
+    // the ClaimReview node than emit one Google will reject for a malformed
+    // itemReviewed.appearance. Fall back to the legacy `firstAppearance`
+    // string only when `appearance` is absent/non-string; never coerce an
+    // array into anything other than null.
+    let appearanceUrl: string | null = null;
+    const rawApp: unknown = (c as { appearance?: unknown }).appearance;
+    if (typeof rawApp === "string" && /^https?:\/\//i.test(rawApp)) {
+      appearanceUrl = rawApp;
+    } else if (rawApp == null && typeof c.firstAppearance === "string" && /^https?:\/\//i.test(c.firstAppearance)) {
+      appearanceUrl = c.firstAppearance;
+    }
+
+    // Skip claims without a verifiable appearance URL. Google Fact Check
+    // Explorer rejects ClaimReview nodes with missing itemReviewed.appearance,
+    // so emitting one here is worse than omitting. The Vercel writer ships
+    // `appearance: null` by default until it has a ledger-backed URL, which
+    // is the correct editorial stance.
+    if (!appearanceUrl) return;
+
     // Accept either `ratingValue` (canonical) or `rating` (legacy).
     const ratingRaw = typeof c.ratingValue === "number"
       ? c.ratingValue
@@ -293,25 +334,28 @@ export function buildClaimReviews(
         : 1;
     const rating = Math.max(1, Math.min(5, ratingRaw));
     const label = c.ratingLabel ?? (rating === 1 ? "False" : rating === 2 ? "Mostly False" : rating === 3 ? "Mixed" : rating === 4 ? "Mostly True" : "True");
-    // `originator` describes who propagates the claim; `firstAppearance` is a
-    // URL where the claim first surfaced. They're not equivalent — originator
-    // goes into itemReviewed.author (a named Person/Org); firstAppearance goes
-    // into itemReviewed.appearance (a CreativeWork URL).
+
+    // `originator` is the entity that made the false claim — for a brand
+    // legitimacy claim this is the brand itself (falls back to `brandName`
+    // param). `appearance` is the URL where the claim surfaced.
+    const authorName = c.originator || brandName;
     const itemReviewed: Record<string, unknown> = {
       "@type": "Claim",
-      datePublished: c.claimAppearedAt,
+      appearance: { "@type": "CreativeWork", url: appearanceUrl },
+      ...(c.claimAppearedAt ? { datePublished: c.claimAppearedAt } : {}),
     };
-    if (c.originator) {
-      itemReviewed.author = { "@type": "Organization", name: c.originator };
+    if (authorName) {
+      itemReviewed.author = { "@type": "Organization", name: authorName };
     }
-    if (c.firstAppearance) {
-      itemReviewed.appearance = { "@type": "CreativeWork", url: c.firstAppearance };
-    }
+
     out.push({
       "@type": "ClaimReview",
       "@id": `${pageUrl}#claim-${i + 1}`,
       url: `${pageUrl}#claim-${i + 1}`,
-      datePublished: new Date().toISOString().slice(0, 10),
+      // Inherit parent's datePublished; never fabricate with `new Date()` —
+      // render-time dates drift between Article and ClaimReview, which Google
+      // flags as inconsistency.
+      ...(parentDatePublished ? { datePublished: parentDatePublished } : {}),
       author: personaName
         ? { "@type": "Person", name: personaName }
         : { "@id": `${BASE}/#organization` },
@@ -337,33 +381,44 @@ export function buildClaimReviews(
 
 export interface ItemListItemInput {
   name?: string;
+  position?: number;
   url?: string;
   description?: string;
+  // Canonical (2026-04-24+) — resolves against ENTITY_REGISTRY to attach a
+  // Wikidata sameAs to a nested Person node. Entries without a matching slug
+  // still render as bare Person nodes (valid schema.org).
   entitySlug?: string;
 }
 
 export interface ItemListInput {
   name?: string;
   description?: string;
+  numberOfItems?: number;
+  itemListOrder?: string;
   items?: ItemListItemInput[];
 }
 
 export function buildItemList(input: unknown, pageUrl: string): Record<string, unknown> | null {
   if (!input) return null;
 
-  // Normalise both shapes into { name?, description?, items: [...] }.
+  // Normalise both shapes into { name?, description?, numberOfItems?, itemListOrder?, items: [...] }.
   let name: string | undefined;
   let description: string | undefined;
+  let numberOfItems: number | undefined;
+  let itemListOrder: string | undefined;
   let items: ItemListItemInput[] = [];
 
   if (Array.isArray(input)) {
-    // Canonical shape — bare array of items.
+    // Legacy — bare array of items. Still accepted so migrated blog posts
+    // that never re-synced keep rendering.
     items = input as ItemListItemInput[];
   } else if (typeof input === "object") {
     const il = input as ItemListInput;
     if (!Array.isArray(il.items) || il.items.length === 0) return null;
     name = il.name;
     description = il.description;
+    numberOfItems = il.numberOfItems;
+    itemListOrder = il.itemListOrder;
     items = il.items;
   } else {
     return null;
@@ -376,15 +431,46 @@ export function buildItemList(input: unknown, pageUrl: string): Record<string, u
     "@id": `${pageUrl}#itemlist`,
     ...(name ? { name } : {}),
     ...(description ? { description } : {}),
-    numberOfItems: items.length,
-    itemListOrder: "https://schema.org/ItemListOrderAscending",
-    itemListElement: items.map((item, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: item.name ?? `Item ${i + 1}`,
-      ...(item.url ? { url: item.url } : {}),
-      ...(item.description ? { description: item.description } : {}),
-    })),
+    numberOfItems: numberOfItems ?? items.length,
+    itemListOrder: itemListOrder || "https://schema.org/ItemListOrderAscending",
+    itemListElement: items.map((item, i) => {
+      const position = typeof item.position === "number" ? item.position : i + 1;
+      // Legacy blog-post shape (items carry a `url`): keep the flat ListItem
+      // form because these items aren't people — they're CreativeWork-ish
+      // links and nesting them under `item: Person` would be wrong.
+      if (item.url) {
+        return {
+          "@type": "ListItem",
+          position,
+          name: item.name ?? `Item ${position}`,
+          url: item.url,
+          ...(item.description ? { description: item.description } : {}),
+        };
+      }
+      // Canonical celebrity-roster shape (Vercel 2026-04-24+). Each item
+      // becomes a nested Person, with sameAs resolved from ENTITY_REGISTRY
+      // when entitySlug matches. Unmapped names still ship as bare Person
+      // nodes — valid schema.org, and we'd rather show the full roster than
+      // drop celebrities we don't yet have Wikidata QIDs for.
+      const entity = item.entitySlug ? ENTITY_REGISTRY[item.entitySlug] : undefined;
+      const personNode: Record<string, unknown> = {
+        "@type": "Person",
+        name: item.name ?? `Item ${position}`,
+        ...(item.description ? { description: item.description } : {}),
+      };
+      if (entity) {
+        const sameAs: string[] = [];
+        if (entity.wikidata) sameAs.push(entity.wikidata);
+        if (entity.wikipedia) sameAs.push(entity.wikipedia);
+        if (entity.sameAs) sameAs.push(...entity.sameAs);
+        if (sameAs.length) personNode.sameAs = sameAs;
+      }
+      return {
+        "@type": "ListItem",
+        position,
+        item: personNode,
+      };
+    }),
   };
 }
 
@@ -431,14 +517,55 @@ export interface DatasetInput {
   dateModified?: string;
   size?: string;
   measurementTechnique?: string;
+  // ─── Fields added by Vercel sync-shape normalizeDataset (2026-04-24) ───
+  // See crypto-killer lib/sync-shape.js. All optional — the builder handles
+  // missing/empty shapes gracefully and the Vercel side regenerates over time.
+  temporalCoverage?: string;
+  spatialCoverage?: string[];
+  distribution?: Array<Record<string, unknown>>;
+  variableMeasured?: string[];
+  creator?: Record<string, unknown> | string;
 }
 
-export function buildDataset(input: unknown): Record<string, unknown> | null {
+export function buildDataset(
+  input: unknown,
+  /**
+   * Canonical review URL used to emit a stable `@id` in the form
+   * `${pageUrl}#spyowl-dataset`. This `@id` is the edge target for the
+   * Article's `isBasedOn` reference, so the suffix MUST stay in sync with
+   * the one emitted by the caller (see prerender.ts / BlogPostPage.tsx).
+   * Omit when unknown — the Dataset still emits, just without `@id`, and
+   * the `isBasedOn` edge gets skipped in the caller.
+   */
+  pageUrl?: string,
+): Record<string, unknown> | null {
   if (!input || typeof input !== "object") return null;
   const d = input as DatasetInput;
   if (!d.name || !d.description) return null;
+
+  // spatialCoverage: string[] of country names → schema.org/Place objects.
+  // Empty array → omit entirely (dangling "spatialCoverage": [] is worse than
+  // absence for Google Dataset Search's geo-facet indexing).
+  const spatialPlaces = Array.isArray(d.spatialCoverage)
+    ? d.spatialCoverage
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .map((country) => ({ "@type": "Place", name: country }))
+    : [];
+
+  // distribution: pass through verbatim when non-empty. The Vercel
+  // normalizeDataset already shapes these as DataDownload nodes, so we trust
+  // upstream; if it's missing we do NOT synthesize placeholders client-side.
+  const distribution = Array.isArray(d.distribution) && d.distribution.length
+    ? d.distribution
+    : undefined;
+
+  const variableMeasured = Array.isArray(d.variableMeasured) && d.variableMeasured.length
+    ? d.variableMeasured
+    : undefined;
+
   return {
     "@type": "Dataset",
+    ...(pageUrl ? { "@id": `${pageUrl}#spyowl-dataset` } : {}),
     name: d.name,
     description: d.description,
     ...(d.url ? { url: d.url } : {}),
@@ -447,7 +574,14 @@ export function buildDataset(input: unknown): Record<string, unknown> | null {
     ...(d.dateModified ? { dateModified: d.dateModified } : {}),
     ...(d.size ? { size: d.size } : {}),
     ...(d.measurementTechnique ? { measurementTechnique: d.measurementTechnique } : {}),
-    creator: { "@id": `${BASE}/#organization` },
+    ...(d.temporalCoverage ? { temporalCoverage: d.temporalCoverage } : {}),
+    ...(variableMeasured ? { variableMeasured } : {}),
+    ...(spatialPlaces.length ? { spatialCoverage: spatialPlaces } : {}),
+    ...(distribution ? { distribution } : {}),
+    // Creator: pass through upstream attribution (e.g. the SpyOwl research
+    // feed) when provided; fall back to CryptoKiller. Publisher always
+    // resolves to CryptoKiller regardless — the Dataset is published by us.
+    creator: d.creator ?? { "@id": `${BASE}/#organization` },
     publisher: { "@id": `${BASE}/#organization` },
   };
 }

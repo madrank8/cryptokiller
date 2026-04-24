@@ -196,10 +196,12 @@ export default function BlogPostPage() {
     const aboutNodes     = resolveAbout(post.aboutSlugs);
     const mentionNodes   = resolveMentions(post.mentionSlugs);
     const citationNodes  = buildCitations(post.citations);
-    const claimNodes     = buildClaimReviews(post.claims, pageUrl, persona?.name);
+    // Thread publishedAt so ClaimReview nodes inherit the Article date instead
+    // of drifting to render-time `new Date()`; no brand name on blog posts.
+    const claimNodes     = buildClaimReviews(post.claims, pageUrl, persona?.name, post.publishedAt);
     const itemListNode   = buildItemList(post.itemList, pageUrl);
     const howToNode      = buildHowTo(post.howTo, pageUrl);
-    const datasetNode    = buildDataset(post.dataset);
+    const datasetNode    = buildDataset(post.dataset, pageUrl);
     const quotationNodes = buildQuotations(post.quotes);
 
     // Upgrade the base organization.logo to a full ImageObject (Rich Results).
@@ -248,6 +250,9 @@ export default function BlogPostPage() {
       ...(aboutNodes.length ? { about: aboutNodes } : {}),
       ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
       ...(citationNodes.length ? { citation: citationNodes } : {}),
+      // Tie the Article to its evidence base (SpyOwl Dataset) when present.
+      // Use the same @id suffix buildDataset emits; do not drift.
+      ...(datasetNode ? { isBasedOn: { "@id": `${pageUrl}#spyowl-dataset` } } : {}),
       speakable: buildSpeakable(post.speakableSelectors),
     };
     graph.push(articleSchema);

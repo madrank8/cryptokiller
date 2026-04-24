@@ -1012,10 +1012,16 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   const aboutNodes    = resolveAbout(row.aboutSlugs);
   const mentionNodes  = resolveMentions(row.mentionSlugs);
   const citationNodes = buildCitations(row.citations);
-  const claimNodes    = buildClaimReviews(row.claims, canonical, row.author ?? undefined);
+  // Thread parent datePublished + brand name down so ClaimReview nodes
+  // inherit the Article's publication date (no render-time drift) and
+  // fall back to the brand name for itemReviewed.author when the writer
+  // didn't set `claim.originator`. See blogSchemaEnrichment.buildClaimReviews.
+  const claimNodes    = buildClaimReviews(row.claims, canonical, row.author ?? undefined, datePublished, platformName);
   const itemListNode  = buildItemList(row.itemList, canonical);
   const howToNode     = buildHowTo(row.howTo, canonical);
-  const datasetNode   = buildDataset(row.dataset);
+  // Pass canonical so the Dataset node emits a stable `@id` — the Review
+  // node below attaches an `isBasedOn` edge pointing at the same `@id`.
+  const datasetNode   = buildDataset(row.dataset, canonical);
   const quotationNodes = buildQuotations(row.quotes);
   const speakableSpec = buildSpeakable(row.speakableSelectors);
 
@@ -1045,6 +1051,12 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     }
     if (row.targetKeyword) {
       reviewNode.keywords = row.targetKeyword;
+    }
+    // Declare the Dataset as the evidence base for this review. Only attach
+    // when datasetNode actually rendered, so we never ship a dangling
+    // isBasedOn pointing at a node the @graph doesn't contain.
+    if (datasetNode) {
+      reviewNode.isBasedOn = { "@id": `${canonical}#spyowl-dataset` };
     }
     reviewNode.speakable = speakableSpec;
   }
@@ -1152,10 +1164,13 @@ ${sourcesHtml}
   const aboutNodes    = resolveAbout(row.aboutSlugs);
   const mentionNodes  = resolveMentions(row.mentionSlugs);
   const citationNodes = buildCitations(row.citations);
-  const claimNodes    = buildClaimReviews(row.claims, canonical, persona?.name);
+  // Blog posts don't carry a brand name (no platforms join) — pass undefined
+  // for brandName; ClaimReview nodes that need itemReviewed.author fall back
+  // to omitting the field rather than fabricating an originator.
+  const claimNodes    = buildClaimReviews(row.claims, canonical, persona?.name, datePublished);
   const itemListNode  = buildItemList(row.itemList, canonical);
   const howToNode     = buildHowTo(row.howTo, canonical);
-  const datasetNode   = buildDataset(row.dataset);
+  const datasetNode   = buildDataset(row.dataset, canonical);
   const quotationNodes = buildQuotations(row.quotes);
 
   // Upgrade the base Organization.logo to a full ImageObject (Rich Results
@@ -1205,6 +1220,10 @@ ${sourcesHtml}
     ...(aboutNodes.length ? { about: aboutNodes } : {}),
     ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
     ...(citationNodes.length ? { citation: citationNodes } : {}),
+    // Tie the Article to its evidence base (SpyOwl Dataset) when present.
+    // Use the same @id suffix as buildDataset emits; do not drift — the
+    // isBasedOn edge becomes dangling otherwise.
+    ...(datasetNode ? { isBasedOn: { "@id": `${canonical}#spyowl-dataset` } } : {}),
     speakable: buildSpeakable(row.speakableSelectors),
   };
 
