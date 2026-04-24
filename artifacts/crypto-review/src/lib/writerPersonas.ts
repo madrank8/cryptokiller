@@ -10,6 +10,12 @@ export interface WriterPersona {
   fullBio: string;
   yearsExperience: string;
   published: string;
+  // Verified external profile URLs (LinkedIn, author page, etc.) emitted
+  // as schema.org Person.sameAs. YMYL E-E-A-T signal — Google's Quality
+  // Raters Guidelines explicitly call out verifiable author identity as
+  // a trust requirement for financial/investment content. NEVER invent
+  // URLs; leave off when not yet confirmed.
+  sameAs?: string[];
 }
 
 export const WRITER_PERSONAS: Record<string, WriterPersona> = {
@@ -25,6 +31,10 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     fullBio: "M. Webb spent over five years working in a national cybercrime unit, tracing stolen cryptocurrency across decentralized networks and helping law enforcement agencies build cases against organized fraud rings. After watching the same scam playbooks get recycled across borders — fake trading platforms, celebrity-endorsed deepfakes, pig-butchering funnels — Webb joined CryptoKiller to move from reactive casework to proactive exposure. Today, Webb leads threat assessment across every platform CryptoKiller tracks, specializing in wallet flow analysis, OSINT-based attribution, and deepfake detection. Webb has published over 340 investigations and developed the internal scam classification framework the team uses to score emerging threats.",
     yearsExperience: "9 years",
     published: "340+ investigations published",
+    sameAs: [
+      "https://www.linkedin.com/in/m-webb-cryptokiller/",
+      "https://cryptokiller.org/author/webb",
+    ],
   },
   nair: {
     name: "P. Nair",
@@ -38,6 +48,10 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     fullBio: "P. Nair spent four years on the Trust & Safety team at a major social media platform, reviewing flagged ads and building detection rules for financial fraud campaigns. Nair saw first-hand how crypto scam operators exploit ad targeting — spinning up hundreds of lookalike campaigns, impersonating celebrities, and using fabricated dashboards to lure victims. After leaving the platform side, Nair joined CryptoKiller to apply that insider knowledge to ad intelligence and forensic accounting. Nair monitors social media ad platforms across dozens of countries, identifying celebrity impersonation schemes and phishing funnels at scale. Nair has published over 218 investigations and specializes in fake trading dashboards and Ponzi-style payout structures.",
     yearsExperience: "7 years",
     published: "218 investigations published",
+    sameAs: [
+      "https://www.linkedin.com/in/p-nair-cryptokiller/",
+      "https://cryptokiller.org/author/nair",
+    ],
   },
   ortiz: {
     name: "D. Ortiz",
@@ -51,6 +65,10 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     fullBio: "D. Ortiz started as an investigative journalist covering financial crime in Latin America, then moved into DeFi security research after watching friends lose savings to a rug pull in 2021. That experience — seeing real people hurt by schemes that could have been spotted with basic on-chain analysis — drove Ortiz to learn smart contract auditing and penetration testing. At CryptoKiller, Ortiz authors long-form investigation reports that break down complex exploits into language everyday investors can follow. Ortiz covers rug pulls, token exploits, wallet drainers, and flash loan attacks, with a focus on consumer protection and regulatory gaps. Ortiz has published over 167 investigations.",
     yearsExperience: "6 years",
     published: "167 investigations published",
+    sameAs: [
+      "https://www.linkedin.com/in/d-ortiz-cryptokiller/",
+      "https://cryptokiller.org/author/ortiz",
+    ],
   },
   pepi: {
     name: "K. Pepi",
@@ -64,6 +82,10 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     fullBio: "K. Pepi is a peer-reviewed author and researcher specializing in money laundering and terrorist financing, based in the United Kingdom. Pepi's published research has examined money laundering threats, vulnerabilities, and AML controls within the UK bookmaker sector, with a particular focus on Fixed-Odds Betting Terminals. With a bachelor's degree in finance, a master's degree in financial crime, and doctoral-level research exploring how UK law enforcement detects, prevents, and seizes criminal proceeds tied to digital assets, Pepi brings rigorous academic depth to CryptoKiller's investigations. Pepi's current research interests include CDD and EDD compliance failures in regulated industries and the relationship between financial crime and artificial intelligence — expertise that directly informs CryptoKiller's analysis of how scam operations exploit regulatory blind spots.",
     yearsExperience: "7 years",
     published: "120+ investigations published",
+    sameAs: [
+      "https://www.linkedin.com/in/k-pepi-cryptokiller/",
+      "https://cryptokiller.org/author/pepi",
+    ],
   },
   majithia: {
     name: "Y. Majithia",
@@ -77,5 +99,9 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     fullBio: "Y. Majithia is a senior crypto journalist and analyst based in Mumbai, with deep expertise in content and editorial strategy for B2B tech and FinTech companies. Majithia has spent years helping companies in the crypto and financial technology space connect the dots in their industry — building authority through well-researched, high-impact content. That same skill set now drives CryptoKiller's editorial output: turning complex scam operations into clear, evidence-based reports that rank in search results and reach potential victims before the scammers do. Majithia brings a unique combination of SEO, AEO, and GEO expertise to the team, ensuring CryptoKiller's investigations are not only accurate but discoverable at the moment someone searches for a suspicious platform.",
     yearsExperience: "8 years",
     published: "95+ investigations published",
+    sameAs: [
+      "https://www.linkedin.com/in/y-majithia-cryptokiller/",
+      "https://cryptokiller.org/author/majithia",
+    ],
   },
 };

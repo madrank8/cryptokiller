@@ -163,6 +163,287 @@ export const ENTITY_REGISTRY: Record<string, Entity> = {
     type: "Thing", name: "Celebrity endorsement scam",
     description: "Investment-fraud pattern using unauthorised likeness, voice, or video of a celebrity to lure victims to a fake platform.",
   },
+
+  // ─── Registry expansion (Task 7B, 2026-04-24) ───────────────────────────
+  // Top impersonation targets across Floventra-class scam brands, ordered
+  // by domain. Any celebrity/politician missing from this list still renders
+  // as a bare Person node (name only) — no fabricated URLs.
+  //
+  // Do NOT add entries without verifying the Wikidata QID. Wikipedia URL is
+  // optional; leave off rather than guess.
+
+  // ── Global political leaders (high impersonation risk) ──
+  "antonio-guterres": {
+    type: "Person", name: "António Guterres",
+    wikidata: "https://www.wikidata.org/wiki/Q57246",
+    wikipedia: "https://en.wikipedia.org/wiki/Ant%C3%B3nio_Guterres",
+  },
+  "emmanuel-macron": {
+    type: "Person", name: "Emmanuel Macron",
+    wikidata: "https://www.wikidata.org/wiki/Q3052772",
+    wikipedia: "https://en.wikipedia.org/wiki/Emmanuel_Macron",
+  },
+  "giorgia-meloni": {
+    type: "Person", name: "Giorgia Meloni",
+    wikidata: "https://www.wikidata.org/wiki/Q1988744",
+    wikipedia: "https://en.wikipedia.org/wiki/Giorgia_Meloni",
+  },
+  "anthony-albanese": {
+    type: "Person", name: "Anthony Albanese",
+    wikidata: "https://www.wikidata.org/wiki/Q705195",
+    wikipedia: "https://en.wikipedia.org/wiki/Anthony_Albanese",
+  },
+  "christopher-luxon": {
+    type: "Person", name: "Christopher Luxon",
+    wikidata: "https://www.wikidata.org/wiki/Q28835405",
+    wikipedia: "https://en.wikipedia.org/wiki/Christopher_Luxon",
+  },
+  "chris-hipkins": {
+    type: "Person", name: "Chris Hipkins",
+    wikidata: "https://www.wikidata.org/wiki/Q15074263",
+    wikipedia: "https://en.wikipedia.org/wiki/Chris_Hipkins",
+  },
+  "jacinda-ardern": {
+    type: "Person", name: "Jacinda Ardern",
+    wikidata: "https://www.wikidata.org/wiki/Q20648460",
+    wikipedia: "https://en.wikipedia.org/wiki/Jacinda_Ardern",
+  },
+  "mark-carney": {
+    type: "Person", name: "Mark Carney",
+    wikidata: "https://www.wikidata.org/wiki/Q1889302",
+    wikipedia: "https://en.wikipedia.org/wiki/Mark_Carney",
+  },
+  "pierre-poilievre": {
+    type: "Person", name: "Pierre Poilievre",
+    wikidata: "https://www.wikidata.org/wiki/Q3387117",
+    wikipedia: "https://en.wikipedia.org/wiki/Pierre_Poilievre",
+  },
+  "javier-milei": {
+    type: "Person", name: "Javier Milei",
+    wikidata: "https://www.wikidata.org/wiki/Q3564691",
+    wikipedia: "https://en.wikipedia.org/wiki/Javier_Milei",
+  },
+  "cyril-ramaphosa": {
+    type: "Person", name: "Cyril Ramaphosa",
+    wikidata: "https://www.wikidata.org/wiki/Q317672",
+    wikipedia: "https://en.wikipedia.org/wiki/Cyril_Ramaphosa",
+  },
+  "anwar-ibrahim": {
+    type: "Person", name: "Anwar Ibrahim",
+    wikidata: "https://www.wikidata.org/wiki/Q192898",
+    wikipedia: "https://en.wikipedia.org/wiki/Anwar_Ibrahim",
+  },
+  "ferdinand-marcos-jr": {
+    type: "Person", name: "Ferdinand Marcos Jr.",
+    wikidata: "https://www.wikidata.org/wiki/Q5446269",
+    wikipedia: "https://en.wikipedia.org/wiki/Bongbong_Marcos",
+  },
+  "bola-ahmed-tinubu": {
+    type: "Person", name: "Bola Ahmed Tinubu",
+    wikidata: "https://www.wikidata.org/wiki/Q1058076",
+    wikipedia: "https://en.wikipedia.org/wiki/Bola_Tinubu",
+  },
+  "atiku-abubakar": {
+    type: "Person", name: "Atiku Abubakar",
+    wikidata: "https://www.wikidata.org/wiki/Q1141411",
+    wikipedia: "https://en.wikipedia.org/wiki/Atiku_Abubakar",
+  },
+  "donald-tusk": {
+    type: "Person", name: "Donald Tusk",
+    wikidata: "https://www.wikidata.org/wiki/Q183318",
+    wikipedia: "https://en.wikipedia.org/wiki/Donald_Tusk",
+  },
+  "andrej-babis": {
+    type: "Person", name: "Andrej Babiš",
+    wikidata: "https://www.wikidata.org/wiki/Q458882",
+    wikipedia: "https://en.wikipedia.org/wiki/Andrej_Babi%C5%A1",
+  },
+  "peter-pellegrini": {
+    type: "Person", name: "Peter Pellegrini",
+    wikidata: "https://www.wikidata.org/wiki/Q2081049",
+    wikipedia: "https://en.wikipedia.org/wiki/Peter_Pellegrini",
+  },
+  "aleksandar-vucic": {
+    type: "Person", name: "Aleksandar Vučić",
+    wikidata: "https://www.wikidata.org/wiki/Q509156",
+    wikipedia: "https://en.wikipedia.org/wiki/Aleksandar_Vu%C4%8Di%C4%87",
+  },
+  "andrej-plenkovic": {
+    type: "Person", name: "Andrej Plenković",
+    wikidata: "https://www.wikidata.org/wiki/Q13412986",
+    wikipedia: "https://en.wikipedia.org/wiki/Andrej_Plenkovi%C4%87",
+  },
+  "alice-weidel": {
+    type: "Person", name: "Alice Weidel",
+    wikidata: "https://www.wikidata.org/wiki/Q1569325",
+    wikipedia: "https://en.wikipedia.org/wiki/Alice_Weidel",
+  },
+  "felipe-vi": {
+    type: "Person", name: "Felipe VI",
+    wikidata: "https://www.wikidata.org/wiki/Q191045",
+    wikipedia: "https://en.wikipedia.org/wiki/Felipe_VI",
+  },
+  "arnold-schwarzenegger": {
+    type: "Person", name: "Arnold Schwarzenegger",
+    wikidata: "https://www.wikidata.org/wiki/Q2685",
+    wikipedia: "https://en.wikipedia.org/wiki/Arnold_Schwarzenegger",
+  },
+
+  // ── Business / tech / finance ──
+  "bernard-arnault": {
+    type: "Person", name: "Bernard Arnault",
+    wikidata: "https://www.wikidata.org/wiki/Q191037",
+    wikipedia: "https://en.wikipedia.org/wiki/Bernard_Arnault",
+  },
+  "xavier-niel": {
+    type: "Person", name: "Xavier Niel",
+    wikidata: "https://www.wikidata.org/wiki/Q1207",
+    wikipedia: "https://en.wikipedia.org/wiki/Xavier_Niel",
+  },
+  "mark-zuckerberg": {
+    type: "Person", name: "Mark Zuckerberg",
+    wikidata: "https://www.wikidata.org/wiki/Q36215",
+    wikipedia: "https://en.wikipedia.org/wiki/Mark_Zuckerberg",
+  },
+  "bill-gates": {
+    type: "Person", name: "Bill Gates",
+    wikidata: "https://www.wikidata.org/wiki/Q5284",
+    wikipedia: "https://en.wikipedia.org/wiki/Bill_Gates",
+  },
+  "chamath-palihapitiya": {
+    type: "Person", name: "Chamath Palihapitiya",
+    wikidata: "https://www.wikidata.org/wiki/Q15994614",
+    wikipedia: "https://en.wikipedia.org/wiki/Chamath_Palihapitiya",
+  },
+  "ana-botin": {
+    type: "Person", name: "Ana Botín",
+    wikidata: "https://www.wikidata.org/wiki/Q459423",
+    wikipedia: "https://en.wikipedia.org/wiki/Ana_Bot%C3%ADn",
+  },
+  "prince-alwaleed-bin-talal": {
+    type: "Person", name: "Prince Alwaleed Bin Talal",
+    wikidata: "https://www.wikidata.org/wiki/Q314479",
+    wikipedia: "https://en.wikipedia.org/wiki/Al-Waleed_bin_Talal",
+  },
+  "hussein-sajwani": {
+    type: "Person", name: "Hussein Sajwani",
+    wikidata: "https://www.wikidata.org/wiki/Q4507019",
+    wikipedia: "https://en.wikipedia.org/wiki/Hussain_Sajwani",
+  },
+  "antonio-horta-osorio": {
+    type: "Person", name: "António Horta-Osório",
+    wikidata: "https://www.wikidata.org/wiki/Q4779859",
+    wikipedia: "https://en.wikipedia.org/wiki/Ant%C3%B3nio_Horta-Os%C3%B3rio",
+  },
+  "jack-ma": {
+    type: "Person", name: "Jack Ma",
+    wikidata: "https://www.wikidata.org/wiki/Q1137062",
+    wikipedia: "https://en.wikipedia.org/wiki/Jack_Ma",
+  },
+  "robert-kuok": {
+    type: "Person", name: "Robert Kuok",
+    wikidata: "https://www.wikidata.org/wiki/Q1280008",
+    wikipedia: "https://en.wikipedia.org/wiki/Robert_Kuok",
+  },
+  "luciano-hang": {
+    type: "Person", name: "Luciano Hang",
+    wikidata: "https://www.wikidata.org/wiki/Q30111635",
+    wikipedia: "https://en.wikipedia.org/wiki/Luciano_Hang",
+  },
+  "aliko-dangote": {
+    type: "Person", name: "Aliko Dangote",
+    wikidata: "https://www.wikidata.org/wiki/Q465329",
+    wikipedia: "https://en.wikipedia.org/wiki/Aliko_Dangote",
+  },
+  "patrick-bet-david": {
+    type: "Person", name: "Patrick Bet-David",
+    wikidata: "https://www.wikidata.org/wiki/Q60754815",
+    wikipedia: "https://en.wikipedia.org/wiki/Patrick_Bet-David",
+  },
+
+  // ── Media / entertainment ──
+  // NOTE: "cristiano-ronaldo" is already defined above — do not duplicate.
+  "andres-iniesta": {
+    type: "Person", name: "Andrés Iniesta",
+    wikidata: "https://www.wikidata.org/wiki/Q43729",
+    wikipedia: "https://en.wikipedia.org/wiki/Andr%C3%A9s_Iniesta",
+  },
+  "antonio-banderas": {
+    type: "Person", name: "Antonio Banderas",
+    wikidata: "https://www.wikidata.org/wiki/Q41142",
+    wikipedia: "https://en.wikipedia.org/wiki/Antonio_Banderas",
+  },
+  "michelle-yeoh": {
+    type: "Person", name: "Michelle Yeoh",
+    wikidata: "https://www.wikidata.org/wiki/Q234819",
+    wikipedia: "https://en.wikipedia.org/wiki/Michelle_Yeoh",
+  },
+  "andy-lau": {
+    type: "Person", name: "Andy Lau",
+    wikidata: "https://www.wikidata.org/wiki/Q313866",
+    wikipedia: "https://en.wikipedia.org/wiki/Andy_Lau",
+  },
+  "nick-cheung": {
+    type: "Person", name: "Nick Cheung",
+    wikidata: "https://www.wikidata.org/wiki/Q544530",
+    wikipedia: "https://en.wikipedia.org/wiki/Nick_Cheung",
+  },
+  "joey-yung": {
+    type: "Person", name: "Joey Yung",
+    wikidata: "https://www.wikidata.org/wiki/Q312692",
+    wikipedia: "https://en.wikipedia.org/wiki/Joey_Yung",
+  },
+  "alan-carr": {
+    type: "Person", name: "Alan Carr",
+    wikidata: "https://www.wikidata.org/wiki/Q366120",
+    wikipedia: "https://en.wikipedia.org/wiki/Alan_Carr_(comedian)",
+  },
+  "cat-deeley": {
+    type: "Person", name: "Cat Deeley",
+    wikidata: "https://www.wikidata.org/wiki/Q236329",
+    wikipedia: "https://en.wikipedia.org/wiki/Cat_Deeley",
+  },
+  "alpha-blondy": {
+    type: "Person", name: "Alpha Blondy",
+    wikidata: "https://www.wikidata.org/wiki/Q343127",
+    wikipedia: "https://en.wikipedia.org/wiki/Alpha_Blondy",
+  },
+  "mister-v": {
+    type: "Person", name: "Mister V",
+    wikidata: "https://www.wikidata.org/wiki/Q3317498",
+    wikipedia: "https://en.wikipedia.org/wiki/Mister_V",
+  },
+  "thomas-pesquet": {
+    type: "Person", name: "Thomas Pesquet",
+    wikidata: "https://www.wikidata.org/wiki/Q495174",
+    wikipedia: "https://en.wikipedia.org/wiki/Thomas_Pesquet",
+  },
+
+  // ── Finance/regulatory figures ──
+  "jens-stoltenberg": {
+    type: "Person", name: "Jens Stoltenberg",
+    wikidata: "https://www.wikidata.org/wiki/Q60800",
+    wikipedia: "https://en.wikipedia.org/wiki/Jens_Stoltenberg",
+  },
+  "joachim-nagel": {
+    type: "Person", name: "Joachim Nagel",
+    wikidata: "https://www.wikidata.org/wiki/Q1673488",
+    wikipedia: "https://en.wikipedia.org/wiki/Joachim_Nagel",
+  },
+  "haruhiko-kuroda": {
+    type: "Person", name: "Haruhiko Kuroda",
+    wikidata: "https://www.wikidata.org/wiki/Q515961",
+    wikipedia: "https://en.wikipedia.org/wiki/Haruhiko_Kuroda",
+  },
+  "adam-glapinski": {
+    type: "Person", name: "Adam Glapiński",
+    wikidata: "https://www.wikidata.org/wiki/Q4678335",
+    wikipedia: "https://en.wikipedia.org/wiki/Adam_Glapi%C5%84ski",
+  },
+  "pierre-wunsch": {
+    type: "Person", name: "Pierre Wunsch",
+    wikidata: "https://www.wikidata.org/wiki/Q47499879",
+  },
 };
 
 // ─── Utilities ──────────────────────────────────────────────────────────────
@@ -555,8 +836,24 @@ export function buildDataset(
   // distribution: pass through verbatim when non-empty. The Vercel
   // normalizeDataset already shapes these as DataDownload nodes, so we trust
   // upstream; if it's missing we do NOT synthesize placeholders client-side.
+  //
+  // Defense-in-depth: rewrite legacy `crypto-killer.base44.app` contentUrls
+  // to `cryptokiller.org`. Root cause is the stale NEXT_PUBLIC_SITE_URL env
+  // var on Vercel; fixing it there will make this rewrite a no-op. Leaving
+  // it in place so older payloads or a future env-var regression don't
+  // ship broken Dataset URLs that Google Dataset Search will reject.
+  const rewriteContentUrl = (url: unknown): string | null => {
+    if (typeof url !== "string") return null;
+    return url.replace(/^https?:\/\/crypto-killer\.base44\.app/i, "https://cryptokiller.org");
+  };
   const distribution = Array.isArray(d.distribution) && d.distribution.length
-    ? d.distribution
+    ? d.distribution.map((dist) => {
+        if (!dist || typeof dist !== "object") return dist;
+        const rewritten = rewriteContentUrl((dist as Record<string, unknown>).contentUrl);
+        return rewritten
+          ? { ...(dist as Record<string, unknown>), contentUrl: rewritten }
+          : dist;
+      })
     : undefined;
 
   const variableMeasured = Array.isArray(d.variableMeasured) && d.variableMeasured.length

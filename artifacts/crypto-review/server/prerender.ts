@@ -190,6 +190,18 @@ function websiteNode(): Record<string, unknown> {
     name: "CryptoKiller",
     publisher: { "@id": ORG_ID },
     inLanguage: "en",
+    // Sitelinks Search Box — Google's on-SERP search affordance. The
+    // urlTemplate must resolve to an actual searchable page (investigations
+    // listing supports ?q=). Harmless if no rich result unlocks; required
+    // for Search Box eligibility when Google decides to render one.
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${BASE}/investigations?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
   };
 }
 
@@ -208,14 +220,151 @@ function legalEntityNode(): Record<string, unknown> {
 }
 
 function breadcrumbList(items: { label: string; href: string }[]): Record<string, unknown> {
+  // @id anchors the BreadcrumbList to its terminal page for entity graph
+  // cross-referencing. Skip when items is empty or the terminal href is
+  // missing — an undefined @id is worse than absence.
+  const terminal = items.length ? items[items.length - 1].href : undefined;
   return {
     "@type": "BreadcrumbList",
+    ...(terminal ? { "@id": `${terminal}#breadcrumbs` } : {}),
     itemListElement: items.map((it, i) => ({
       "@type": "ListItem",
       position: i + 1,
       name: it.label,
       item: it.href,
     })),
+  };
+}
+
+/**
+ * Build a full schema.org/Person node for an author persona.
+ * Used as an entity graph node (not a reference). The Review node
+ * references this via `author: { "@id": ... }`.
+ *
+ * YMYL E-E-A-T: every scam review is YMYL per Google QRG 2024, which
+ * explicitly requires personal authorship signals. Organization-only
+ * authors suppress rich results and reduce E-E-A-T trust score.
+ */
+function personNode(persona: WriterPersona): Record<string, unknown> {
+  const slugId = persona.slug;
+  return {
+    "@type": "Person",
+    "@id": `${BASE}/author/${slugId}#person`,
+    name: persona.name,
+    url: `${BASE}/author/${slugId}`,
+    jobTitle: persona.role,
+    description: persona.bio,
+    worksFor: { "@id": ORG_ID },
+    memberOf: { "@id": ORG_ID },
+    knowsAbout: persona.specialties,
+    ...(persona.sameAs && persona.sameAs.length ? { sameAs: persona.sameAs } : {}),
+    ...(persona.credentials
+      ? {
+          hasCredential: {
+            "@type": "EducationalOccupationalCredential",
+            credentialCategory: "Professional Experience",
+            description: persona.credentials,
+          },
+        }
+      : {}),
+  };
+}
+
+/**
+ * Resolve authorPersonaId from the review row into a Person reference plus
+ * the full Person node to append to the @graph. Always returns both — the
+ * reference goes on the Review node's `author` field, the full node goes as
+ * a sibling in the top-level @graph.
+ *
+ * Falls back to the 'webb' persona when the row doesn't have a valid
+ * persona id (older reviews pre-migration). Never emits an Organization
+ * author — organizational authorship on YMYL content suppresses rich
+ * results.
+ */
+function resolveAuthorPersona(personaId: string | null | undefined): {
+  ref: Record<string, unknown>;
+  node: Record<string, unknown>;
+} {
+  const id = typeof personaId === "string" && WRITER_PERSONAS[personaId]
+    ? personaId
+    : "webb";
+  const persona = WRITER_PERSONAS[id];
+  const node = personNode(persona);
+  const ref = { "@id": `${BASE}/author/${persona.slug}#person` };
+  return { ref, node };
+}
+
+/**
+ * Build the Review's itemReviewed as a standalone typed entity node.
+ * Reads from `row.itemReviewed` which Vercel's sync-shape populates
+ * from the writer's typed item_reviewed field (Task 7A).
+ *
+ * Whitelist-guarded types: FinancialProduct | Service | SoftwareApplication
+ * | Organization. Fallback is "Service" — never "Thing" (which fails
+ * Google's Review rich result eligibility).
+ *
+ * Returns null only when there's no brand name to work with; otherwise
+ * always emits a usable typed node even if the writer hasn't shipped
+ * item_reviewed yet (synthetic Service with the brand name + tier-aware
+ * description).
+ */
+function itemReviewedNode(
+  rawItemReviewed: unknown,
+  canonical: string,
+  platformName: string,
+  row: { heroDescription?: string | null; summary?: string | null; threatScore?: number | null },
+  tier: TierInfo,
+): Record<string, unknown> | null {
+  const VALID_TYPES = new Set([
+    "FinancialProduct",
+    "Service",
+    "SoftwareApplication",
+    "Organization",
+  ]);
+  const input = rawItemReviewed && typeof rawItemReviewed === "object"
+    ? (rawItemReviewed as Record<string, unknown>)
+    : null;
+
+  const rawType = input?.type;
+  const type = typeof rawType === "string" && VALID_TYPES.has(rawType)
+    ? rawType
+    : "Service";
+
+  const rawName = typeof input?.name === "string" ? input.name.trim() : "";
+  const name = rawName || platformName;
+  if (!name) return null;
+
+  const rawDesc = typeof input?.description === "string" ? input.description.trim() : "";
+  const description = rawDesc
+    ? rawDesc
+    : (row.heroDescription || row.summary
+        ? truncate(clean(row.heroDescription || row.summary), 250)
+        : `Platform under investigation by CryptoKiller. Threat score ${row.threatScore ?? "?"}/100 (${tier.label}).`);
+
+  const url = typeof input?.url === "string" && (input.url as string).startsWith("http")
+    ? (input.url as string)
+    : undefined;
+
+  const alternateName = Array.isArray(input?.alternateName) && input.alternateName.length
+    ? (input.alternateName as unknown[]).filter((v): v is string => typeof v === "string")
+    : undefined;
+
+  const sameAs = Array.isArray(input?.sameAs) && input.sameAs.length
+    ? (input.sameAs as unknown[]).filter((v): v is string => typeof v === "string" && v.startsWith("http"))
+    : undefined;
+
+  return {
+    "@type": type,
+    "@id": `${canonical}#item-reviewed`,
+    name,
+    description,
+    ...(url ? { url } : {}),
+    ...(alternateName && alternateName.length ? { alternateName } : {}),
+    ...(sameAs && sameAs.length ? { sameAs } : {}),
+    // `subjectOf` links back to the Review — creates a bidirectional
+    // relationship Google's entity graph ingestion uses to attribute
+    // the review back to the platform entity.
+    subjectOf: { "@id": `${canonical}#review` },
   };
 }
 
@@ -306,6 +455,7 @@ ${faqHtml}
     baseGraph.push({
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
+      inLanguage: "en",
       mainEntity: p.faq.map((f) => ({
         "@type": "Question",
         name: f.question,
@@ -885,17 +1035,43 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     5000,
   );
 
+  // Author: resolve to Person node + reference. YMYL E-E-A-T requires
+  // personal authorship. Legacy rows without authorPersonaId fall back
+  // to 'webb'. The Person node is appended to @graph separately below so
+  // Google sees a complete entity, not just a bare @id reference.
+  const { ref: authorRef, node: authorNode } = resolveAuthorPersona(row.authorPersonaId);
+
+  // itemReviewed: typed entity node (Task 7B). Reads from row.itemReviewed
+  // which Vercel sync-shape populates from the writer's item_reviewed field
+  // (Task 7A). The Replit DB schema doesn't carry this column yet — access
+  // via unchecked cast so pre-migration rows cleanly take the fallback
+  // path (synthetic Service node from platformName + tier).
+  const rawItemReviewed = (row as Record<string, unknown>).itemReviewed;
+  const itemReviewed = itemReviewedNode(
+    rawItemReviewed,
+    canonical,
+    platformName,
+    { heroDescription: row.heroDescription, summary: row.summary, threatScore: row.threatScore },
+    tier,
+  );
+
   const graph: Record<string, unknown>[] = [
     legalEntityNode(),
     organizationNode(),
     websiteNode(),
+    authorNode,
+    ...(itemReviewed ? [itemReviewed] : []),
     breadcrumbList([
       { label: "Home", href: `${BASE}/` },
       { label: "Investigations", href: `${BASE}/investigations` },
       { label: `${platformName} ${headlineLabel}`, href: canonical },
     ]),
     {
-      "@type": ["Review", "Article"],
+      // Single type — Review. Dual-typing with Article caused Google to
+      // treat it as neither, suppressing rich results. Review covers all
+      // the Article-like properties (wordCount, image, speakable) and is
+      // the correct type for a brand assessment.
+      "@type": "Review",
       "@id": `${canonical}#review`,
       headline: title,
       url: canonical,
@@ -904,7 +1080,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       inLanguage: "en",
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
-      author: { "@type": "Organization", name: row.author || "CryptoKiller Research Team", url: BASE },
+      author: authorRef,
       ...(datePublished ? { datePublished } : {}),
       ...(dateModified ? { dateModified } : {}),
       ...(row.wordCount ? { wordCount: row.wordCount } : {}),
@@ -945,20 +1121,17 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
               })),
           }
         : {}),
-      itemReviewed: {
-        // Default @type is "Thing" — the broadest schema.org type. We'd
-        // ideally read brand.entity_type from the platforms table (populated
-        // by Vercel admin), but that column doesn't exist on Replit yet.
-        // For now "Thing" is correct-if-vague; the Vercel review-schema PR
-        // (crypto-killer #9) derives this from brand.entity_type when
-        // populated, and we'll mirror that here in a follow-up once the
-        // platforms table gains the column.
-        "@type": resolveItemReviewedType(undefined),
-        name: platformName,
-        description: row.heroDescription || row.summary
-          ? truncate(clean(row.heroDescription || row.summary), 250)
-          : `Platform under investigation by CryptoKiller. Threat score ${row.threatScore}/100 (${tier.label}).`,
-      },
+      // itemReviewed: reference to the typed entity node above (not inline).
+      // When the helper synthesized a usable node we emit a bare @id ref —
+      // otherwise fall back to an inline Service node so Rich Results has
+      // something valid to parse.
+      itemReviewed: itemReviewed
+        ? { "@id": `${canonical}#item-reviewed` }
+        : {
+            "@type": "Service",
+            name: platformName,
+            description: `Platform under investigation by CryptoKiller. Threat score ${row.threatScore ?? "?"}/100 (${tier.label}).`,
+          },
       // reviewRating with correct polarity: high tiers → 1 star (worst),
       // low tier → no rating node at all. See lib/review-schema.js on the
       // Vercel side for the same decision tree. Google Rich Results renders
@@ -986,6 +1159,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     graph.push({
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
+      inLanguage: "en",
       mainEntity: faqItems.map((f) => ({
         "@type": "Question",
         name: f.question,
@@ -1247,6 +1421,7 @@ ${sourcesHtml}
     graph.push({
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
+      inLanguage: "en",
       mainEntity: faq.map((f) => ({
         "@type": "Question",
         name: f.question || "",
