@@ -45,7 +45,12 @@ function stripHtmlToWords(html: string): number {
 
 async function fetchText(url: string): Promise<{ status: number; text: string }> {
   const res = await fetch(url, {
-    headers: { "user-agent": GOOGLEBOT_UA, accept: "text/html,application/xhtml+xml" },
+    headers: {
+      "user-agent": GOOGLEBOT_UA,
+      accept: "text/html,application/xhtml+xml",
+      "cache-control": "no-cache",
+      pragma: "no-cache",
+    },
   });
   return { status: res.status, text: await res.text() };
 }

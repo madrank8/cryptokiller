@@ -7,6 +7,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { globalSiteSchema } from "@/lib/schemaBuilder";
 import { useMemo } from "react";
 
 interface BlogPostSummary {
@@ -169,19 +170,17 @@ export default function BlogPage() {
   ];
 
   const blogJsonLd = useMemo(() => {
+    const globalGraph = ((globalSiteSchema()["@graph"] as Record<string, unknown>[] | undefined) ?? []);
     const graph: Record<string, unknown>[] = [
+      ...globalGraph,
       {
         "@type": "CollectionPage",
+        "@id": `${BASE}/blog#webpage`,
         name: "CryptoKiller Blog",
         description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety.",
         url: `${BASE}/blog`,
-        isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: BASE },
-        publisher: {
-          "@type": "Organization",
-          name: "CryptoKiller",
-          url: BASE,
-          logo: { "@type": "ImageObject", url: `${BASE}/logo.png` },
-        },
+        isPartOf: { "@id": `${BASE}/#website` },
+        publisher: { "@id": `${BASE}/#organization` },
       },
       breadcrumbJsonLd(crumbs),
     ];

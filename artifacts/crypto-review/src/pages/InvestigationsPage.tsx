@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
+import { globalSiteSchema } from "@/lib/schemaBuilder";
 
 type SortKey = "threatScore" | "newest" | "adCreatives" | "countriesTargeted" | "daysActive" | "platformName";
 type ThreatFilter = "all" | "critical" | "high" | "medium" | "low";
@@ -266,6 +267,45 @@ export default function InvestigationsPage() {
 
   const prevHref = clampedPage > 1 ? canonicalUrl(clampedPage - 1) : undefined;
   const nextHref = clampedPage < totalPages ? canonicalUrl(clampedPage + 1) : undefined;
+  const investigationsJsonLd = useMemo(() => {
+    const canonical = canonicalUrl(clampedPage);
+    const globalGraph = ((globalSiteSchema()["@graph"] as Record<string, unknown>[] | undefined) ?? []);
+    const pageNode: Record<string, unknown> = {
+      "@type": "CollectionPage",
+      "@id": `${canonical}#webpage`,
+      url: canonical,
+      name:
+        clampedPage > 1
+          ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
+          : "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
+      description:
+        "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
+      isPartOf: { "@id": `${BASE}/#website` },
+      inLanguage: "en",
+    };
+
+    if (filtered.length > 0) {
+      pageNode.mainEntity = {
+        "@type": "ItemList",
+        numberOfItems: filtered.length,
+        itemListElement: filtered.slice(0, 20).map((r, idx) => ({
+          "@type": "ListItem",
+          position: idx + 1,
+          url: `${BASE}/review/${r.slug}`,
+          name: `${r.platformName} Scam Review`,
+        })),
+      };
+    }
+
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        ...globalGraph,
+        breadcrumbJsonLd(crumbs),
+        pageNode,
+      ],
+    };
+  }, [clampedPage, filtered, crumbs]);
 
   usePageMeta({
     title: clampedPage > 1
@@ -273,7 +313,7 @@ export default function InvestigationsPage() {
       : "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
     description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
     canonical: canonicalUrl(clampedPage),
-    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    jsonLd: investigationsJsonLd,
     prevPage: prevHref,
     nextPage: nextHref,
   });
