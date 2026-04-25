@@ -87,6 +87,21 @@ type Dataset = {
   variableMeasured?: string[];
 };
 
+// Typed entity the review is ABOUT. Writer emits; Vercel sync-shape
+// normalises against the type whitelist below. Stored so prerender can
+// emit a proper FinancialProduct/Service/SoftwareApplication/Organization
+// node with @id instead of falling back to a synthesised Service from
+// platformName alone. See artifacts/crypto-review/server/prerender.ts
+// `itemReviewedNode`.
+type ItemReviewed = {
+  type: "FinancialProduct" | "Service" | "SoftwareApplication" | "Organization";
+  name: string;
+  description: string | null;
+  url: string | null;
+  alternateName: string[] | null;
+  sameAs: string[] | null;
+};
+
 // schema.org Quotation node.
 type Quote = {
   text: string;
@@ -127,6 +142,11 @@ export const reviewsTable = pgTable("reviews", {
   sources: jsonb("sources").$type<ReviewSource[]>().notNull().default([]),
   notForYou: text("not_for_you").notNull().default(""),
   expertiseDepth: text("expertise_depth").notNull().default(""),
+  // ── Long-form article body ──
+  // Writer-emitted HTML article rendered inline on /review/<slug>. Sync
+  // payload includes this as `full_article`; if absent we keep an empty
+  // string and the prerender falls back to structured sections.
+  fullArticle: text("full_article").notNull().default(""),
 
   // ── Tier metadata (added 2026-04-21, migration 0003) ──
   // Populated by the Vercel /api/sync/review webhook from sync-shape's
@@ -153,6 +173,7 @@ export const reviewsTable = pgTable("reviews", {
   speakableSelectors: jsonb("speakable_selectors").$type<string[]>().notNull().default([]),
   citations: jsonb("citations").$type<Citation[]>().notNull().default([]),
   dataset: jsonb("dataset").$type<Dataset | null>(),
+  itemReviewed: jsonb("item_reviewed").$type<ItemReviewed | null>(),
   itemList: jsonb("item_list").$type<ItemListEntry[] | null>(),
   howTo: jsonb("how_to").$type<HowTo | null>(),
   quotes: jsonb("quotes").$type<Quote[]>().notNull().default([]),

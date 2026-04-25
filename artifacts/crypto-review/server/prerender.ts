@@ -167,6 +167,29 @@ function clean(s: string | null | undefined): string {
   return (s ?? "").replace(/\s+/g, " ").trim();
 }
 
+function organizationSameAs(): string[] {
+  const envUrls = [
+    process.env.CRYPTOKILLER_LINKEDIN_URL,
+    process.env.CRYPTOKILLER_TWITTER_URL,
+    process.env.CRYPTOKILLER_CRUNCHBASE_URL,
+    process.env.CRYPTOKILLER_GITHUB_URL,
+    process.env.CRYPTOKILLER_WIKIDATA_URL,
+  ]
+    .map((u) => clean(u))
+    .filter((u) => u.startsWith("https://"));
+
+  if (envUrls.length > 0) return envUrls;
+
+  // Fallback keeps Organization.sameAs populated when env propagation
+  // lags between Vercel/Replit; use only canonical profiles.
+  return [
+    "https://www.linkedin.com/company/cryptokiller/",
+    "https://twitter.com/cryptokiller_org",
+    "https://www.crunchbase.com/organization/cryptokiller",
+    "https://github.com/madrank8",
+  ];
+}
+
 function organizationNode(): Record<string, unknown> {
   return {
     "@type": "Organization",
@@ -179,6 +202,7 @@ function organizationNode(): Record<string, unknown> {
     parentOrganization: { "@id": LEGAL_ENTITY_ID },
     email: "corrections@cryptokiller.org",
     areaServed: "Worldwide",
+    sameAs: organizationSameAs(),
   };
 }
 
@@ -742,6 +766,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
       sources: reviewsTable.sources,
       notForYou: reviewsTable.notForYou,
       expertiseDepth: reviewsTable.expertiseDepth,
+      fullArticle: reviewsTable.fullArticle,
       // Tier metadata (migration 0003). Drives the <title>, <h1>, schema
       // itemReviewed/reviewRating polarity, and the severity chip.
       threatTier: reviewsTable.threatTier,
@@ -760,6 +785,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
       speakableSelectors: reviewsTable.speakableSelectors,
       citations: reviewsTable.citations,
       dataset: reviewsTable.dataset,
+      itemReviewed: reviewsTable.itemReviewed,
       itemList: reviewsTable.itemList,
       howTo: reviewsTable.howTo,
       quotes: reviewsTable.quotes,
@@ -1041,14 +1067,13 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   // Google sees a complete entity, not just a bare @id reference.
   const { ref: authorRef, node: authorNode } = resolveAuthorPersona(row.authorPersonaId);
 
-  // itemReviewed: typed entity node (Task 7B). Reads from row.itemReviewed
-  // which Vercel sync-shape populates from the writer's item_reviewed field
-  // (Task 7A). The Replit DB schema doesn't carry this column yet — access
-  // via unchecked cast so pre-migration rows cleanly take the fallback
-  // path (synthetic Service node from platformName + tier).
-  const rawItemReviewed = (row as Record<string, unknown>).itemReviewed;
+  // itemReviewed: typed entity node. Reads from row.itemReviewed, which
+  // Vercel sync-shape populates from the writer's item_reviewed field
+  // (Task 7A) and Replit's /sync/review persists via migration 0004.
+  // Pre-migration rows (null) fall through to the helper's synthetic
+  // Service fallback.
   const itemReviewed = itemReviewedNode(
-    rawItemReviewed,
+    row.itemReviewed,
     canonical,
     platformName,
     { heroDescription: row.heroDescription, summary: row.summary, threatScore: row.threatScore },
@@ -1548,48 +1573,479 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         "CryptoKiller is an independent crypto scam intelligence platform tracking 1,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
       h1: "About CryptoKiller",
       intro:
-        "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. (Singapore). We track over 1,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
+        "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. in Singapore. We track over 1,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
+      sections: [
+        {
+          heading: "What we do",
+          paragraphs: [
+            "CryptoKiller exists to give every person researching a crypto platform a fast, evidence-based answer to the question \"is this a scam?\". We monitor paid-ad networks in 84+ countries, capture the ad creatives and landing pages scam operators use, and turn that raw evidence into structured investigations tied to specific brand names.",
+            "Each investigation we publish includes a numeric threat score backed by six categories of evidence, side-by-side screenshots of the advertisements we captured, a breakdown of the funnel used to extract deposits, and citations to regulatory warnings issued by recognised authorities such as the FCA (United Kingdom), SEC (United States), ASIC (Australia), CONSOB (Italy), AMF (France), BaFin (Germany), and the national fraud agencies of every jurisdiction we cover.",
+            "We do not sell listings, accept removal fees, or publish sponsored reviews. Our revenue model — partnerships with regulated exchanges and educational content — is described in our editorial policy below. Every published investigation is reproducible from the evidence we cite.",
+          ],
+        },
+        {
+          heading: "Who runs CryptoKiller",
+          paragraphs: [
+            "CryptoKiller is operated by DEX Algo Technologies Pte Ltd., a company registered in Singapore. The company holds the operational and legal responsibility for the platform and is the publisher of record for all investigations.",
+            "Investigations are written by a research team with documented experience in cybercrime analysis, blockchain forensics, financial-crime research, digital forensics, and independent crypto journalism. Each investigation carries the named byline of the analyst responsible, with credentials, specialisations, and public profiles linked from the review page.",
+            "The platform is editorially independent. No advertiser, exchange, or affiliate partner has veto power over which brands we investigate or what conclusions we publish. Our editors are the only parties who decide what gets published, when, and how.",
+          ],
+        },
+        {
+          heading: "Our investigation approach",
+          paragraphs: [
+            "Every threat score is built from evidence that is either publicly observable (paid ads, landing pages, domain registration records, regulator bulletins) or directly submitted by victims under our reporting process. We do not include unverifiable rumours, unattributed forum posts, or competitor-sourced claims in any published investigation.",
+            "When we cite a regulator, we link to the specific bulletin — not a general warning page. When we quote an ad creative, we show the screenshot. When we cite a statistic about geographic reach or campaign duration, the number comes from our SpyOwl ad-surveillance platform, which scans paid advertising in 84+ countries continuously.",
+            "We publish under a model we call \"evidence-first, pay-to-remove-never\". If a brand disputes our findings, the only path to a correction is new evidence — which we will evaluate and publish a correction or full retraction for, if warranted. No brand has ever paid to have a review altered or removed, and no brand ever will.",
+          ],
+        },
+        {
+          heading: "How we're funded",
+          paragraphs: [
+            "CryptoKiller is funded by referral partnerships with regulated cryptocurrency exchanges (such as exchanges licensed under the EU's MiCA framework, U.S. money-service-business registrations, or equivalent jurisdictional licensing) and by sponsored educational content clearly labelled as such. We receive no funding from the subjects of our investigations or from any party with an interest in our editorial conclusions.",
+            "Partner exchanges are chosen for their licensing status and track record, not their willingness to pay. Educational sponsorships are disclosed on every page where they appear and never affect our threat-scoring methodology.",
+            "We do not run display advertising, tracking cookies, or third-party behavioural analytics. The site exists to serve the reader's question, not to monetise their attention.",
+          ],
+        },
+        {
+          heading: "Editorial corrections",
+          paragraphs: [
+            "If you believe we have published something inaccurate, please email corrections@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request — whether it comes from a subject of an investigation, a reader, a victim, or a regulator. We do not charge for corrections and we do not condition corrections on non-publication of other content.",
+            "When we make a correction, we publish a dated correction notice on the affected page rather than silently editing. When we retract a full investigation, we leave the original URL in place with a visible retraction notice so the record remains auditable.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "Does CryptoKiller accept payment to remove reviews?",
+          answer:
+            "No. No brand has ever paid us to remove, alter, or soften an investigation, and no brand ever will. The only way to change a published investigation is to provide new evidence that changes the factual basis. If a brand offers payment for removal, we log it and it becomes part of the public record on the investigation page.",
+        },
+        {
+          question: "How do you decide which brands to investigate?",
+          answer:
+            "Our SpyOwl ad-surveillance platform continuously scans paid advertising in 84+ countries. When a brand exceeds our threshold signals (ad volume, celebrity impersonation, jurisdictional targeting pattern, consumer-harm complaints), it enters our investigation queue. We also investigate brands reported to us directly through our reporting form.",
+        },
+        {
+          question: "Are your threat scores objective?",
+          answer:
+            "Threat scores are calculated from six categories of evidence using a documented scoring function (see our methodology page). The inputs are objective — ad volume, number of celebrities impersonated, jurisdictional reach, regulatory warnings, funnel signals, and infrastructure red flags. Two analysts scoring the same brand from the same evidence will arrive at the same score. Human editorial review happens on top of the calculated score to catch edge cases.",
+        },
+        {
+          question: "What jurisdiction is CryptoKiller based in?",
+          answer:
+            "CryptoKiller is operated by DEX Algo Technologies Pte Ltd., registered in Singapore. Investigations cover brands advertising globally and cite the regulators relevant to each jurisdiction where a scam is active.",
+        },
+        {
+          question: "Can I submit a scam for investigation?",
+          answer:
+            "Yes. Use the reporting form at /report. Reports are confidential — your identity is never shared publicly. We cross-reference submissions with our SpyOwl intelligence and open investigations when the evidence threshold is met.",
+        },
+      ],
     }),
+
   "/methodology": () =>
     renderStaticPage({
       path: "/methodology",
       title: "Investigation Methodology — CryptoKiller",
       description:
-        "How CryptoKiller investigates crypto scams — evidence-based scoring, data sources, investigation process, and editorial standards backed by public data.",
+        "How CryptoKiller investigates crypto scams — evidence-based scoring across six categories, data sources, investigation process, and editorial standards.",
       h1: "Investigation Methodology",
       intro:
-        "Every CryptoKiller threat score is built from six categories of evidence: ad creative volume, geographic targeting spread, celebrity impersonation, funnel and registration patterns, regulatory and infrastructure signals, and historical pattern matching. Our editorial process moves from automated detection through evidence collection, analysis and scoring, and finally human editorial review before publication.",
+        "Every CryptoKiller threat score is built from six categories of evidence, each weighted according to its correlation with documented consumer harm. This page documents the complete methodology: what we measure, how we measure it, where the evidence comes from, how scores are calculated, how we handle edge cases, and what corrections process applies if we get something wrong. Nothing below is proprietary — the methodology is published in full so any reader can audit our conclusions against our evidence.",
+      sections: [
+        {
+          heading: "The six evidence categories",
+          paragraphs: [
+            "We score every brand across six categories. Each category contributes to the final threat score out of 100. The categories were chosen because each has an independently documented correlation with consumer harm in crypto fraud, established through regulatory enforcement actions, academic research, and our own investigation archive.",
+          ],
+          list: [
+            "Ad creative volume — total number of paid advertisements we have captured for the brand across all networks and geographies. Higher volume indicates larger marketing spend and greater victim exposure.",
+            "Geographic targeting spread — number of countries in which we have captured active ads for the brand. Multi-jurisdictional targeting is a documented signal of organised rather than opportunistic fraud.",
+            "Celebrity impersonation — count of public figures whose likeness, voice, or video appears in the brand's advertising without authorisation. Deepfake celebrity endorsement is among the strongest individual predictors of fraud in our archive.",
+            "Funnel and registration patterns — signals from the landing page and deposit funnel: domain age, WHOIS privacy, SSL certificate issuer, payment processor, withdrawal friction, KYC patterns, and the step sequence from ad-click to deposit.",
+            "Regulatory and infrastructure signals — explicit warnings from recognised regulators (FCA, SEC, ASIC, CONSOB, AMF, BaFin, and equivalents in every jurisdiction we cover), blocklist entries from payment processors, domain takedowns, and hosting infrastructure shared with known scam operations.",
+            "Historical pattern matching — similarity to brands we have previously confirmed as fraudulent, measured across advertising creative, domain patterns, payment infrastructure, and funnel design.",
+          ],
+        },
+        {
+          heading: "Where the evidence comes from",
+          paragraphs: [
+            "The ad-creative evidence comes from SpyOwl, our proprietary ad-surveillance platform. SpyOwl continuously scans paid advertising on major ad networks in 84+ countries, capturing creative assets, landing-page destinations, and geographic targeting. SpyOwl data is collected from publicly visible advertising — we do not access private ad dashboards and we do not pay for data we are not entitled to see.",
+            "Regulatory evidence comes directly from regulator bulletin pages. When we cite a regulator warning, we link to the specific bulletin. We do not cite \"the regulator said\" without linking the exact source.",
+            "Funnel evidence is collected by our analysts through manual inspection of landing pages, deposit flows, and withdrawal processes — without depositing real funds. When real-money interaction is required to establish a finding (for example, documenting a withdrawal-block), we note that explicitly and limit our claims to what can be established without participation.",
+            "Victim reports submitted through our /report form are cross-referenced with ad-surveillance data. We only incorporate a submitted claim into a published investigation when it is independently corroborated by at least one other evidence source.",
+          ],
+        },
+        {
+          heading: "How the threat score is calculated",
+          paragraphs: [
+            "The threat score is a weighted sum of normalised values across the six categories, producing a number between 0 and 100. The weights reflect each category's historical correlation with confirmed fraud in our archive — celebrity impersonation and regulatory warnings carry the heaviest weight, historical pattern matching the lightest.",
+            "A score of 0-19 is assigned to brands with insufficient signal for any conclusion — we explicitly avoid publishing these as \"clean\" because absence of evidence is not evidence of absence. A score of 20-39 indicates watchlist status: notable signals but not yet conclusive. 40-59 is elevated risk with multiple serious red flags. 60-79 is high risk with strong evidence of fraudulent activity. 80+ is a confirmed scam with regulator-issued warnings, multiple jurisdictional enforcement actions, or documented consumer harm.",
+            "The score is a guide, not a verdict. Every investigation page presents the full evidence so the reader can form their own conclusion. We encourage readers to consult the cited regulators directly before acting on any financial decision.",
+          ],
+        },
+        {
+          heading: "Editorial process",
+          paragraphs: [
+            "Every investigation moves through five stages: automated detection (SpyOwl flags the brand), evidence collection (analyst gathers ad creatives, funnel screenshots, domain records, regulator bulletins), analysis and scoring (evidence is weighed against the six-category framework), human editorial review (a second analyst independently verifies the evidence and scoring), and publication (the investigation is published with a named byline).",
+            "Investigations are revisited when new evidence emerges — a new regulator warning, a domain change, a payment-processor update, or a victim report. When an update changes the threat score by more than 10 points, we republish with a change-log entry.",
+            "No investigation is ever published without passing human editorial review. No investigation is ever unpublished without a documented reason. The full edit history of every published investigation is available on request.",
+          ],
+        },
+        {
+          heading: "Corrections and disputes",
+          paragraphs: [
+            "If a subject of an investigation, a victim, a regulator, or any other party believes we have published something inaccurate, the correction path is email corrections@cryptokiller.org with the URL and a clear explanation of the error. We review every correction request on the merits. Meritorious corrections result in a dated correction notice on the affected page. Substantive factual errors may result in a full retraction — in which case the original URL is preserved with a visible retraction notice, so the record remains auditable.",
+            "We do not charge for corrections. We do not condition corrections on payment, silence, partnership, or any other consideration. A correction request is evaluated solely on whether the factual claim in question can be sustained against the cited evidence.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "Can a brand pay to have its threat score lowered?",
+          answer:
+            "No. Threat scores are calculated from evidence. The only way to change a score is to change the underlying evidence — for example, by ceasing the advertising campaign we are tracking, or by becoming licensed in the jurisdictions where we documented regulatory violations. A brand asking to pay for score changes would be logged as part of the investigation and published.",
+        },
+        {
+          question: "Why do some investigations have scores and others don't?",
+          answer:
+            "We only assign a threat score when we have enough evidence across multiple categories to make it meaningful. Brands with very limited signal are not scored — we publish them as watchlist entries with the available evidence but no numeric score, because a score based on insufficient evidence is worse than no score at all.",
+        },
+        {
+          question: "Who decides which regulators you cite?",
+          answer:
+            "We cite the regulator or law-enforcement agency with jurisdiction over the advertising or victim location for each specific fact. If the brand advertises to UK consumers, we cite the FCA. If it advertises to U.S. consumers, the SEC, FTC, and CFTC as applicable. If it advertises to Australian consumers, ASIC. The choice of regulator follows the jurisdiction, not our editorial preference.",
+        },
+        {
+          question: "How do you handle a brand that changes its domain or rebrands?",
+          answer:
+            "We track brand identity through advertising creative, funnel infrastructure, and payment processing — not just domain names. When a known scam operation rebrands or moves to a new domain, we typically detect the continuation through SpyOwl ad-creative similarity and publish a new investigation with a cross-reference to the previous entity.",
+        },
+        {
+          question: "Are your investigations peer-reviewed?",
+          answer:
+            "Every investigation goes through internal peer review: a second analyst independently verifies evidence and scoring before publication. We also publish the full evidence base alongside every investigation, so external peer review is possible. Academic researchers studying crypto fraud can contact us for archive access.",
+        },
+      ],
     }),
+
   "/recovery": () =>
     renderStaticPage({
       path: "/recovery",
       title: "Crypto Scam Recovery Guide — CryptoKiller",
       description:
-        "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
+        "Step-by-step recovery guide if you have lost crypto to a scam. Immediate actions, reporting authorities in every major jurisdiction, and how to avoid recovery scams.",
       h1: "Crypto Scam Recovery Guide",
       intro:
-        "If you've lost crypto to a scam: stop all payments, contact your bank, secure your accounts with new passwords and 2FA, preserve every screenshot and transaction record, report to local police and your national fraud agency, and cut all contact with the scammer. Beware of recovery scams — anyone asking for an upfront fee to recover stolen crypto is also a scammer.",
+        "If you have lost crypto to a scam, the next 48 hours matter. The steps below are what we have seen actually help victims: immediate containment, evidence preservation, legitimate reporting channels, and — critically — how to recognise and avoid recovery scams, which target scam victims specifically and have become as common as the original scams themselves. This guide is not legal advice, and the realistic outlook for recovering already-transferred crypto is often poor. But there are actions that meaningfully increase your odds and actions that meaningfully reduce them.",
+      sections: [
+        {
+          heading: "Immediately: stop the bleeding",
+          paragraphs: [
+            "The first hour is for preventing further loss, not recovering what is already gone.",
+          ],
+          list: [
+            "Stop all payments to the platform. If the scammer is still asking for \"one more deposit to release your withdrawal\" or \"a tax payment to unlock the funds\", that is part of the scam — no legitimate withdrawal has ever required an additional deposit.",
+            "Contact your bank or card issuer if you funded the scam through a card or wire transfer. Request a chargeback if within the eligibility window (typically 120 days for cards, shorter for bank transfers). The sooner you report to your bank, the better your odds.",
+            "Secure your existing accounts — change passwords on email, exchange accounts, banking, and any wallet where you hold remaining crypto. Enable two-factor authentication everywhere that offers it. If the scam involved remote access to your device (common in \"investment manager\" scams), treat the device as compromised and scan it from a clean device or reinstall the operating system.",
+            "Cut all contact with the scammer. Do not engage with follow-up messages, do not threaten legal action in-message, and do not negotiate. Scammers who detect a victim is aware are a documented risk for retaliation via social engineering or doxxing attempts.",
+          ],
+        },
+        {
+          heading: "Preserve every piece of evidence",
+          paragraphs: [
+            "What you preserve in the first 48 hours is what you or a recovery professional will have to work with. Screenshots disappear, chat histories get deleted, wallet addresses get rotated. Copy everything before you do anything else.",
+          ],
+          list: [
+            "Screenshot every conversation with the scammer — full-screen, including timestamps and usernames. Export chat histories from WhatsApp, Telegram, Instagram, or wherever the contact took place.",
+            "Save every transaction ID, wallet address, bank reference number, and date. For on-chain transactions, a block explorer link (e.g. etherscan.io, blockchain.com) is sufficient.",
+            "Capture the scam platform itself — landing page URL, dashboard screenshots, \"portfolio\" screenshots, any login pages. If the site is still up, use a service like archive.today to create a permanent archived copy.",
+            "Save any celebrity endorsement videos or ads that led you to the platform. Deepfake evidence is critical for both prosecution and platform takedowns.",
+            "Write a timeline in plain language while the details are fresh — first contact, first deposit, escalating amounts, first withdrawal attempt, moment you realised something was wrong. This becomes the narrative for every report you file.",
+          ],
+        },
+        {
+          heading: "Reporting to authorities — by jurisdiction",
+          paragraphs: [
+            "Report to the police and national fraud agency in your country of residence. Reporting does not guarantee recovery — but it is the only path to official case numbers, which are often required for chargebacks, insurance claims, and any eventual civil action. Many jurisdictions now have dedicated cybercrime or financial-fraud units.",
+          ],
+          list: [
+            "United States — IC3.gov (FBI Internet Crime Complaint Center), ReportFraud.ftc.gov (Federal Trade Commission), and your state attorney general. For securities-related fraud, tips.sec.gov and cftc.gov/complaint.",
+            "United Kingdom — Action Fraud (actionfraud.police.uk) and the Financial Conduct Authority (fca.org.uk/contact/report-scam-unauthorised-firm).",
+            "European Union — Your national police fraud unit. In Germany, BaFin and your local Polizei. In France, Pharos (internet-signalement.gouv.fr) and AMF. In Italy, CONSOB and Polizia Postale.",
+            "Australia — Scamwatch (scamwatch.gov.au), ReportCyber (cyber.gov.au/report), and ASIC (asic.gov.au/report-a-concern).",
+            "Canada — Canadian Anti-Fraud Centre (antifraudcentre-centreantifraude.ca) and the RCMP.",
+            "Other jurisdictions — Your national police cybercrime unit and financial regulator. Most countries now have an online reporting portal for financial fraud.",
+          ],
+        },
+        {
+          heading: "Recovery scams: avoid at all costs",
+          paragraphs: [
+            "Recovery scams target people who have just been scammed. They advertise heavily on the same platforms (social media, YouTube comments, Telegram, forums) and offer to recover your funds — for an upfront fee, or for \"tax\", \"escrow\", or \"blockchain unlock\" payments. They are almost always the same criminal networks behind the original scam, or closely adjacent ones working off the same leaked victim lists.",
+            "There is no legitimate recovery service that requires payment before work begins. There is no \"blockchain unlock fee\", \"wallet freezing fee\", or \"government tax\" that you can pay to release your crypto. There is no hacker who can \"reverse the transaction\" on Bitcoin or Ethereum — the chains do not work that way, and anyone claiming to offer this is lying.",
+          ],
+          list: [
+            "Red flag — Upfront fees, \"tax\" payments, \"escrow\" deposits, or any payment required before the service produces results.",
+            "Red flag — Guarantees of recovery. No legitimate service guarantees recovery because no legitimate service has that power.",
+            "Red flag — Contact through unsolicited direct message (DM), email, or phone call after your original loss — especially if the contact mentions specific details of your case that you did not make public.",
+            "Red flag — \"Partnerships\" with recognisable authorities or companies (FBI, Interpol, banks) that cannot be verified by calling the authority directly.",
+            "Red flag — High-pressure timelines, \"limited-time offers\", or any urgency to act before you can verify the service.",
+            "Red flag — Requests for remote access to your device, your exchange accounts, or your existing wallets.",
+          ],
+        },
+        {
+          heading: "Legitimate paths to work through",
+          paragraphs: [
+            "Genuine routes to possible recovery are slower, unglamorous, and often partial — but they exist.",
+          ],
+          list: [
+            "Chargeback through your card issuer or bank, if within the eligibility window. This is the highest-probability recovery path for card-funded scams.",
+            "Exchange account freezing — if the scammer's wallet is linked to a known custodial exchange, law enforcement can sometimes freeze funds before they move. Report early enough and with enough specificity for this to be possible.",
+            "Civil action against the platform operator — only realistic if the operator is identifiable and within a jurisdiction that will enforce a judgment. Requires a lawyer and is typically cost-effective only above six-figure losses.",
+            "Insurance — some crypto platforms, custodial wallets, and payment providers carry policies covering specific fraud scenarios. Check the terms of any platform through which the funds transited.",
+            "Class action — for large scams with many victims, class-action suits are sometimes filed. These are typically organised by law firms specialising in financial fraud, not by individual victims.",
+          ],
+        },
+        {
+          heading: "What we can do",
+          paragraphs: [
+            "CryptoKiller is an investigation platform, not a recovery service. We do not offer to recover funds and we do not take fees from victims. What we do is investigate and publish the brand you lost funds to, so future victims are warned. Your submitted report — through /report — becomes part of the evidence base and materially increases the visibility of the scam.",
+            "If your case involves details that law enforcement or a regulator is already investigating, we will coordinate with them when appropriate. We do not share victim reports publicly without consent. Reporter identity is never disclosed.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "I just sent crypto to a scam — is there any way to reverse it?",
+          answer:
+            "Blockchain transactions cannot be reversed by the protocol itself. However, if the destination wallet is hosted at a custodial exchange (Coinbase, Binance, Kraken, etc.) and you report quickly, law enforcement can sometimes freeze the funds before they are moved off-exchange. Report to the exchange's abuse team, your local police, and your national fraud agency within 24 hours for the best chance.",
+        },
+        {
+          question: "Someone contacted me offering to recover my lost funds for a fee. Is this legitimate?",
+          answer:
+            "Almost certainly no. There is no legitimate recovery service that requires upfront payment, and no legitimate recovery service contacts victims through unsolicited DM, email, or phone call. Recovery scammers specifically target recent scam victims using leaked victim lists. If someone contacts you out of the blue claiming they can recover your funds, treat it as a second scam attempt.",
+        },
+        {
+          question: "The scammer is asking for a \"release fee\" to let me withdraw. Should I pay?",
+          answer:
+            "No. There is no legitimate financial mechanism that requires an additional deposit before a withdrawal is processed. \"Tax fees\", \"anti-money-laundering fees\", \"account verification fees\", \"unlocking fees\" — all of these are scam scripts. Every additional payment is another loss. Stop, preserve evidence, and report.",
+        },
+        {
+          question: "Can I report the scam if I don't know the scammer's real identity?",
+          answer:
+            "Yes. Most scam reports start with only the platform name, wallet addresses, and communication evidence. Police cybercrime units are accustomed to working from this starting point. The more evidence you preserve — transaction IDs, screenshots, chat logs — the more useful your report is, even without knowing who is behind the operation.",
+        },
+        {
+          question: "How long do I have to report?",
+          answer:
+            "Different deadlines apply for different paths. Card chargebacks typically have a 120-day window from transaction date, sometimes shorter. Bank wire reversals must be attempted within days, often hours. Police and regulator reports have no hard deadline, but evidence availability decreases over time — scam platforms go offline, chat logs get deleted, witnesses move on. File within the first week if at all possible.",
+        },
+      ],
     }),
+
   "/report": () =>
     renderStaticPage({
       path: "/report",
       title: "Report a Crypto Scam — Submit Evidence | CryptoKiller",
       description:
-        "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn victims, and build evidence for authorities.",
+        "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn future victims, and build evidence for authorities.",
       h1: "Report a Crypto Scam",
       intro:
-        "Submit a confidential report to the CryptoKiller research team. Your identity is never shared publicly. Reports are cross-referenced with our scam intelligence systems and feed directly into published investigations that warn future victims.",
+        "Submit a confidential report to the CryptoKiller research team. Your identity is never shared publicly — we do not publish reporter names, email addresses, or any identifying details unless you explicitly request otherwise. Reports are cross-referenced with our SpyOwl ad-surveillance intelligence and feed directly into published investigations that warn future victims. This page explains what happens after you submit, what we do with the information, and what we cannot do.",
+      sections: [
+        {
+          heading: "What to include in a report",
+          paragraphs: [
+            "The more specific the report, the more useful it is. You do not need to have all of this — send what you have. We will follow up by email if clarification is needed.",
+          ],
+          list: [
+            "The platform name or brand as it appeared in the advertising, landing page, or chat messages.",
+            "The domain or domains you were directed to (including any subdomains, URL shorteners, or redirect chains you can recall).",
+            "How you were contacted or how you found the platform — ad network, social media platform, search result, direct message, phone call, email.",
+            "The names or descriptions of any celebrities, public figures, or authorities whose likeness was used in the promotion.",
+            "Any wallet addresses, bank account numbers, or payment-processor references you used to transfer funds.",
+            "Screenshots of the platform dashboard, chat conversations, emails, or any other direct communications.",
+            "A rough timeline — first contact, first deposit, moment you became suspicious.",
+            "Your jurisdiction (country and region), so we know which regulator to cite.",
+          ],
+        },
+        {
+          heading: "What happens after you submit",
+          paragraphs: [
+            "Every report is reviewed by a member of our research team within 72 hours. If the brand is already in our investigation archive, your report is added to the evidence base and any new details update our threat score. If it is a new brand, it enters our investigation queue.",
+            "We send a reply by email acknowledging the submission and explaining the next step. You will not be contacted by anyone claiming to represent CryptoKiller through any other channel — no phone calls, no social-media DMs, no follow-up asking for payment. If someone contacts you claiming to work with us and asking for money, treat it as a recovery scam (see our recovery guide).",
+            "When an investigation based in part on your report is published, we notify you by email. Your name, email address, and identifying details never appear in the published investigation.",
+          ],
+        },
+        {
+          heading: "What we can and cannot do",
+          paragraphs: [
+            "We can investigate, publish, and warn. We can cross-reference your report against 1,000+ tracked brands and 84+ countries of ad surveillance. We can cite the regulators with jurisdiction over your case and link directly to their warning bulletins. We can coordinate with law enforcement when they ask.",
+            "We cannot recover your funds. Nobody can guarantee fund recovery, and anyone who claims they can is running a second scam on top of the first one. We cannot file police reports on your behalf — that must come from you, through your national reporting channel. We cannot freeze wallets, reverse transactions, or negotiate with the scammer.",
+            "If your primary need is fund recovery, see our recovery guide for the legitimate paths — chargebacks, exchange reporting, law enforcement. These are slower and less certain than recovery scammers advertise, but they are the only real options.",
+          ],
+        },
+        {
+          heading: "Confidentiality and privacy",
+          paragraphs: [
+            "Reports are stored in our internal intelligence system, which is accessed only by authorised research-team members under an NDA. Your identifying details are never published. Your email address is never shared with third parties, never added to a mailing list, and never sold.",
+            "We may share report details with law enforcement or regulators when they make a specific request tied to an investigation they are running — but only with prior consent from you, and only to the extent legally required. If you request that your report be treated as fully confidential even from authorities, we honour that request.",
+            "If you change your mind after submitting, email corrections@cryptokiller.org and we will delete the report from our intelligence system. Published investigation content based on multiple corroborated sources will remain, but your specific submission and any reference to it will be removed.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "Will my name appear in the investigation?",
+          answer:
+            "No. Reporter identities are never disclosed in published investigations. We may quote the substance of a report (for example, describing the deposit pattern you experienced) but without any identifying details. If you want to be quoted by name — as a victim speaking publicly about the scam — you must explicitly request it, and we will review the request before agreeing.",
+        },
+        {
+          question: "I don't have much evidence — is it still worth reporting?",
+          answer:
+            "Yes. Even a partial report with just the brand name and one screenshot adds signal. When multiple reports cluster around the same brand, the aggregate picture becomes actionable even if each individual report is sparse. Report what you have.",
+        },
+        {
+          question: "Do I need to report to the police too?",
+          answer:
+            "Yes — CryptoKiller does not file police reports on your behalf. If you have lost funds, a police report in your jurisdiction is the prerequisite for chargebacks, insurance claims, and any civil action. Our recovery guide lists the reporting channels for major jurisdictions.",
+        },
+        {
+          question: "How long before I hear back?",
+          answer:
+            "Within 72 hours for the initial acknowledgement. Substantive investigation can take 1-6 weeks depending on complexity, existing evidence, and ongoing surveillance data. We email when an investigation based on your report is published.",
+        },
+        {
+          question: "Can I submit a report about a platform that hasn't scammed me yet but looks suspicious?",
+          answer:
+            "Yes — preventative tips are welcome and valuable. Describe what made you suspicious (the advertising pattern, the celebrity endorsement, the platform interface, the deposit process). We treat these with the same confidentiality as victim reports.",
+        },
+      ],
     }),
+
   "/privacy": () =>
     renderStaticPage({
       path: "/privacy",
       title: "Privacy Policy — CryptoKiller",
       description:
-        "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
+        "CryptoKiller privacy policy. How we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
       h1: "Privacy Policy",
       intro:
-        "CryptoKiller is committed to privacy. We do not use tracking cookies or third-party analytics. This policy explains what information we collect when you submit a scam report, how it is stored, and the rights you have under GDPR and CCPA.",
+        "This privacy policy explains what personal data CryptoKiller collects, why we collect it, how we store and protect it, who we share it with, and what rights you have over your data. It applies to all visitors of cryptokiller.org and to anyone who submits a report through our reporting form. This policy is written to comply with the European Union General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA) and its successor legislation, the UK Data Protection Act, and equivalent frameworks in the jurisdictions where our readers are based. Last updated: 2026-04-24.",
+      sections: [
+        {
+          heading: "Who is the data controller",
+          paragraphs: [
+            "The data controller for cryptokiller.org is DEX Algo Technologies Pte Ltd., a company registered in Singapore. All questions about this privacy policy, data requests, or complaints should be directed to corrections@cryptokiller.org.",
+            "For EU/UK data subjects, we have appointed a representative who can be contacted at the same email address. For CCPA requests from California residents, the verified-request process is described in the \"Your rights\" section below.",
+          ],
+        },
+        {
+          heading: "What information we collect",
+          paragraphs: [
+            "We practise data minimisation: we collect only what we need for the specific, disclosed purpose, and we keep it only as long as we need it.",
+          ],
+          list: [
+            "When you submit a scam report through our reporting form, we collect the information you provide in that form — which typically includes your name or pseudonym, your email address, and the details of the scam incident. This is the only category of personal information we actively collect.",
+            "Standard server access logs (IP address, user agent, referring URL, timestamp) are recorded for security, abuse prevention, and to detect infrastructure issues. These logs are retained for 30 days and then deleted.",
+            "We do not use tracking cookies. We do not use third-party analytics (Google Analytics, Facebook Pixel, or equivalents). We do not use behavioural advertising pixels of any kind.",
+            "We do not collect biometric data, precise geolocation, health information, or any special category of personal data under GDPR Article 9.",
+            "We do not knowingly collect personal information from children under 16 years of age. If you believe a minor has submitted information to us, please contact corrections@cryptokiller.org and we will delete it.",
+          ],
+        },
+        {
+          heading: "Why we collect it — our legal basis",
+          paragraphs: [
+            "Under GDPR Article 6, we rely on the following legal bases:",
+          ],
+          list: [
+            "Consent (Article 6(1)(a)) — when you submit a scam report, you consent to us processing the details of that report for the specific purpose of investigating and publishing about the brand in question.",
+            "Legitimate interest (Article 6(1)(f)) — for server access logs and basic site operation. Our legitimate interest is in maintaining site security and detecting infrastructure abuse, balanced against your privacy interests. IP addresses are not used for profiling or advertising.",
+            "Legal obligation (Article 6(1)(c)) — when law enforcement or a regulator makes a legally binding request for specific information, we comply with the minimum disclosure required by law.",
+          ],
+        },
+        {
+          heading: "How we share your information",
+          paragraphs: [
+            "We do not sell personal information. We do not share personal information with advertisers, data brokers, or marketing services. We do not license our data.",
+          ],
+          list: [
+            "Reporter information is shared only with the CryptoKiller research team, bound by internal NDAs.",
+            "Reporter information may be shared with law enforcement or regulators when they make a specific legal request tied to an active investigation — with prior notice to you where legally permitted.",
+            "Server access logs may be provided to law enforcement pursuant to a valid subpoena or legal process.",
+            "We use a small number of service providers (email hosting, server hosting) that act as data processors under our instructions. These processors are under GDPR-compliant Data Processing Agreements and do not use the data for their own purposes.",
+          ],
+        },
+        {
+          heading: "How long we keep it",
+          paragraphs: [
+            "Reports are retained in our internal intelligence system for as long as they remain relevant to an ongoing or archived investigation. You can request deletion at any time by emailing corrections@cryptokiller.org — see the \"Your rights\" section.",
+            "Server access logs are retained for 30 days and then deleted.",
+            "Email correspondence with you is retained for three years or until you request deletion, whichever comes first.",
+          ],
+        },
+        {
+          heading: "Your rights",
+          paragraphs: [
+            "Under GDPR, CCPA, and equivalent frameworks, you have the following rights with respect to your personal information:",
+          ],
+          list: [
+            "Right of access — you can request a copy of any personal information we hold about you.",
+            "Right to rectification — you can request correction of inaccurate personal information.",
+            "Right to erasure (\"right to be forgotten\") — you can request deletion of your personal information. We honour erasure requests in full for reporter submissions and email correspondence.",
+            "Right to restriction — you can request that we stop processing your information while a dispute is being resolved.",
+            "Right to object — you can object to processing based on legitimate interest.",
+            "Right to data portability — you can request a copy of your information in a machine-readable format.",
+            "For California residents under CCPA — the right to know what personal information is collected, the right to delete personal information, the right to opt out of sale (we do not sell personal information regardless), and the right to non-discrimination for exercising these rights.",
+            "Right to lodge a complaint with your data protection authority if you believe we have mishandled your information. The lead supervisory authority for our EU/UK representative is available on request.",
+          ],
+        },
+        {
+          heading: "How we protect your information",
+          paragraphs: [
+            "Transport encryption — all traffic to cryptokiller.org is served over HTTPS with modern TLS.",
+            "Storage encryption — our databases are encrypted at rest. Reporter submissions are additionally encrypted with a separate key held only by the research team.",
+            "Access controls — only named research-team members with NDAs and multi-factor authentication can access reporter data. Access is logged and audited.",
+            "Data minimisation — we simply do not collect what we do not need. The less data we hold, the less there is to lose in a worst-case scenario.",
+          ],
+        },
+        {
+          heading: "Changes to this policy",
+          paragraphs: [
+            "We update this policy when our practices change or when legal requirements change. Material changes are announced at the top of this page and by email to anyone who has submitted a report. The last-updated date at the top of this policy is always current.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "Do you use Google Analytics?",
+          answer:
+            "No. We do not use Google Analytics or any third-party behavioural analytics service. We also do not use Facebook Pixel, advertising trackers, or session-recording tools. The only logging we do is standard server access logs, retained for 30 days.",
+        },
+        {
+          question: "Do you use cookies?",
+          answer:
+            "We use a minimal set of technical cookies required for the site to function. We do not use tracking cookies, marketing cookies, or third-party advertising cookies.",
+        },
+        {
+          question: "If I submit a report, can I later delete it?",
+          answer:
+            "Yes. Email corrections@cryptokiller.org requesting deletion of your report, and we will remove it from our intelligence system within 30 days. Published investigation content based on multiple corroborated sources may remain, but your specific submission and any reference to it will be removed.",
+        },
+        {
+          question: "How do I exercise my GDPR or CCPA rights?",
+          answer:
+            "Email corrections@cryptokiller.org with your request. For erasure, access, rectification, and portability requests, we respond within 30 days (or one month under GDPR). We may ask you to verify your identity before processing substantive requests to prevent impersonation.",
+        },
+        {
+          question: "Do you sell personal information?",
+          answer:
+            "No. We do not sell personal information. We do not share personal information with advertisers, marketers, or data brokers. This is as true for CCPA as it is for any other framework — our business model does not depend on user data.",
+        },
+      ],
     }),
+
   "/terms": () =>
     renderStaticPage({
       path: "/terms",
@@ -1598,7 +2054,119 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         "CryptoKiller terms of service. Rules governing use of our crypto scam investigation platform, report submissions, and published content.",
       h1: "Terms of Service",
       intro:
-        "These terms govern your use of CryptoKiller. By using the site or submitting a report, you agree to the rules described here covering content licensing, acceptable use, editorial corrections, and liability.",
+        "These terms govern your use of cryptokiller.org and all services we provide. By using the site, browsing investigations, or submitting a report, you agree to the terms described here. If you do not agree with any part of these terms, please do not use the site. These terms apply to all visitors worldwide, with jurisdiction-specific provisions where relevant. Last updated: 2026-04-24.",
+      sections: [
+        {
+          heading: "Who we are",
+          paragraphs: [
+            "cryptokiller.org is operated by DEX Algo Technologies Pte Ltd., a company registered in Singapore. References to \"CryptoKiller\", \"we\", \"us\", or \"our\" in these terms refer to DEX Algo Technologies Pte Ltd. and its authorised representatives. References to \"you\" or \"your\" refer to the individual or entity accessing the site.",
+          ],
+        },
+        {
+          heading: "Nature of our content",
+          paragraphs: [
+            "CryptoKiller publishes evidence-based investigations into cryptocurrency-related brands, products, and advertising campaigns. Our investigations draw conclusions — including threat scores and verbal characterisations such as \"scam\", \"high risk\", or \"confirmed fraudulent\" — from the evidence cited in each investigation. These conclusions are our editorial assessment based on the evidence available at the time of publication.",
+            "Our content is not financial advice, not investment advice, and not legal advice. We do not recommend specific investments, and we do not certify any product as safe. A brand we have not investigated, or that we have assessed as low risk, is not endorsed by us — absence of a CryptoKiller investigation is not a signal of legitimacy.",
+            "Investigations are updated when new evidence emerges. The latest version of any investigation is the version currently served at its canonical URL. We do not guarantee that archived snapshots of earlier versions reflect our current assessment.",
+          ],
+        },
+        {
+          heading: "Content licensing and usage",
+          paragraphs: [
+            "Our investigations, methodology documentation, and related written content are protected by copyright and are the property of DEX Algo Technologies Pte Ltd. You may:",
+          ],
+          list: [
+            "Read, share, and reference our content for personal, educational, and journalistic purposes.",
+            "Quote short excerpts with attribution to CryptoKiller and a link to the original source.",
+            "Link to our investigations from your own site, blog, forum post, or social media.",
+            "Use our published evidence — including the threat scores and red flag summaries — as a starting point for your own due diligence.",
+          ],
+        },
+        {
+          heading: "What you may not do",
+          paragraphs: [
+            "The following are prohibited uses of the site and its content:",
+          ],
+          list: [
+            "Wholesale reproduction of investigation content on other sites, with or without attribution. Quote short excerpts, link to the original — do not republish full investigations.",
+            "Automated scraping or crawling of the site at rates that burden our infrastructure, including bulk-downloading investigation content or evidence archives. Reasonable crawling by search engines and AI answer systems is welcomed and explicitly permitted by our robots.txt.",
+            "Using our brand name, logo, or reputation to imply endorsement of any product, service, or platform.",
+            "Submitting fabricated scam reports, reports about non-scam parties intended to harass, or reports designed to manipulate our threat scores for competitive or financial reasons.",
+            "Any use of the site that attempts to circumvent security controls, access unauthorised data, or disrupt service for other users.",
+            "Use of the site content to train machine-learning models for commercial systems without a separate agreement. AI answer engines and search systems citing our investigations in response to user queries are explicitly welcomed; bulk training on our content without attribution or permission is not.",
+          ],
+        },
+        {
+          heading: "Report submissions",
+          paragraphs: [
+            "When you submit a report through our reporting form, you represent that the information you provide is accurate to the best of your knowledge. You grant CryptoKiller a non-exclusive, royalty-free licence to use the submitted information for the purpose of investigation and publication, subject to the confidentiality commitments in our privacy policy.",
+            "You retain all rights to your own underlying information. You can request deletion of your submission at any time — see the privacy policy for the procedure.",
+            "We reserve the right to decline to publish or investigate based on submitted reports, without obligation to explain the specific decision. Submission does not guarantee investigation.",
+          ],
+        },
+        {
+          heading: "Disclaimer of warranties",
+          paragraphs: [
+            "The site and its content are provided \"as is\" and \"as available\". To the maximum extent permitted by applicable law, we disclaim all warranties — express, implied, or statutory — including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement.",
+            "We do not warrant that our investigations cover every scam, that our threat scores are absolute measures of risk, or that the absence of an investigation means a platform is legitimate. Due diligence beyond CryptoKiller is always your responsibility before making any financial decision.",
+            "We do not warrant that the site will be uninterrupted, error-free, or free of viruses or other harmful components — though we make reasonable efforts to ensure all three.",
+          ],
+        },
+        {
+          heading: "Limitation of liability",
+          paragraphs: [
+            "To the maximum extent permitted by law, CryptoKiller and its operators, employees, and representatives are not liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the site, inability to use the site, or reliance on any content we publish.",
+            "If despite the above disclaimers a court finds we are liable to you, our total aggregate liability is limited to USD 100 or the amount you have paid us in the preceding twelve months, whichever is greater. Since we do not charge users of the site, USD 100 is the typical maximum.",
+            "Some jurisdictions do not permit certain liability limitations. In those jurisdictions, the limitations above apply to the maximum extent permitted by applicable law.",
+          ],
+        },
+        {
+          heading: "Governing law and dispute resolution",
+          paragraphs: [
+            "These terms are governed by the laws of Singapore, without regard to conflict-of-laws principles. Disputes arising from these terms or your use of the site are subject to the exclusive jurisdiction of the courts of Singapore — except that, where local consumer-protection law grants you non-waivable rights to bring claims in your local courts, those rights are not affected.",
+            "Before pursuing any formal legal action, you agree to first contact us in good faith at corrections@cryptokiller.org and allow us 30 days to resolve the dispute informally.",
+          ],
+        },
+        {
+          heading: "Changes to these terms",
+          paragraphs: [
+            "We may update these terms as our practices or legal requirements change. Material changes are announced at the top of this page, and the last-updated date is always current. Continued use of the site after material changes constitutes acceptance of the new terms. If you do not agree with updated terms, please discontinue use of the site.",
+          ],
+        },
+        {
+          heading: "Contact",
+          paragraphs: [
+            "For any question about these terms, including dispute resolution, correction requests, or licensing queries, contact corrections@cryptokiller.org.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "Can I republish CryptoKiller investigations on my site?",
+          answer:
+            "No — wholesale republication of investigations is not permitted. You may quote short excerpts (a few sentences) with attribution and a link to the original source, and you may freely link to our investigations from your content. If you are a journalist or researcher requiring broader reproduction rights, contact corrections@cryptokiller.org to discuss a specific arrangement.",
+        },
+        {
+          question: "Can AI systems cite your investigations?",
+          answer:
+            "Yes. AI search and answer systems (Google AI Overviews, ChatGPT Search, Perplexity, and similar) citing our investigations in response to user queries are explicitly welcomed. We publish with structured data specifically to make this citation accurate and attributed. Bulk-scraping our content to train models without attribution or agreement, however, is not permitted.",
+        },
+        {
+          question: "What if I disagree with a threat score you've assigned to a brand?",
+          answer:
+            "The correction path is email corrections@cryptokiller.org with the investigation URL and a specific, evidence-based explanation of what you believe is incorrect. We review every correction request on its merits, regardless of who it comes from. We do not charge for corrections and we do not condition them on any form of payment or quiet agreement.",
+        },
+        {
+          question: "If I suffer a financial loss based on trusting or not trusting a CryptoKiller investigation, are you liable?",
+          answer:
+            "No. Our content is editorial assessment based on cited evidence. It is not financial advice, and we disclaim liability for losses arising from reliance on our content. Any investment decision requires your own due diligence beyond CryptoKiller, including consulting the primary regulatory sources we cite and, where appropriate, qualified professional advisors.",
+        },
+        {
+          question: "How do I report a legal or copyright concern?",
+          answer:
+            "Email corrections@cryptokiller.org with the URL of the content at issue and a clear description of the concern. For copyright claims, please include the specific material you claim is infringed, your contact information, and a good-faith statement that you are the rightsholder or authorised to act on their behalf. We review all legal notices promptly and act in accordance with the applicable copyright law.",
+        },
+      ],
     }),
 };
 

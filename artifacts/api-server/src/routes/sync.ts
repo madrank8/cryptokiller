@@ -38,11 +38,11 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         methodology_text, disclaimer_text, meta_description,
         word_count, reading_minutes, author,
         hero_image_url, hero_image_alt, content_images, visual_meta,
-        protection_steps, sources, not_for_you, expertise_depth,
+        protection_steps, sources, not_for_you, expertise_depth, full_article,
         threat_tier, threat_label, threat_badge, frame_as_scam,
         author_persona_id, alternative_headline, target_keyword,
         about_slugs, mention_slugs, speakable_selectors, citations,
-        dataset, item_list, how_to, quotes, claims,
+        dataset, item_reviewed, item_list, how_to, quotes, claims,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,
@@ -50,11 +50,11 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         $10,$11,$12,
         $13,$14,$15,
         $16,$17,$18,$19,
-        $20,$21,$22,$23,
-        $24,$25,$26,$27,
-        $28,$29,$30,
-        $31,$32,$33,$34,
-        $35,$36,$37,$38,$39,
+        $20,$21,$22,$23,$24,
+        $25,$26,$27,$28,
+        $29,$30,$31,
+        $32,$33,$34,$35,
+        $36,$37,$38,$39,$40,$41,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -80,6 +80,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         sources = EXCLUDED.sources,
         not_for_you = EXCLUDED.not_for_you,
         expertise_depth = EXCLUDED.expertise_depth,
+        full_article = EXCLUDED.full_article,
         threat_tier = EXCLUDED.threat_tier,
         threat_label = EXCLUDED.threat_label,
         threat_badge = EXCLUDED.threat_badge,
@@ -92,6 +93,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         speakable_selectors = EXCLUDED.speakable_selectors,
         citations = EXCLUDED.citations,
         dataset = EXCLUDED.dataset,
+        item_reviewed = EXCLUDED.item_reviewed,
         item_list = EXCLUDED.item_list,
         how_to = EXCLUDED.how_to,
         quotes = EXCLUDED.quotes,
@@ -126,6 +128,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         JSON.stringify(Array.isArray(review.sources) ? review.sources : []),
         review.not_for_you ?? "",
         review.expertise_depth ?? "",
+        review.full_article ?? "",
         // Tier metadata (migration 0003). Populated by Vercel sync-shape's
         // classifyThreat() output. frame_as_scam defaults to false, so the
         // prerender picks tier-appropriate hedged language when the caller
@@ -147,6 +150,11 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         JSON.stringify(Array.isArray(review.speakable_selectors) ? review.speakable_selectors : []),
         JSON.stringify(Array.isArray(review.citations) ? review.citations : (Array.isArray(review.typed_citations) ? review.typed_citations : [])),
         review.dataset ? JSON.stringify(review.dataset) : null,
+        // item_reviewed (Task 7C/Replit migration 0004). Typed entity
+        // node the review is ABOUT. Null until the writer re-runs post-
+        // Vercel-Task-7C; safely degrades to prerender's synthesised
+        // Service fallback in that window.
+        review.item_reviewed ? JSON.stringify(review.item_reviewed) : null,
         review.item_list ? JSON.stringify(review.item_list) : null,
         review.how_to ? JSON.stringify(review.how_to) : null,
         JSON.stringify(Array.isArray(review.quotes) ? review.quotes : []),
