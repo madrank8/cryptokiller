@@ -1027,7 +1027,42 @@ async function renderReview(slug: string): Promise<RenderResult> {
         .join("")}</ol></section>`
     : "";
 
-  const bodyHtml = `${siteHeaderHtml()}<main>
+  // ── full_article rendering (Task 7E) ──
+  // Writer-emitted full_article is a self-contained HTML article page with its
+  // own breadcrumb, hero/H1, content sections, and disclaimer. When populated,
+  // we render IT as the article body and skip the structured-template body
+  // composition below — otherwise the page would have two H1s, two breadcrumbs,
+  // two disclaimers, etc.
+  //
+  // We still keep the structured fields available for JSON-LD generation
+  // (FAQPage, ItemList, Dataset, etc.) — only the visual HTML composition
+  // changes. The schema graph is unchanged.
+  //
+  // Sanitisation: strip <script> tags (esp. embedded JSON-LD that would
+  // duplicate our SSR jsonLd). Mirrors renderBlogPost's strip behaviour.
+  const fullArticleBodyHtml =
+    row.fullArticle && row.fullArticle.trim().length > 0
+      ? row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+      : "";
+
+  const bodyHtml = fullArticleBodyHtml
+    ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
+      // Writer produces a complete article page with breadcrumb, hero, sections,
+      // and disclaimer. We render it inside <article> with the site chrome and
+      // append a small navigation footer for crawl-graph signal. No structured
+      // sections are emitted here — they live in JSON-LD via the Task 7B graph.
+      `${siteHeaderHtml()}<main>
+<article id="article-body">
+${fullArticleBodyHtml}
+</article>
+<nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
+</main>${siteFooterHtml()}`
+    : // ── Legacy fallback path (pre-Task 7D rows): structured template ──
+      // For older review rows that pre-date the full_article migration. Once
+      // every published review has been republished after Task 7D, this branch
+      // will go unused — but we keep it so legacy rows still render coherently
+      // until they're regenerated.
+      `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
 <h1>${esc(platformName)} ${headlineLabel}${scoreSuffix}</h1>
