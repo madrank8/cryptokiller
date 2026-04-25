@@ -18,6 +18,31 @@ const KNOWS_ABOUT = [
   "Rug Pull Investigation",
 ];
 
+function clean(value: string | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function organizationSameAs(): string[] {
+  const envUrls = [
+    process.env.CRYPTOKILLER_LINKEDIN_URL,
+    process.env.CRYPTOKILLER_TWITTER_URL,
+    process.env.CRYPTOKILLER_CRUNCHBASE_URL,
+    process.env.CRYPTOKILLER_GITHUB_URL,
+    process.env.CRYPTOKILLER_WIKIDATA_URL,
+  ]
+    .map(clean)
+    .filter((u) => u.startsWith("https://"));
+
+  if (envUrls.length > 0) return envUrls;
+
+  return [
+    "https://www.linkedin.com/company/cryptokiller/",
+    "https://twitter.com/cryptokiller_org",
+    "https://www.crunchbase.com/organization/cryptokiller",
+    "https://github.com/madrank8",
+  ];
+}
+
 export function legalEntityNode(): Record<string, unknown> {
   return {
     "@type": "Organization",
@@ -44,7 +69,7 @@ export function organizationNode(): Record<string, unknown> {
     foundingDate: "2025",
     parentOrganization: { "@id": LEGAL_ENTITY_ID },
     knowsAbout: KNOWS_ABOUT,
-    sameAs: [],
+    sameAs: organizationSameAs(),
     email: "corrections@cryptokiller.org",
     contactPoint: {
       "@type": "ContactPoint",

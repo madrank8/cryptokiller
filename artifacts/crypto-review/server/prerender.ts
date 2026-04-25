@@ -654,6 +654,9 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     jsonLd: {
       "@context": "https://schema.org",
       "@graph": [
+        legalEntityNode(),
+        organizationNode(),
+        websiteNode(),
         breadcrumbList([
           { label: "Home", href: `${BASE}/` },
           { label: "Investigations", href: `${BASE}/investigations` },
@@ -718,12 +721,16 @@ async function renderBlogList(): Promise<RenderResult> {
     jsonLd: {
       "@context": "https://schema.org",
       "@graph": [
+        legalEntityNode(),
+        organizationNode(),
+        websiteNode(),
         breadcrumbList([
           { label: "Home", href: `${BASE}/` },
           { label: "Blog", href: `${BASE}/blog` },
         ]),
         {
           "@type": "CollectionPage",
+          "@id": `${BASE}/blog#webpage`,
           url: `${BASE}/blog`,
           name: title,
           description,
