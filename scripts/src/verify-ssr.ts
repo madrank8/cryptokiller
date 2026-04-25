@@ -44,7 +44,9 @@ function stripHtmlToWords(html: string): number {
 }
 
 async function fetchText(url: string): Promise<{ status: number; text: string }> {
-  const res = await fetch(url, {
+  const bust = `_ssr_audit_ts=${Date.now()}`;
+  const fetchUrl = url.includes("?") ? `${url}&${bust}` : `${url}?${bust}`;
+  const res = await fetch(fetchUrl, {
     headers: {
       "user-agent": GOOGLEBOT_UA,
       accept: "text/html,application/xhtml+xml",
@@ -56,7 +58,9 @@ async function fetchText(url: string): Promise<{ status: number; text: string }>
 }
 
 function normalizeUrl(input: string): string {
-  return input.replace(/\/+$/, "");
+  const u = new URL(input);
+  const path = u.pathname === "/" ? "/" : u.pathname.replace(/\/+$/, "");
+  return `${u.origin}${path}`;
 }
 
 function extractCanonicalHref(html: string): string | null {
@@ -158,9 +162,11 @@ function auditPage(url: string, status: number, html: string): AuditResult {
   const nodes = extractJsonLdNodes(html);
   const typeSet = new Set(nodes.map(nodeType).filter((x): x is string => !!x));
   const schemaTemplateOk = schemaTemplatePass(pathname, typeSet);
-  const orgNode = nodes.find((n) => nodeType(n) === "Organization");
-  const sameAsValue = orgNode?.sameAs;
-  const hasOrganizationSameAs = Array.isArray(sameAsValue) && sameAsValue.length > 0;
+  const hasOrganizationSameAs = nodes.some((n) => {
+    if (nodeType(n) !== "Organization") return false;
+    const sameAsValue = n.sameAs;
+    return Array.isArray(sameAsValue) && sameAsValue.length > 0;
+  });
 
   let passed = true;
   const reasons: string[] = [];
