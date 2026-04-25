@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "verify:ssr": "tsx ./src/verify-ssr.ts",
+    "gsc:summary": "tsx ./src/gsc-summary.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0"
   }
 }
