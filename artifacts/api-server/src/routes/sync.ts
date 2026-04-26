@@ -7,8 +7,15 @@ const router: IRouter = Router();
 const sha256Hex = (input: string) => createHash("sha256").update(input, "utf8").digest("hex");
 
 /** Must match Vercel `lib/sync-shape.js` — sender and receiver hash the same normalized UTF-8 string. */
-const normalizeFullArticleForIntegrity = (raw: string) =>
-  raw.trim().replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+const normalizeFullArticleForIntegrity = (raw: string): string => {
+  let s = raw.trim().replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\u0000/g, "");
+  try {
+    s = s.normalize("NFC");
+  } catch {
+    /* ignore */
+  }
+  return s;
+};
 
 router.post("/sync/review", async (req, res): Promise<void> => {
   const auth = req.headers.authorization;
