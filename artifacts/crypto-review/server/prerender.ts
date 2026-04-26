@@ -742,6 +742,51 @@ async function renderBlogList(): Promise<RenderResult> {
   };
 }
 
+/** First 10 chars of an ISO date for Dataset.temporalCoverage intervals. */
+function toDatasetIsoDay(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === "string" && v.trim()) return v.trim().slice(0, 10);
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  return null;
+}
+
+/**
+ * Writer/sync-persisted `reviews.dataset` JSON can drift from `review_stats`
+ * after re-syncs. Reconcile Dataset name, description, and temporalCoverage at
+ * SSR time so JSON-LD matches live sidebar / full_article stats.
+ */
+function datasetJsonAlignedWithReviewStats(
+  dataset: unknown,
+  params: {
+    platformName: string;
+    adCreatives: number | null | undefined;
+    countriesTargeted: number | null | undefined;
+    daysActive: number | null | undefined;
+    firstDetected: string | null | undefined;
+    lastActive: string | null | undefined;
+  },
+): unknown {
+  if (!dataset || typeof dataset !== "object") return dataset;
+  const d = { ...(dataset as Record<string, unknown>) };
+  const name = params.platformName.trim() || "this platform";
+  d.name = `SpyOwl ${name} Scam Intelligence Dataset`;
+  const ads = Number(params.adCreatives ?? 0) || 0;
+  const countries = Number(params.countriesTargeted ?? 0) || 0;
+  const days = Number(params.daysActive ?? 0) || 0;
+  if (ads > 0 || countries > 0 || days > 0) {
+    d.description =
+      `SpyOwl surveillance dataset for ${name}: ${ads} ad creatives across ${countries} countries over ${days} days.`;
+  }
+  const start = toDatasetIsoDay(params.firstDetected);
+  const end = toDatasetIsoDay(params.lastActive);
+  if (start && end) {
+    d.temporalCoverage = `${start}/${end}`;
+  } else if (start) {
+    d.temporalCoverage = start;
+  }
+  return d;
+}
+
 async function renderReview(slug: string): Promise<RenderResult> {
   const [row] = await db
     .select({
@@ -1262,7 +1307,17 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   const howToNode     = buildHowTo(row.howTo, canonical);
   // Pass canonical so the Dataset node emits a stable `@id` — the Review
   // node below attaches an `isBasedOn` edge pointing at the same `@id`.
-  const datasetNode   = buildDataset(row.dataset, canonical);
+  const datasetNode = buildDataset(
+    datasetJsonAlignedWithReviewStats(row.dataset, {
+      platformName,
+      adCreatives: row.adCreatives,
+      countriesTargeted: row.countriesTargeted,
+      daysActive: row.daysActive,
+      firstDetected: row.firstDetected,
+      lastActive: row.lastActive,
+    }),
+    canonical,
+  );
   const quotationNodes = buildQuotations(row.quotes);
   const speakableSpec = buildSpeakable(row.speakableSelectors);
 
