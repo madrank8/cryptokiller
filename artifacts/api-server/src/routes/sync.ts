@@ -1,8 +1,14 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 import { submitToIndexNow } from "../lib/indexnow";
+import { createHash } from "crypto";
 
 const router: IRouter = Router();
+const sha256Hex = (input: string) => createHash("sha256").update(input, "utf8").digest("hex");
+
+/** Must match Vercel `lib/sync-shape.js` — sender and receiver hash the same normalized UTF-8 string. */
+const normalizeFullArticleForIntegrity = (raw: string) =>
+  raw.trim().replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
 router.post("/sync/review", async (req, res): Promise<void> => {
   const auth = req.headers.authorization;
@@ -19,9 +25,10 @@ router.post("/sync/review", async (req, res): Promise<void> => {
   }
 
   const MIN_FULL_ARTICLE_WORDS = 700;
-  const fullArticleRaw = typeof review.full_article === "string" ? review.full_article : "";
-  const incomingFullArticleLength = fullArticleRaw.length;
-  const incomingFullArticleWords = fullArticleRaw
+  const fullArticleIncoming = typeof review.full_article === "string" ? review.full_article : "";
+  const fullArticleNormalized = normalizeFullArticleForIntegrity(fullArticleIncoming);
+  const incomingFullArticleLength = fullArticleNormalized.length;
+  const incomingFullArticleWords = fullArticleNormalized
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
@@ -35,6 +42,12 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     : Number.isFinite(expectedFromReview)
     ? expectedFromReview
     : null;
+  const expectedHashFromBody =
+    typeof req.body?.expected_full_article_hash === "string" ? req.body.expected_full_article_hash.trim() : "";
+  const expectedHashFromReview =
+    typeof review?.full_article_hash === "string" ? review.full_article_hash.trim() : "";
+  const expectedFullArticleHash = expectedHashFromBody || expectedHashFromReview || null;
+  const incomingFullArticleHash = sha256Hex(fullArticleNormalized);
 
   if ((review.status ?? "published") === "published" && incomingFullArticleWords < MIN_FULL_ARTICLE_WORDS) {
     res.status(422).json({
@@ -51,6 +64,15 @@ router.post("/sync/review", async (req, res): Promise<void> => {
       error: "full_article length mismatch before insert",
       incoming_full_article_length: incomingFullArticleLength,
       expected_full_article_length: expectedFullArticleLength,
+    });
+    return;
+  }
+
+  if (expectedFullArticleHash !== null && incomingFullArticleHash !== expectedFullArticleHash) {
+    res.status(422).json({
+      error: "full_article hash mismatch before insert",
+      incoming_full_article_hash: incomingFullArticleHash,
+      expected_full_article_hash: expectedFullArticleHash,
     });
     return;
   }
@@ -165,7 +187,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         JSON.stringify(Array.isArray(review.sources) ? review.sources : []),
         review.not_for_you ?? "",
         review.expertise_depth ?? "",
-        fullArticleRaw,
+        fullArticleNormalized,
         // Tier metadata (migration 0003). Populated by Vercel sync-shape's
         // classifyThreat() output. frame_as_scam defaults to false, so the
         // prerender picks tier-appropriate hedged language when the caller
@@ -292,15 +314,38 @@ router.post("/sync/review", async (req, res): Promise<void> => {
       }
     }
 
-    const storedLenResult = await client.query(
-      `SELECT COALESCE(length(full_article), 0)::int AS len FROM reviews WHERE id = $1`,
+    const storedArticleResult = await client.query(
+      `SELECT COALESCE(full_article, '') AS full_article FROM reviews WHERE id = $1`,
       [reviewId]
     );
-    const storedFullArticleLength = Number(storedLenResult.rows[0]?.len ?? 0);
+    const storedFullArticleRaw = String(storedArticleResult.rows[0]?.full_article ?? "");
+    const storedFullArticle = normalizeFullArticleForIntegrity(storedFullArticleRaw);
+    const storedFullArticleLength = storedFullArticle.length;
+    const storedFullArticleHash = sha256Hex(storedFullArticle);
     const fullArticleLengthMatches =
       expectedFullArticleLength === null
         ? storedFullArticleLength === incomingFullArticleLength
         : storedFullArticleLength === expectedFullArticleLength;
+    const fullArticleHashMatches =
+      expectedFullArticleHash === null
+        ? storedFullArticleHash === incomingFullArticleHash
+        : storedFullArticleHash === expectedFullArticleHash;
+
+    if (!fullArticleLengthMatches || !fullArticleHashMatches) {
+      await client.query("ROLLBACK");
+      res.status(422).json({
+        error: "full_article integrity failed after insert",
+        incoming_full_article_length: incomingFullArticleLength,
+        expected_full_article_length: expectedFullArticleLength,
+        full_article_length: storedFullArticleLength,
+        full_article_length_matches: fullArticleLengthMatches,
+        incoming_full_article_hash: incomingFullArticleHash,
+        expected_full_article_hash: expectedFullArticleHash,
+        full_article_hash: storedFullArticleHash,
+        full_article_hash_matches: fullArticleHashMatches,
+      });
+      return;
+    }
 
     await client.query("COMMIT");
 
@@ -309,12 +354,18 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     res.json({
       ok: true,
       reviewId,
+      review_id: reviewId,
       platformId,
+      platform_id: platformId,
       slug: review.slug,
       incoming_full_article_length: incomingFullArticleLength,
       expected_full_article_length: expectedFullArticleLength,
       full_article_length: storedFullArticleLength,
       full_article_length_matches: fullArticleLengthMatches,
+      incoming_full_article_hash: incomingFullArticleHash,
+      expected_full_article_hash: expectedFullArticleHash,
+      full_article_hash: storedFullArticleHash,
+      full_article_hash_matches: fullArticleHashMatches,
     });
   } catch (err) {
     await client.query("ROLLBACK");
