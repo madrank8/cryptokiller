@@ -369,6 +369,37 @@ components:
         - title
         - url
 
+    ReviewItemReviewed:
+      type: object
+      description: >
+        Writer-emitted typed entity for schema.org Review.itemReviewed.
+        Stored as item_reviewed in Postgres; consumed by SSR and client JSON-LD.
+      properties:
+        type:
+          type: string
+          enum: [FinancialProduct, Service, SoftwareApplication, Organization]
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        alternateName:
+          type: array
+          items:
+            type: string
+          nullable: true
+        sameAs:
+          type: array
+          items:
+            type: string
+          nullable: true
+      required:
+        - type
+        - name
+
     ReviewFull:
       type: object
       properties:
@@ -503,6 +534,13 @@ components:
             True only for confirmed+high tiers (~top 0.42% of brands by scam_score after
             the 2026-04 recalibration). Gates declarative scam copy on the client —
             share/embed/copy strings must use hedged language when this is false.
+        itemReviewed:
+          description: >-
+            When null, client-side JSON-LD uses a synthetic Service node from platformName
+            and tier metadata (must match SSR prerender).
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ReviewItemReviewed"
       required:
         - id
         - slug

@@ -7,6 +7,7 @@ type AuditResult = {
   canonicalOk: boolean;
   hasOrganizationSameAs: boolean;
   schemaTemplateOk: boolean;
+  reviewItemReviewedOk: boolean;
   passed: boolean;
   reason?: string;
 };
@@ -130,6 +131,53 @@ function hasAnyType(typeSet: Set<string>, types: string[]): boolean {
   return types.some((t) => typeSet.has(t));
 }
 
+/** Rich-result-safe types for schema.org Review.itemReviewed (Thing is invalid). */
+const DISALLOWED_ITEM_REVIEWED_TYPES = new Set(["Thing"]);
+
+/**
+ * On /review/* pages, ensure each Review.itemReviewed resolves to a typed
+ * entity — not a bare #platform ref or schema.org/Thing (regression guard
+ * for CSR JSON-LD replacing SSR blocks after hydration).
+ */
+function reviewItemReviewedGraphOk(pathname: string, nodes: Array<Record<string, unknown>>): boolean {
+  if (!pathname.startsWith("/review/")) return true;
+
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const n of nodes) {
+    const id = typeof n["@id"] === "string" ? (n["@id"] as string) : null;
+    if (id) byId.set(id, n);
+  }
+
+  const reviews = nodes.filter((n) => {
+    const t = nodeType(n);
+    if (t === "Review") return true;
+    if (Array.isArray(n["@type"])) {
+      return (n["@type"] as unknown[]).some((x) => x === "Review");
+    }
+    return false;
+  });
+
+  if (reviews.length === 0) return false;
+
+  for (const rev of reviews) {
+    const ir = rev.itemReviewed as unknown;
+    if (!ir || typeof ir !== "object" || Array.isArray(ir)) return false;
+    const o = ir as Record<string, unknown>;
+    const refId = typeof o["@id"] === "string" ? o["@id"] : null;
+    if (refId && refId.endsWith("#platform")) return false;
+
+    let resolved: Record<string, unknown> | null = null;
+    if (typeof o["@type"] === "string") resolved = o;
+    else if (refId) resolved = byId.get(refId) ?? null;
+
+    if (!resolved) return false;
+    const rt = nodeType(resolved);
+    if (!rt || DISALLOWED_ITEM_REVIEWED_TYPES.has(rt)) return false;
+  }
+
+  return true;
+}
+
 function schemaTemplatePass(path: string, typeSet: Set<string>): boolean {
   const template = classifyTemplate(path);
   const hasOrg = typeSet.has("Organization");
@@ -167,6 +215,7 @@ function auditPage(url: string, status: number, html: string): AuditResult {
     const sameAsValue = n.sameAs;
     return Array.isArray(sameAsValue) && sameAsValue.length > 0;
   });
+  const reviewItemReviewedOk = reviewItemReviewedGraphOk(pathname, nodes);
 
   let passed = true;
   const reasons: string[] = [];
@@ -199,6 +248,10 @@ function auditPage(url: string, status: number, html: string): AuditResult {
     passed = false;
     reasons.push("missing_required_schema_node_for_template");
   }
+  if (!reviewItemReviewedOk) {
+    passed = false;
+    reasons.push("review_itemReviewed_invalid_or_unresolved");
+  }
   // For this stack, SSR markers should be present on rendered pages.
   if (!hasSsrMarkers) {
     passed = false;
@@ -214,6 +267,7 @@ function auditPage(url: string, status: number, html: string): AuditResult {
     canonicalOk,
     hasOrganizationSameAs,
     schemaTemplateOk,
+    reviewItemReviewedOk,
     passed,
     reason: reasons.length ? reasons.join(",") : undefined,
   };
@@ -259,6 +313,7 @@ async function main(): Promise<void> {
         canonicalOk: false,
         hasOrganizationSameAs: false,
         schemaTemplateOk: false,
+        reviewItemReviewedOk: false,
         passed: false,
         reason: `fetch_error:${String(err)}`,
       });

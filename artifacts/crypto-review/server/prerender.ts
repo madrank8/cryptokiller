@@ -24,6 +24,8 @@ import {
   publisherLogoImage,
   heroImageNode,
 } from "../src/lib/blogSchemaEnrichment.js";
+import { resolveReviewTier, type TierInfo } from "../src/lib/reviewTier.js";
+import { buildItemReviewedJsonLdNode } from "../src/lib/reviewItemReviewedSchema.js";
 
 const BASE = "https://cryptokiller.org";
 const DEFAULT_OG_IMAGE = `${BASE}/opengraph.jpg`;
@@ -31,55 +33,8 @@ const ORG_ID = `${BASE}/#organization`;
 const WEBSITE_ID = `${BASE}/#website`;
 const LEGAL_ENTITY_ID = `${BASE}/#legal-entity`;
 
-// ─── Review tier helpers (migration 0003) ───
-//
-// These mirror the tier decisions made in Vercel's lib/threat-score.js (source
-// of truth) so the prerender can fall back to a locally-computed tier when a
-// review row predates migration 0003 and has null threat_tier. The Vercel side
-// always ships tier metadata on sync, so in practice this fallback only fires
-// for rows synced before RP1/RP2 landed.
-//
-// Keep the tier labels and thresholds in lockstep with lib/threat-score.js on
-// the Vercel side. If that file changes, update this block too.
-
-type ReviewTier = "confirmed" | "high" | "elevated" | "watchlist" | "low";
-
-interface TierInfo {
-  tier: ReviewTier;
-  label: string;        // Human-readable badge text ("Confirmed Scam", "Low Signal")
-  badge: string;        // Short chip text ("SCAM", "CAUTION", "WATCHLIST")
-  frameAsScam: boolean; // True only for confirmed + high
-}
-
-function tierFromScore(score: number): TierInfo {
-  if (score >= 80) return { tier: "confirmed", label: "Confirmed Scam",        badge: "SCAM",      frameAsScam: true };
-  if (score >= 60) return { tier: "high",      label: "High Risk",             badge: "HIGH RISK", frameAsScam: true };
-  if (score >= 40) return { tier: "elevated",  label: "Elevated Concern",      badge: "CAUTION",   frameAsScam: false };
-  if (score >= 20) return { tier: "watchlist", label: "On Watchlist",          badge: "WATCHLIST", frameAsScam: false };
-  return               { tier: "low",        label: "Low Signal",            badge: "LOW",       frameAsScam: false };
-}
-
-// Resolve the tier for a review row, preferring what the Vercel sync-shape
-// already classified. If the DB column is null (pre-RP1 data), compute from
-// the score instead of assuming "confirmed" — that was the silent bug behind
-// the Affitto Casa page rendering "CONFIRMED SCAM" at score 3.
-function resolveReviewTier(row: {
-  threatScore: number | null;
-  threatTier: string | null;
-  threatLabel: string | null;
-  threatBadge: string | null;
-  frameAsScam: boolean | null;
-}): TierInfo {
-  const score = row.threatScore ?? 0;
-  const fallback = tierFromScore(score);
-  const tier = (row.threatTier as ReviewTier | null) ?? fallback.tier;
-  return {
-    tier,
-    label: row.threatLabel ?? fallback.label,
-    badge: row.threatBadge ?? fallback.badge,
-    frameAsScam: row.frameAsScam ?? fallback.frameAsScam,
-  };
-}
+// Review tier resolution lives in src/lib/reviewTier.ts (shared with client
+// JSON-LD). Keep thresholds in lockstep with Vercel lib/threat-score.js.
 
 // Title headline label. For confirmed/high tiers we ship "Scam Review"
 // (the aggressive variant Google has been indexing for high-score brands);
@@ -316,80 +271,6 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
   const node = personNode(persona);
   const ref = { "@id": `${BASE}/author/${persona.slug}#person` };
   return { ref, node };
-}
-
-/**
- * Build the Review's itemReviewed as a standalone typed entity node.
- * Reads from `row.itemReviewed` which Vercel's sync-shape populates
- * from the writer's typed item_reviewed field (Task 7A).
- *
- * Whitelist-guarded types: FinancialProduct | Service | SoftwareApplication
- * | Organization. Fallback is "Service" — never "Thing" (which fails
- * Google's Review rich result eligibility).
- *
- * Returns null only when there's no brand name to work with; otherwise
- * always emits a usable typed node even if the writer hasn't shipped
- * item_reviewed yet (synthetic Service with the brand name + tier-aware
- * description).
- */
-function itemReviewedNode(
-  rawItemReviewed: unknown,
-  canonical: string,
-  platformName: string,
-  row: { heroDescription?: string | null; summary?: string | null; threatScore?: number | null },
-  tier: TierInfo,
-): Record<string, unknown> | null {
-  const VALID_TYPES = new Set([
-    "FinancialProduct",
-    "Service",
-    "SoftwareApplication",
-    "Organization",
-  ]);
-  const input = rawItemReviewed && typeof rawItemReviewed === "object"
-    ? (rawItemReviewed as Record<string, unknown>)
-    : null;
-
-  const rawType = input?.type;
-  const type = typeof rawType === "string" && VALID_TYPES.has(rawType)
-    ? rawType
-    : "Service";
-
-  const rawName = typeof input?.name === "string" ? input.name.trim() : "";
-  const name = rawName || platformName;
-  if (!name) return null;
-
-  const rawDesc = typeof input?.description === "string" ? input.description.trim() : "";
-  const description = rawDesc
-    ? rawDesc
-    : (row.heroDescription || row.summary
-        ? truncate(clean(row.heroDescription || row.summary), 250)
-        : `Platform under investigation by CryptoKiller. Threat score ${row.threatScore ?? "?"}/100 (${tier.label}).`);
-
-  const url = typeof input?.url === "string" && (input.url as string).startsWith("http")
-    ? (input.url as string)
-    : undefined;
-
-  const alternateName = Array.isArray(input?.alternateName) && input.alternateName.length
-    ? (input.alternateName as unknown[]).filter((v): v is string => typeof v === "string")
-    : undefined;
-
-  const sameAs = Array.isArray(input?.sameAs) && input.sameAs.length
-    ? (input.sameAs as unknown[]).filter((v): v is string => typeof v === "string" && v.startsWith("http"))
-    : undefined;
-
-  return {
-    "@type": type,
-    "@id": `${canonical}#item-reviewed`,
-    name,
-    description,
-    ...(url ? { url } : {}),
-    ...(alternateName && alternateName.length ? { alternateName } : {}),
-    ...(sameAs && sameAs.length ? { sameAs } : {}),
-    // `subjectOf` links back to the Review — creates a bidirectional
-    // relationship Google's entity graph ingestion uses to attribute
-    // the review back to the platform entity.
-    subjectOf: { "@id": `${canonical}#review` },
-  };
 }
 
 function siteHeaderHtml(): string {
@@ -1159,7 +1040,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   // (Task 7A) and Replit's /sync/review persists via migration 0004.
   // Pre-migration rows (null) fall through to the helper's synthetic
   // Service fallback.
-  const itemReviewed = itemReviewedNode(
+  const itemReviewed = buildItemReviewedJsonLdNode(
     row.itemReviewed,
     canonical,
     platformName,

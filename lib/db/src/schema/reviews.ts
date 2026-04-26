@@ -92,7 +92,7 @@ type Dataset = {
 // emit a proper FinancialProduct/Service/SoftwareApplication/Organization
 // node with @id instead of falling back to a synthesised Service from
 // platformName alone. See artifacts/crypto-review/server/prerender.ts
-// `itemReviewedNode`.
+// `buildItemReviewedJsonLdNode` in crypto-review/src/lib/reviewItemReviewedSchema.ts.
 type ItemReviewed = {
   type: "FinancialProduct" | "Service" | "SoftwareApplication" | "Organization";
   name: string;

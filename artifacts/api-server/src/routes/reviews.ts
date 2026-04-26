@@ -82,13 +82,13 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       // Tier metadata (migration 0003). Exposed on the API so the client-side
       // React hydration can gate declarative-scam copy (embed button text,
       // share/copy strings) on frameAsScam, matching the tier-aware rendering
-      // the SSR now does. The 12 schema-enrichment fields are intentionally
-      // NOT surfaced here — they're consumed by prerender.ts for JSON-LD only
-      // and don't need to cross the wire to the browser.
+      // the SSR now does. itemReviewed is included so CSR JSON-LD (usePageMeta
+      // replaces SSR scripts after load) matches prerender's #item-reviewed graph.
       threatTier: reviewsTable.threatTier,
       threatLabel: reviewsTable.threatLabel,
       threatBadge: reviewsTable.threatBadge,
       frameAsScam: reviewsTable.frameAsScam,
+      itemReviewed: reviewsTable.itemReviewed,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -145,6 +145,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     threatLabel: row.threatLabel ?? null,
     threatBadge: row.threatBadge ?? null,
     frameAsScam: row.frameAsScam ?? false,
+    itemReviewed: row.itemReviewed ?? null,
     adCreatives: row.adCreatives ?? 0,
     countriesTargeted: row.countriesTargeted ?? 0,
     daysActive: row.daysActive ?? 0,

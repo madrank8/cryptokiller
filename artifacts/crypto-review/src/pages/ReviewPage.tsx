@@ -22,6 +22,8 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { resolveReviewTier } from "@/lib/reviewTier";
+import { buildItemReviewedJsonLdNode } from "@/lib/reviewItemReviewedSchema";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
   <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2.5 border-b border-slate-800 pb-3">
@@ -534,7 +536,31 @@ function ReviewContent({ slug }: { slug: string }) {
 
     const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
     const orgRefId = orgRef();
-    const itemRef = { "@id": `${pageUrl}#platform` };
+    const tier = resolveReviewTier({
+      threatScore: review.threatScore,
+      threatTier: review.threatTier ?? null,
+      threatLabel: review.threatLabel ?? null,
+      threatBadge: review.threatBadge ?? null,
+      frameAsScam: review.frameAsScam ?? null,
+    });
+    const itemReviewedGraphNode = buildItemReviewedJsonLdNode(
+      review.itemReviewed ?? null,
+      pageUrl,
+      review.platformName,
+      {
+        heroDescription: review.heroDescription,
+        summary: review.summary,
+        threatScore: review.threatScore,
+      },
+      tier,
+    );
+    const itemRef = itemReviewedGraphNode
+      ? { "@id": `${pageUrl}#item-reviewed` }
+      : {
+          "@type": "Service",
+          name: review.platformName,
+          description: `Platform under investigation by CryptoKiller. Threat score ${review.threatScore ?? "?"}/100 (${tier.label}).`,
+        };
 
     const allPersonas = Object.values(WRITER_PERSONAS);
     const personNodes = allPersonas.map((p) => personNode(p));
@@ -547,6 +573,7 @@ function ReviewContent({ slug }: { slug: string }) {
       organizationNode(),
       websiteNode(),
       ...personNodes,
+      ...(itemReviewedGraphNode ? [itemReviewedGraphNode] : []),
       {
         "@type": "WebPage",
         "@id": `${pageUrl}#webpage`,
@@ -558,12 +585,6 @@ function ReviewContent({ slug }: { slug: string }) {
         inLanguage: "en",
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
-      },
-      {
-        "@type": "Thing",
-        "@id": `${pageUrl}#platform`,
-        name: review.platformName,
-        description: `Crypto platform under investigation by CryptoKiller`,
       },
       {
         "@type": "Review",

@@ -128,6 +128,16 @@ export const ReviewFullThreatTier = {
   low: "low",
 } as const;
 
+/** Writer-emitted typed entity for JSON-LD Review.itemReviewed (sync from Vercel). */
+export interface ReviewItemReviewed {
+  type: "FinancialProduct" | "Service" | "SoftwareApplication" | "Organization";
+  name: string;
+  description: string | null;
+  url: string | null;
+  alternateName: string[] | null;
+  sameAs: string[] | null;
+}
+
 export interface ReviewFull {
   id: number;
   slug: string;
@@ -183,6 +193,8 @@ export interface ReviewFull {
   threatBadge?: string | null;
   /** True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share/embed/copy strings must use hedged language when this is false. */
   frameAsScam: boolean;
+  /** When null, client JSON-LD falls back to a synthetic Service node from platformName + tier. */
+  itemReviewed?: ReviewItemReviewed | null;
 }
 
 export interface RelatedReview {

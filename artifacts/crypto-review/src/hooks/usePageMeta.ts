@@ -61,6 +61,9 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
     }
     linkCanonical.href = resolvedCanonical;
 
+    // CSR replaces SSR JSON-LD scripts so crawlers that execute JS only see
+    // this block — it must match server/prerender.ts (Review.itemReviewed,
+    // #item-reviewed, etc.). See reviewItemReviewedSchema.ts.
     document
       .querySelectorAll<HTMLScriptElement>("script[data-ssr-jsonld]")
       .forEach((el) => el.remove());
