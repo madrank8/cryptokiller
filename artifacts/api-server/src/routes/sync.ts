@@ -18,6 +18,43 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     return;
   }
 
+  const MIN_FULL_ARTICLE_WORDS = 700;
+  const fullArticleRaw = typeof review.full_article === "string" ? review.full_article : "";
+  const incomingFullArticleLength = fullArticleRaw.length;
+  const incomingFullArticleWords = fullArticleRaw
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  const expectedFromBody = Number(req.body?.expected_full_article_length);
+  const expectedFromReview = Number(review?.full_article_length);
+  const expectedFullArticleLength = Number.isFinite(expectedFromBody)
+    ? expectedFromBody
+    : Number.isFinite(expectedFromReview)
+    ? expectedFromReview
+    : null;
+
+  if ((review.status ?? "published") === "published" && incomingFullArticleWords < MIN_FULL_ARTICLE_WORDS) {
+    res.status(422).json({
+      error: "Refusing published sync without full_article content",
+      detail: `Incoming full_article too thin (words=${incomingFullArticleWords}, min=${MIN_FULL_ARTICLE_WORDS})`,
+      incoming_full_article_length: incomingFullArticleLength,
+      expected_full_article_length: expectedFullArticleLength,
+    });
+    return;
+  }
+
+  if (expectedFullArticleLength !== null && incomingFullArticleLength !== expectedFullArticleLength) {
+    res.status(422).json({
+      error: "full_article length mismatch before insert",
+      incoming_full_article_length: incomingFullArticleLength,
+      expected_full_article_length: expectedFullArticleLength,
+    });
+    return;
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -128,7 +165,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         JSON.stringify(Array.isArray(review.sources) ? review.sources : []),
         review.not_for_you ?? "",
         review.expertise_depth ?? "",
-        review.full_article ?? "",
+        fullArticleRaw,
         // Tier metadata (migration 0003). Populated by Vercel sync-shape's
         // classifyThreat() output. frame_as_scam defaults to false, so the
         // prerender picks tier-appropriate hedged language when the caller
@@ -255,11 +292,30 @@ router.post("/sync/review", async (req, res): Promise<void> => {
       }
     }
 
+    const storedLenResult = await client.query(
+      `SELECT COALESCE(length(full_article), 0)::int AS len FROM reviews WHERE id = $1`,
+      [reviewId]
+    );
+    const storedFullArticleLength = Number(storedLenResult.rows[0]?.len ?? 0);
+    const fullArticleLengthMatches =
+      expectedFullArticleLength === null
+        ? storedFullArticleLength === incomingFullArticleLength
+        : storedFullArticleLength === expectedFullArticleLength;
+
     await client.query("COMMIT");
 
     submitToIndexNow([`https://cryptokiller.org/review/${review.slug}`]).catch(() => {});
 
-    res.json({ ok: true, reviewId, platformId, slug: review.slug });
+    res.json({
+      ok: true,
+      reviewId,
+      platformId,
+      slug: review.slug,
+      incoming_full_article_length: incomingFullArticleLength,
+      expected_full_article_length: expectedFullArticleLength,
+      full_article_length: storedFullArticleLength,
+      full_article_length_matches: fullArticleLengthMatches,
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Sync failed:", err);
