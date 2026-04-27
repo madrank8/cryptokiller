@@ -1267,7 +1267,28 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 
   if (!row) return renderNotFound(`/blog/${slug}`);
 
-  const title = `${truncate(row.headline || row.title, 55)} | CryptoKiller`;
+  // Title selection — prefer the SEO `title` column (writer prompt caps it at
+  // 60 chars and instructs the model to include the target keyword) over the
+  // editorial `headline` column, which is allowed to be longer. Truncating
+  // headline at 55 chars produced sentences ending mid-clause (e.g. "...How to")
+  // — never use a truncated headline as the SEO title. Append " | CryptoKiller"
+  // only when there is room; otherwise let the brand fall off rather than
+  // double-truncate.
+  const BRAND_SUFFIX = " | CryptoKiller";
+  function pickTitleBase(): string {
+    const t = String(row.title || "").trim();
+    const h = String(row.headline || "").trim();
+    if (t && t.length <= 55) return t;
+    if (h && h.length <= 55) return h;
+    // Both too long — truncate at the last word boundary before 55 chars.
+    const candidate = (t || h).slice(0, 55);
+    const lastSpace = candidate.lastIndexOf(" ");
+    return (lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate).replace(/[\s—\-:,]+$/, "");
+  }
+  const titleBase = pickTitleBase();
+  const title = titleBase.length + BRAND_SUFFIX.length <= 70
+    ? `${titleBase}${BRAND_SUFFIX}`
+    : titleBase;
   const description = truncate(
     row.metaDescription || row.summary || row.headline || row.title,
     160,
@@ -1275,7 +1296,21 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
   const canonical = `${BASE}/blog/${slug}`;
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = (row.publishedAt ?? row.createdAt) ? new Date((row.publishedAt ?? row.createdAt)!).toISOString() : undefined;
-  const dateModified = row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined;
+  // Only emit dateModified when the article has actually been edited after
+  // publish. Article generation writes both timestamps within seconds of
+  // each other, which Google reads as a meaningless freshness signal
+  // (and may flag as auto-generated). Treat anything within 5 minutes of
+  // datePublished as "no real edit" and drop the field.
+  let dateModified: string | undefined;
+  if (row.updatedAt && datePublished) {
+    const modMs = new Date(row.updatedAt).getTime();
+    const pubMs = new Date(datePublished).getTime();
+    if (Math.abs(modMs - pubMs) > 5 * 60 * 1000) {
+      dateModified = new Date(row.updatedAt).toISOString();
+    }
+  } else if (row.updatedAt) {
+    dateModified = new Date(row.updatedAt).toISOString();
+  }
 
   const persona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
   const authorName = persona?.name || "CryptoKiller Research Team";
@@ -1299,7 +1334,16 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
       .join("");
   }
 
-  const faqHtml = faq.length
+  // Detect FAQ / Sources blocks already baked into row.fullArticle by older
+  // pipeline versions (Vercel admin pre-2026-04-27 wrote both inline). Newer
+  // generations stop emitting them, but legacy rows still have them — render
+  // the appended faqHtml / sourcesHtml only when fullArticle does NOT already
+  // contain that section, otherwise the published page shows two FAQs and
+  // two Sources blocks.
+  const fullArticleHasFaq = /class=["']faq-section["']|<h2[^>]*>\s*Frequently\s+Asked\s+Questions/i.test(articleBodyHtml);
+  const fullArticleHasSources = /class=["']source-ledger["']|<h[23][^>]*>\s*Sources?(?:\s*&(?:amp;)?\s*References)?\s*<\/h[23]>/i.test(articleBodyHtml);
+
+  const faqHtml = (faq.length && !fullArticleHasFaq)
     ? `<section aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently Asked Questions</h2>${faq
         .map(
           (f) =>
@@ -1308,7 +1352,7 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
         .join("")}</section>`
     : "";
 
-  const sourcesHtml = sources.length
+  const sourcesHtml = (sources.length && !fullArticleHasSources)
     ? `<section aria-labelledby="sources-heading"><h2 id="sources-heading">Sources</h2><ol>${sources
         .map((s) => {
           if (typeof s === "string") return `<li>${esc(s)}</li>`;
