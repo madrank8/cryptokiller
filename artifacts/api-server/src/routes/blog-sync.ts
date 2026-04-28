@@ -53,6 +53,17 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
     const quotes          = content.quotes             ?? content.ai_audit?.quotes             ?? [];
     const claims          = content.claims             ?? content.ai_audit?.claims             ?? [];
 
+    // ── Schema enrichment (v2) ─────────────────────────────────────────────
+    // Full Schema.org entity payloads emitted by the Vercel pipeline's
+    // lib/schema-enrichment-resolver.js. These are pre-resolved against
+    // an 84-entity Wikidata registry on the generation side, so the
+    // renderer can read them verbatim without re-running entity resolution.
+    // Fall back to [] for legacy rows that pre-date the v2 pipeline; in
+    // that case the renderer falls back to slug-based resolveAbout/
+    // resolveMentions on the v1 columns above.
+    const aboutEntities    = content.about    ?? content.ai_audit?.about    ?? [];
+    const mentionsEntities = content.mentions ?? content.ai_audit?.mentions ?? [];
+
     const result = await client.query(
       `INSERT INTO blog_posts (
         external_id, topic_id, content_type, title, headline, slug,
@@ -64,10 +75,12 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         hero_image_url, hero_image_alt, hero_image_credit, visual_meta,
         alternative_headline, about_slugs, mention_slugs, speakable_selectors,
         citations, dataset, item_list, how_to, quotes, claims,
+        about, mentions,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
         $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,
+        $39,$40,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -108,6 +121,8 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         how_to = EXCLUDED.how_to,
         quotes = EXCLUDED.quotes,
         claims = EXCLUDED.claims,
+        about = EXCLUDED.about,
+        mentions = EXCLUDED.mentions,
         updated_at = NOW()
       RETURNING id, (xmax = 0) AS inserted`,
       [
@@ -149,6 +164,8 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         howTo ? JSON.stringify(howTo) : null,
         JSON.stringify(quotes),
         JSON.stringify(claims),
+        JSON.stringify(aboutEntities),
+        JSON.stringify(mentionsEntities),
       ]
     );
 

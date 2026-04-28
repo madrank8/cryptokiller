@@ -1296,20 +1296,20 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
   const canonical = `${BASE}/blog/${slug}`;
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = (row.publishedAt ?? row.createdAt) ? new Date((row.publishedAt ?? row.createdAt)!).toISOString() : undefined;
-  // Only emit dateModified when the article has actually been edited after
-  // publish. Article generation writes both timestamps within seconds of
-  // each other, which Google reads as a meaningless freshness signal
-  // (and may flag as auto-generated). Treat anything within 5 minutes of
-  // datePublished as "no real edit" and drop the field.
+  // Always emit dateModified when row.updatedAt is present. For freshly-
+  // published articles dateModified will equal datePublished — that is the
+  // schema.org-correct semantic ("last modified equals first published")
+  // and is what crawlers expect. The previous heuristic that skipped
+  // dateModified when within 5 minutes of datePublished produced null
+  // values on every new publish, weakening freshness signals on the
+  // Article schema. Auto-generation concerns should be addressed by the
+  // publish quality gate (which validates declaration-first prose, real
+  // entities, etc.), not by dropping required schema fields.
   let dateModified: string | undefined;
-  if (row.updatedAt && datePublished) {
-    const modMs = new Date(row.updatedAt).getTime();
-    const pubMs = new Date(datePublished).getTime();
-    if (Math.abs(modMs - pubMs) > 5 * 60 * 1000) {
-      dateModified = new Date(row.updatedAt).toISOString();
-    }
-  } else if (row.updatedAt) {
+  if (row.updatedAt) {
     dateModified = new Date(row.updatedAt).toISOString();
+  } else if (datePublished) {
+    dateModified = datePublished;
   }
 
   const persona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
@@ -1368,7 +1368,7 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 <article>
 <h1>${esc(row.headline || row.title)}</h1>
 <p><strong>By</strong> ${esc(authorName)}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.wordCount ? ` · ${row.wordCount}-word read` : ""}</p>
-${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
+${summaryText ? `<p class="section-summary">${esc(truncate(summaryText, 500))}</p>` : ""}
 ${articleBodyHtml}
 ${faqHtml}
 ${sourcesHtml}
@@ -1382,8 +1382,21 @@ ${sourcesHtml}
   // via @id refs) → FAQPage → ClaimReview[] → ItemList → HowTo → Dataset →
   // Quotation[]. All extended nodes are additive — if the DB field is absent
   // or empty, the node is simply omitted. Base Article + FAQPage always emit.
-  const aboutNodes    = resolveAbout(row.aboutSlugs);
-  const mentionNodes  = resolveMentions(row.mentionSlugs);
+  // ── Schema enrichment v2 — prefer full-entity columns, fall back to v1 slugs ──
+  // The Vercel pipeline (lib/schema-enrichment-resolver.js) writes complete
+  // Schema.org entities to row.about and row.mentions (with Wikidata sameAs +
+  // site-internal @id). Use them directly if present. For legacy rows that
+  // pre-date the v2 pipeline, fall back to slug-based resolution against the
+  // local ENTITY_REGISTRY in blogSchemaEnrichment.ts.
+  //
+  // NOTE: this means the in-renderer ENTITY_REGISTRY filter is now a fallback
+  // path only. Adding new entities should be done in lib/wikidata-registry.js
+  // on the Vercel side, where the pipeline can resolve them at generation
+  // time. The Replit registry remains for back-compat with legacy rows.
+  const aboutFromColumn   = Array.isArray(row.about)    ? (row.about    as Record<string, unknown>[]) : [];
+  const mentionsFromColumn = Array.isArray(row.mentions) ? (row.mentions as Record<string, unknown>[]) : [];
+  const aboutNodes    = aboutFromColumn.length    > 0 ? aboutFromColumn    : resolveAbout(row.aboutSlugs);
+  const mentionNodes  = mentionsFromColumn.length > 0 ? mentionsFromColumn : resolveMentions(row.mentionSlugs);
   const citationNodes = buildCitations(row.citations);
   // Blog posts don't carry a brand name (no platforms join) — pass undefined
   // for brandName; ClaimReview nodes that need itemReviewed.author fall back
@@ -1434,7 +1447,7 @@ ${sourcesHtml}
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
-    articleSection: row.contentType || "Crypto Scam Investigation",
+    articleSection: row.topicTitle || "Cryptocurrency fraud awareness",
     ...(row.targetKeyword ? { keywords: row.targetKeyword } : {}),
     // about[] and mentions[] reference the entity nodes by @type/name. Schema
     // parsers will happily correlate these back when the full node is in @graph.

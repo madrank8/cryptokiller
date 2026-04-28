@@ -50,6 +50,17 @@ export const blogPostsTable = pgTable("blog_posts", {
   quotes: jsonb("quotes").notNull().default([]),
   claims: jsonb("claims").notNull().default([]),
 
+  // ── Schema enrichment (v2) ─────────────────────────────────────────────────
+  // Full Schema.org entity payloads populated by the Vercel pipeline's
+  // lib/schema-enrichment-resolver.js. Each entry in `about` / `mentions` is
+  // a complete Schema.org Thing with Wikidata sameAs + (for `about`) a
+  // site-internal @id for topic-cluster graph linking. The renderer reads
+  // these directly — no in-renderer registry filtering. Old slug arrays
+  // above remain populated for backward compatibility with legacy rows
+  // that pre-date the v2 pipeline.
+  about: jsonb("about").notNull().default([]),
+  mentions: jsonb("mentions").notNull().default([]),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
