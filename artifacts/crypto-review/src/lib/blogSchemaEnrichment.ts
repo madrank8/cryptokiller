@@ -580,6 +580,18 @@ export function buildClaimReviews(
   const out: Record<string, unknown>[] = [];
   (input as ClaimInput[]).forEach((c, i) => {
     if (!c || typeof c !== "object") return;
+    // Accept fully-formed ClaimReview nodes from Vercel pipeline v2.
+    if ((c as Record<string, unknown>)["@type"] === "ClaimReview") {
+      const claimNode = c as unknown as Record<string, unknown>;
+      // Ensure stable identity/url and a publish date when missing.
+      out.push({
+        ...claimNode,
+        "@id": claimNode["@id"] ?? `${pageUrl}#claim-${i + 1}`,
+        url: claimNode.url ?? `${pageUrl}#claim-${i + 1}`,
+        ...(claimNode.datePublished ? {} : (parentDatePublished ? { datePublished: parentDatePublished } : {})),
+      });
+      return;
+    }
     // Accept either `claimReviewed` (canonical) or `claim` (legacy).
     const claimText = c.claimReviewed ?? c.claim;
     if (!claimText) return;
@@ -681,6 +693,16 @@ export interface ItemListInput {
 
 export function buildItemList(input: unknown, pageUrl: string): Record<string, unknown> | null {
   if (!input) return null;
+  // Accept fully-formed ItemList objects from Vercel pipeline v2.
+  if (typeof input === "object" && !Array.isArray(input)) {
+    const node = input as Record<string, unknown>;
+    if (node["@type"] === "ItemList" && Array.isArray(node.itemListElement)) {
+      return {
+        ...node,
+        "@id": (node["@id"] as string | undefined) ?? `${pageUrl}#itemlist`,
+      };
+    }
+  }
 
   // Normalise both shapes into { name?, description?, numberOfItems?, itemListOrder?, items: [...] }.
   let name: string | undefined;
@@ -768,6 +790,16 @@ export interface HowToInput {
 export function buildHowTo(input: unknown, pageUrl: string): Record<string, unknown> | null {
   if (!input || typeof input !== "object") return null;
   const h = input as HowToInput;
+  // Accept fully-formed HowTo objects from Vercel pipeline v2.
+  if ((input as Record<string, unknown>)["@type"] === "HowTo") {
+    const node = input as Record<string, unknown>;
+    const stepArr = Array.isArray(node.step) ? node.step : [];
+    if (stepArr.length === 0) return null;
+    return {
+      ...node,
+      "@id": (node["@id"] as string | undefined) ?? `${pageUrl}#howto`,
+    };
+  }
   if (!Array.isArray(h.steps) || h.steps.length === 0) return null;
   return {
     "@type": "HowTo",
