@@ -2205,6 +2205,367 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
     }),
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// Topic-cluster pages — /topics and /topics/:slug
+//
+// Each entry in an article's about[] / mentions[] arrays carries an @id of
+// the form `${BASE}/topics/{slug}#topic`. The renderer needs those URLs
+// to resolve to real pages so Google's entity graph can read them as
+// canonical references. These functions self-bootstrap from existing
+// blog_posts.about_slugs — every topic referenced by ≥1 published article
+// auto-gets a stub page; legacy articles (pre-v2) work via the slug
+// array fallback.
+//
+// Topic name + sameAs is resolved from the FIRST matching article's
+// about[] jsonb (which already carries Wikidata sameAs from the v2
+// pipeline). Legacy articles fall back to title-cased slug + no sameAs.
+// ─────────────────────────────────────────────────────────────────────────
+
+// Common 2-3 letter acronyms preserved as UPPERCASE in slug-derived names.
+// Matches the casing rule in lib/wikidata-registry.js / schema-enrichment-resolver.js
+// on the Vercel side so titles stay consistent across the system.
+const TOPIC_ACRONYMS = new Set([
+  "ai", "api", "aml", "bbb", "btc", "ceo", "crm", "dao", "dex", "dns",
+  "eth", "eu", "fbi", "ftc", "gdp", "hr", "iot", "ip", "irs", "kyc",
+  "llm", "nft", "os", "pii", "sec", "seo", "sql", "tos", "uk", "un",
+  "us", "usa", "usd", "vpn",
+]);
+
+function titleCaseSlug(slug: string): string {
+  return slug
+    .split("-")
+    .map((w) => {
+      const lower = w.toLowerCase();
+      if (TOPIC_ACRONYMS.has(lower)) return lower.toUpperCase();
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+interface TopicArticle {
+  slug: string;
+  title: string;
+  headline: string;
+  summary: string;
+  metaDescription: string;
+  publishedAt: Date | null;
+  updatedAt: Date | null;
+  heroImageUrl: string | null;
+  about: unknown;
+}
+
+interface TopicEntity {
+  type: string;
+  name: string;
+  sameAs: string[];
+  description?: string;
+}
+
+/**
+ * Resolve a topic slug to its canonical entity by inspecting the about[]
+ * jsonb on any article tagged with the slug. Falls back to a title-cased
+ * Thing if no v2 metadata is present (legacy article).
+ */
+function resolveTopicEntity(slug: string, articles: TopicArticle[]): TopicEntity {
+  const expectedId = `${BASE}/topics/${slug}#topic`;
+  for (const article of articles) {
+    const about = Array.isArray(article.about) ? (article.about as Record<string, unknown>[]) : [];
+    for (const entry of about) {
+      if (entry && typeof entry === "object" && entry["@id"] === expectedId) {
+        const name = typeof entry.name === "string" ? entry.name : titleCaseSlug(slug);
+        const type = typeof entry["@type"] === "string" ? entry["@type"] : "Thing";
+        const sameAs = Array.isArray(entry.sameAs)
+          ? (entry.sameAs as unknown[]).filter((x): x is string => typeof x === "string")
+          : [];
+        return { type, name, sameAs };
+      }
+    }
+  }
+  // Legacy fallback — no v2 about[] yet on this slug's articles.
+  return { type: "Thing", name: titleCaseSlug(slug), sameAs: [] };
+}
+
+/**
+ * Fetch articles tagged with a given topic slug. Uses the jsonb `@>`
+ * containment operator on blog_posts.about_slugs (a jsonb array of
+ * strings) to find any article whose about_slugs array contains the
+ * target slug. Equivalent in semantics to `aboutSlugs ? slug` but
+ * parameterizes more reliably across Drizzle's sql-template implementations.
+ * Returns articles ordered most-recent first.
+ */
+async function fetchArticlesForTopic(slug: string, limit = 50): Promise<TopicArticle[]> {
+  const containsSlug = JSON.stringify([slug]);
+  const rows = await db
+    .select({
+      slug: blogPostsTable.slug,
+      title: blogPostsTable.title,
+      headline: blogPostsTable.headline,
+      summary: blogPostsTable.summary,
+      metaDescription: blogPostsTable.metaDescription,
+      publishedAt: blogPostsTable.publishedAt,
+      updatedAt: blogPostsTable.updatedAt,
+      heroImageUrl: blogPostsTable.heroImageUrl,
+      about: blogPostsTable.about,
+    })
+    .from(blogPostsTable)
+    .where(
+      and(
+        eq(blogPostsTable.status, "published"),
+        sql`${blogPostsTable.aboutSlugs} @> ${containsSlug}::jsonb`,
+      ),
+    )
+    .orderBy(desc(blogPostsTable.publishedAt))
+    .limit(limit);
+  return rows as TopicArticle[];
+}
+
+/**
+ * List every distinct topic slug across all published articles. Used by
+ * /topics index and the sitemap. Returns slug + article count + most
+ * recent updatedAt (for sitemap lastmod).
+ */
+async function listAllTopics(): Promise<Array<{ slug: string; articleCount: number; lastUpdated: Date | null }>> {
+  // Unnest the jsonb array into a string set, group by slug, count.
+  const rows = await db.execute(sql`
+    SELECT slug, COUNT(*)::int AS article_count, MAX(updated_at) AS last_updated
+    FROM (
+      SELECT jsonb_array_elements_text(about_slugs) AS slug, updated_at
+      FROM blog_posts
+      WHERE status = 'published' AND jsonb_typeof(about_slugs) = 'array'
+    ) t
+    GROUP BY slug
+    ORDER BY article_count DESC, slug ASC
+  `);
+  // drizzle-orm returns { rows } from execute(); fall back if shape differs.
+  const r = (rows as unknown as { rows?: unknown[] }).rows ?? (rows as unknown[]);
+  return (r as Array<{ slug: string; article_count: number; last_updated: string | Date | null }>).map((x) => ({
+    slug: String(x.slug),
+    articleCount: Number(x.article_count) || 0,
+    lastUpdated: x.last_updated ? new Date(x.last_updated) : null,
+  }));
+}
+
+async function renderTopicsList(): Promise<RenderResult> {
+  const topics = await listAllTopics();
+
+  const title = "Topics — Crypto Scam Investigations & Guides | CryptoKiller";
+  const description =
+    "Browse CryptoKiller investigations and guides by topic. Romance scams, pig butchering, exchange fraud, dating-app fraud, deepfake schemes, and more — organized for fast reference.";
+  const canonical = `${BASE}/topics`;
+
+  if (topics.length === 0) {
+    // No topics yet — render a sparse landing page rather than 404.
+    const bodyHtml = `${siteHeaderHtml()}<main>
+<nav aria-label="Breadcrumb"><a href="/">Home</a> · Topics</nav>
+<h1>Topics</h1>
+<p>${esc(description)}</p>
+<p>No topics have been indexed yet. Browse our latest <a href="/blog">blog posts</a> or <a href="/investigations">investigations</a>.</p>
+</main>${siteFooterHtml()}`;
+    return {
+      status: 200,
+      title,
+      description,
+      canonical,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml,
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@graph": [
+          legalEntityNode(),
+          organizationNode(),
+          websiteNode(),
+          breadcrumbList([
+            { label: "Home", href: `${BASE}/` },
+            { label: "Topics", href: canonical },
+          ]),
+          {
+            "@type": "CollectionPage",
+            "@id": `${canonical}#webpage`,
+            url: canonical,
+            name: title,
+            description,
+            isPartOf: { "@id": WEBSITE_ID },
+            inLanguage: "en",
+          },
+        ],
+      },
+    };
+  }
+
+  const itemsHtml = topics
+    .map((t) => {
+      const name = titleCaseSlug(t.slug);
+      const countLabel = t.articleCount === 1 ? "1 article" : `${t.articleCount} articles`;
+      return `<li><a href="/topics/${esc(t.slug)}">${esc(name)}</a> <span class="topic-count">(${esc(countLabel)})</span></li>`;
+    })
+    .join("");
+
+  const bodyHtml = `${siteHeaderHtml()}<main>
+<nav aria-label="Breadcrumb"><a href="/">Home</a> · Topics</nav>
+<h1>Topics</h1>
+<p class="section-summary">${esc(description)}</p>
+<ul class="topics-index">${itemsHtml}</ul>
+</main>${siteFooterHtml()}`;
+
+  const lastModified = topics
+    .map((t) => t.lastUpdated)
+    .filter((d): d is Date => d != null)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+
+  return {
+    status: 200,
+    title,
+    description,
+    canonical,
+    ogType: "website",
+    ogImage: DEFAULT_OG_IMAGE,
+    bodyHtml,
+    lastModified: lastModified ? lastModified.toUTCString() : undefined,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        legalEntityNode(),
+        organizationNode(),
+        websiteNode(),
+        breadcrumbList([
+          { label: "Home", href: `${BASE}/` },
+          { label: "Topics", href: canonical },
+        ]),
+        {
+          "@type": "CollectionPage",
+          "@id": `${canonical}#webpage`,
+          url: canonical,
+          name: title,
+          description,
+          isPartOf: { "@id": WEBSITE_ID },
+          inLanguage: "en",
+          mainEntity: {
+            "@type": "ItemList",
+            "@id": `${canonical}#topic-list`,
+            numberOfItems: topics.length,
+            itemListElement: topics.map((t, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              url: `${BASE}/topics/${t.slug}`,
+              name: titleCaseSlug(t.slug),
+            })),
+          },
+        },
+      ],
+    },
+  };
+}
+
+async function renderTopicPage(slug: string): Promise<RenderResult> {
+  const articles = await fetchArticlesForTopic(slug);
+  if (articles.length === 0) {
+    return renderNotFound(`/topics/${slug}`);
+  }
+
+  const entity = resolveTopicEntity(slug, articles);
+  const canonical = `${BASE}/topics/${slug}`;
+  const topicId = `${canonical}#topic`;
+
+  // SEO copy — synthesized from real article count + entity name. Stays
+  // factual and does not fabricate counts. Used for both meta description
+  // and the body intro paragraph.
+  const articleCountLabel = articles.length === 1 ? "1 article" : `${articles.length} articles`;
+  const description = entity.sameAs.length > 0
+    ? `${articleCountLabel} on CryptoKiller covering ${entity.name}, including investigations, red-flag analyses, and scam-prevention guides cross-referenced to Wikidata-canonical entity sources.`
+    : `${articleCountLabel} on CryptoKiller covering ${entity.name}, including investigations, red-flag analyses, and scam-prevention guides.`;
+  const title = `${entity.name} — ${articleCountLabel} on CryptoKiller`;
+
+  const lastModified = articles
+    .map((a) => a.updatedAt)
+    .filter((d): d is Date => d != null)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+
+  const itemsHtml = articles
+    .map((a) => {
+      const datePart = a.publishedAt
+        ? `<time datetime="${esc(new Date(a.publishedAt).toISOString())}">${esc(new Date(a.publishedAt).toISOString().slice(0, 10))}</time> · `
+        : "";
+      const excerpt = truncate(a.metaDescription || a.summary || "", 220);
+      return `<li>
+<h3><a href="/blog/${esc(a.slug)}">${esc(a.headline || a.title)}</a></h3>
+<p>${datePart}${esc(excerpt)}</p>
+</li>`;
+    })
+    .join("");
+
+  const bodyHtml = `${siteHeaderHtml()}<main>
+<nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/topics">Topics</a> · ${esc(entity.name)}</nav>
+<article id="topic">
+<h1>${esc(entity.name)}</h1>
+<p class="section-summary">${esc(description)}</p>
+${entity.sameAs.length > 0
+  ? `<p class="topic-references">External references: ${entity.sameAs.map((url, i) => `<a href="${esc(url)}" rel="noopener nofollow">${esc(new URL(url).host)}</a>${i < entity.sameAs.length - 1 ? ", " : ""}`).join("")}</p>`
+  : ""}
+<h2>${articleCountLabel} in this topic</h2>
+<ul class="topic-articles">${itemsHtml}</ul>
+</article>
+</main>${siteFooterHtml()}`;
+
+  // Build the @graph. The topic entity gets its own node with the SAME @id
+  // that articles reference in their about[] — this closes the entity graph.
+  // The CollectionPage has about: { @id: topic } as a backreference.
+  const topicEntityNode: Record<string, unknown> = {
+    "@type": entity.type,
+    "@id": topicId,
+    name: entity.name,
+    description,
+    url: canonical,
+  };
+  if (entity.sameAs.length > 0) topicEntityNode.sameAs = entity.sameAs;
+
+  return {
+    status: 200,
+    title,
+    description,
+    canonical,
+    ogType: "website",
+    ogImage: DEFAULT_OG_IMAGE,
+    bodyHtml,
+    lastModified: lastModified ? lastModified.toUTCString() : undefined,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        legalEntityNode(),
+        organizationNode(),
+        websiteNode(),
+        breadcrumbList([
+          { label: "Home", href: `${BASE}/` },
+          { label: "Topics", href: `${BASE}/topics` },
+          { label: entity.name, href: canonical },
+        ]),
+        topicEntityNode,
+        {
+          "@type": "CollectionPage",
+          "@id": `${canonical}#webpage`,
+          url: canonical,
+          name: title,
+          description,
+          about: { "@id": topicId },
+          isPartOf: { "@id": WEBSITE_ID },
+          inLanguage: "en",
+          mainEntity: {
+            "@type": "ItemList",
+            "@id": `${canonical}#articles-list`,
+            numberOfItems: articles.length,
+            itemListElement: articles.map((a, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              url: `${BASE}/blog/${a.slug}`,
+              name: a.headline || a.title,
+            })),
+          },
+        },
+      ],
+    },
+  };
+}
+
 export async function renderPage(rawPath: string): Promise<RenderResult> {
   const [pathOnly, queryString = ""] = rawPath.split("?");
   const search = new URLSearchParams(queryString);
@@ -2213,12 +2574,20 @@ export async function renderPage(rawPath: string): Promise<RenderResult> {
   if (cleaned === "/") return renderHome();
   if (cleaned === "/investigations") return renderInvestigationsList(search);
   if (cleaned === "/blog") return renderBlogList();
+  if (cleaned === "/topics") return renderTopicsList();
 
   const reviewMatch = cleaned.match(/^\/review\/([^/]+)$/);
   if (reviewMatch) return renderReview(decodeURIComponent(reviewMatch[1]));
 
   const blogMatch = cleaned.match(/^\/blog\/([^/]+)$/);
   if (blogMatch) return renderBlogPost(decodeURIComponent(blogMatch[1]));
+
+  // /topics/:slug — topic-cluster stub pages. Every published article's
+  // about_slugs auto-bootstraps a topic page here. The @id pattern
+  // `${BASE}/topics/{slug}#topic` is the same one articles reference in
+  // their about[] arrays, closing the entity graph.
+  const topicMatch = cleaned.match(/^\/topics\/([^/]+)$/);
+  if (topicMatch) return renderTopicPage(decodeURIComponent(topicMatch[1]));
 
   const authorMatch = cleaned.match(/^\/author\/([^/]+)$/);
   if (authorMatch) return renderAuthor(decodeURIComponent(authorMatch[1]));

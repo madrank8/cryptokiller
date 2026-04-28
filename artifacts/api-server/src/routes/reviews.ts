@@ -231,7 +231,7 @@ function encodeSlugForLoc(slug: string): string {
 }
 
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
-  const [rows, blogRows, latestDates] = await Promise.all([
+  const [rows, blogRows, latestDates, topicRowsRaw] = await Promise.all([
     db
       .select({
         slug: reviewsTable.slug,
@@ -258,7 +258,25 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
         .from(blogPostsTable)
         .where(eq(blogPostsTable.status, "published")),
     ]),
+    // Topic-cluster pages (/topics/:slug) — one URL per distinct
+    // about_slugs value across published blog_posts. Lastmod is the
+    // most recent updatedAt among articles tagged with that topic.
+    db.execute(sql`
+      SELECT slug, MAX(updated_at) AS last_updated
+      FROM (
+        SELECT jsonb_array_elements_text(about_slugs) AS slug, updated_at
+        FROM blog_posts
+        WHERE status = 'published' AND jsonb_typeof(about_slugs) = 'array'
+      ) t
+      GROUP BY slug
+      ORDER BY slug ASC
+    `),
   ]);
+
+  // drizzle.execute() shape varies by driver — handle both.
+  const topicRows = (
+    (topicRowsRaw as unknown as { rows?: unknown[] }).rows ?? (topicRowsRaw as unknown[])
+  ) as Array<{ slug: string; last_updated: string | Date | null }>;
 
   const latestReviewDate = latestDates[0][0]?.latest;
   const latestBlogDate = latestDates[1][0]?.latest;
@@ -316,6 +334,27 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     xml += `  <url>\n    <loc>${base}/blog/${encodeSlugForLoc(b.slug)}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+  }
+
+  // Topics index — one URL listing all topics
+  if (topicRows.length > 0) {
+    const topicsLastmod = topicRows
+      .map((t) => t.last_updated)
+      .filter((d): d is string | Date => d != null)
+      .map((d) => new Date(d as string).getTime())
+      .sort((a, b) => b - a)[0];
+    const topicsLastmodStr = topicsLastmod
+      ? new Date(topicsLastmod).toISOString().split("T")[0]
+      : globalLastmodStr;
+    xml += `  <url>\n    <loc>${base}/topics</loc>\n    <lastmod>${topicsLastmodStr}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+  }
+
+  // Topic cluster pages — one URL per distinct topic slug
+  for (const t of topicRows) {
+    const lastmod = t.last_updated ? new Date(t.last_updated as string).toISOString().split("T")[0] : "";
+    xml += `  <url>\n    <loc>${base}/topics/${encodeSlugForLoc(t.slug)}</loc>\n`;
+    if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
   }
 
   xml += `</urlset>`;
