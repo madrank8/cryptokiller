@@ -1103,17 +1103,14 @@ async function renderReview(slug: string): Promise<RenderResult> {
   function dedupeDuplicateStageCardsInFullArticle(html: string): string {
     const seen = new Set<string>();
     return html.replace(
-      /(<span[^>]*>\s*Stage\s+([1-4])\s*<\/span>[\s\S]{0,1200}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,2500}?<\/ul>\s*<\/div>\s*<\/div>)/gi,
-      (full, _spanBlock, stageNumber, headingHtml) => {
-        const headingText = String(headingHtml || "")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-          .toLowerCase();
-        const key = `${stageNumber}:${headingText}`;
+      /((?:<div style="display:flex;justify-content:center;padding:4px 0">[\s\S]*?<\/div>\s*)?<div style="position:relative;display:flex;gap:0;border-radius:16px;background:rgba\(136,19,55,0\.3\);border:1px solid rgba\(190,18,60,0\.5\);overflow:hidden">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/div>)/gi,
+      (fullCard) => {
+        const stageMatch = fullCard.match(/<span[^>]*>\s*Stage\s+([1-4])\s*<\/span>/i);
+        if (!stageMatch) return fullCard;
+        const key = `stage-${stageMatch[1]}`;
         if (seen.has(key)) return "";
         seen.add(key);
-        return full;
+        return fullCard;
       },
     );
   }
