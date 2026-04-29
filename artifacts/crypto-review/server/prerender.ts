@@ -45,16 +45,24 @@ function reviewHeadlineLabel(tier: TierInfo): string {
 }
 
 // Tier → star-rating polarity. Mirrors lib/review-schema.js resolveReviewRating
-// on the Vercel side. Confirmed/high → 1 star, elevated → 2, watchlist → 3.
-// low tier returns null — we do NOT ship a star rating on low-signal reviews
-// because Google's Rich Results renders reviewRating as actual stars, and an
-// inverted rating on a hedged review is worse than no rating.
+// on the Vercel side. Confirmed/high → 1 star, elevated → 2.
+// watchlist + low return null — we do NOT ship a star rating on hedged
+// investigative reviews because Google's Rich Results renders reviewRating
+// as actual stars in SERPs. A 3/5-star ★★★ display reads as "OK product,
+// maybe try it" — exactly the wrong message for a watchlist scam review.
+// Better: ship the Review with no aggregate rating; Google still indexes
+// it as a review-style article without surfacing misleading stars.
+//
+// 2026-04-28: changed watchlist from `{ value: 3, ... }` to null after
+// the WhatsApp Bot audit found ★★★ stars rendering on a 26/100 watchlist
+// page next to "Do not deposit any money." Affitto Casa (3/100, low tier)
+// already correctly omitted; this brings watchlist into alignment.
 function reviewRatingForTier(tier: TierInfo): { value: number; explanation: string } | null {
   switch (tier.tier) {
     case "confirmed": return { value: 1, explanation: "Confirmed scam. Avoid all contact." };
     case "high":      return { value: 1, explanation: "Very high risk. Evidence of fraudulent activity." };
     case "elevated":  return { value: 2, explanation: "Multiple serious red flags. Exercise extreme caution." };
-    case "watchlist": return { value: 3, explanation: "Under investigation. Verify before depositing." };
+    case "watchlist": return null;
     case "low":       return null;
   }
 }
@@ -782,6 +790,37 @@ async function renderReview(slug: string): Promise<RenderResult> {
       .orderBy(asc(funnelStagesTable.stageNumber)),
   ]);
 
+  // ── Defensive funnel_stages dedup ─────────────────────────────────────
+  // The sync route DELETE-then-INSERTs funnel_stages on every sync, so in
+  // theory the table can never hold duplicate stage_number rows. In practice
+  // the WhatsApp Bot review (2026-04-28) shipped with stage 4 rendered 3×:
+  // either a previous sync wrote bad parseFunnelStages output and a later
+  // sync failed mid-transaction, or upstream tooling wrote rows directly.
+  // Whatever the history, the renderer should never emit a duplicate stage.
+  // Collapse by stage_number, taking the FIRST row per stage (DB ORDER BY
+  // makes that deterministic), and prefer rows with non-empty descriptions
+  // when ties happen. This is a belt-and-braces guard — Vercel-side
+  // parseFunnelStages also got robustness improvements in the same drop.
+  const _funnelStagesByNumber = new Map<number, typeof funnelStages[number]>();
+  for (const fs of funnelStages) {
+    const n = Number(fs.stageNumber) || 0;
+    if (n < 1) continue;
+    const existing = _funnelStagesByNumber.get(n);
+    if (!existing) {
+      _funnelStagesByNumber.set(n, fs);
+    } else {
+      // Tie-break: prefer the row with non-empty description over an empty
+      // one (handles legacy "header-only" duplicates where one row has
+      // content and another is a stub).
+      const existingHasDesc = String(existing.description || "").trim().length > 0;
+      const fsHasDesc = String(fs.description || "").trim().length > 0;
+      if (!existingHasDesc && fsHasDesc) _funnelStagesByNumber.set(n, fs);
+    }
+  }
+  const dedupedFunnelStages = [..._funnelStagesByNumber.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, fs]) => fs);
+
   const platformName = row.platformName || slug;
 
   // Resolve tier from stored metadata (preferred) or compute from score.
@@ -802,10 +841,42 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // shipping "Threat Score 0/100" on a review that lost its score during
   // sync is worse than omitting it. Score > 0 is the floor; below that
   // the writer's alternative_headline (if present) takes the slot.
+  //
+  // 2026-04-28: smart truncation. Pre-fix used `truncate(text, 55)` which
+  // appends an ellipsis at exactly char 55 — even mid-word ("...Tra…").
+  // The WhatsApp Bot review shipped with `WhatsApp Bot Under Investigation:
+  // 232 Ad Creatives Tra… | CryptoKiller` because the alternative_headline
+  // was 84 chars and got chopped at "Tracked". Replaced with word-boundary
+  // truncation (port of pickTitleBase from renderBlogPost): if both the
+  // base + " | CryptoKiller" suffix fit ≤70 chars, append the suffix;
+  // otherwise drop the suffix and let the base run alone. Truncation
+  // (when needed) snaps to last whitespace before char 55.
   const scoreSuffix = row.threatScore && row.threatScore > 0 ? ` — Threat Score ${row.threatScore}/100` : "";
-  const title = row.alternativeHeadline
-    ? `${truncate(row.alternativeHeadline, 55)} | CryptoKiller`
-    : `${platformName} ${headlineLabel}${scoreSuffix} | CryptoKiller`;
+  const REVIEW_BRAND_SUFFIX = " | CryptoKiller";
+  function pickReviewTitleBase(): string {
+    const altHeadline = String(row.alternativeHeadline || "").trim();
+    if (altHeadline) {
+      // Try the full alternative headline first — it's the writer's
+      // prose-edited 1-line summary and almost always fits within 55-70 chars.
+      if (altHeadline.length <= 55) return altHeadline;
+      // Too long — truncate at last word boundary before char 55. Strip
+      // any trailing connector punctuation (commas, em-dashes) so the title
+      // doesn't end mid-clause. NEVER append an ellipsis on a SEO title;
+      // ellipsis tells Google the text was machine-cut and looks broken.
+      const candidate = altHeadline.slice(0, 55);
+      const lastSpace = candidate.lastIndexOf(" ");
+      const cut = lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate;
+      return cut.replace(/[\s—\-:,]+$/, "");
+    }
+    // No alternative headline available — fall back to the canonical
+    // "PlatformName Investigation — Threat Score N/100" form which is
+    // already short and adds no risk of mid-word truncation.
+    return `${platformName} ${headlineLabel}${scoreSuffix}`;
+  }
+  const reviewTitleBase = pickReviewTitleBase();
+  const title = reviewTitleBase.length + REVIEW_BRAND_SUFFIX.length <= 70
+    ? `${reviewTitleBase}${REVIEW_BRAND_SUFFIX}`
+    : reviewTitleBase;
   const description = truncate(
     row.metaDescription || row.heroDescription || row.summary || `${platformName} crypto scam investigation. Threat score ${row.threatScore}/100. Evidence, red flags, ad surveillance, and verdict from the CryptoKiller research team.`,
     160,
@@ -854,8 +925,8 @@ async function renderReview(slug: string): Promise<RenderResult> {
         .join("")}</section>`
     : "";
 
-  const funnelStagesHtml = funnelStages.length
-    ? `<section aria-labelledby="funnel-heading"><h2 id="funnel-heading">How the ${esc(platformName)} scam funnel works</h2>${funnelStages
+  const funnelStagesHtml = dedupedFunnelStages.length
+    ? `<section aria-labelledby="funnel-heading"><h2 id="funnel-heading">How the ${esc(platformName)} scam funnel works</h2>${dedupedFunnelStages
         .map((fs) => {
           const bullets =
             Array.isArray(fs.bullets) && fs.bullets.length
@@ -964,11 +1035,70 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // (FAQPage, ItemList, Dataset, etc.) — only the visual HTML composition
   // changes. The schema graph is unchanged.
   //
-  // Sanitisation: strip <script> tags (esp. embedded JSON-LD that would
-  // duplicate our SSR jsonLd). Mirrors renderBlogPost's strip behaviour.
+  // Sanitisation + speakable-selector preparation. Strips <script> tags
+  // (esp. embedded JSON-LD that would duplicate our SSR jsonLd) AND
+  // wraps the canonical heading sections so the Speakable cssSelector
+  // targets (.review-summary, .key-takeaways) point to real DOM nodes.
+  //
+  // Pre-2026-04-28 the Speakable schema declared selectors that NEVER
+  // matched anything in the rendered body — the writer emits headings
+  // like `<h2>Investigation Summary</h2>` and `<h3>Key Takeaways</h3>`
+  // with no classes, so voice-assistant excerpts were silently empty.
+  // The fix runs a small post-process that:
+  //
+  //   - Locates the H2 "Investigation Summary" heading and wraps it
+  //     plus the following <p> in a `<section class="review-summary">`
+  //     so the .review-summary selector becomes valid.
+  //   - Locates the H3 "Key Takeaways" heading (writer wraps it in
+  //     <strong> with an emoji) and wraps it plus the following <ul>
+  //     in `<section class="key-takeaways">`.
+  //
+  // Wrappers are non-invasive — they don't change visible layout, only
+  // add a class around content that already existed. If the heading
+  // text drifts (e.g. a future writer revision uses "Summary" instead),
+  // the regex misses and the selector goes back to no-op rather than
+  // breaking the page.
+  //
+  // 2026-04-28 (also): the writer's full_article emits TWO blocks
+  // labelled "Important Disclaimer" — a mid-article <blockquote>
+  // carrying not_for_you content and an end-of-article block carrying
+  // the actual disclaimer. Rename the blockquote's label to "When this
+  // review may not apply" — its actual semantic — leaving the closing
+  // disclaimer block intact.
+  const importantDisclaimerInBlockquoteRe =
+    /(<blockquote\b[^>]*>)([\s\S]*?)(<\/blockquote>)/gi;
+  function relabelDisclaimerInsideBlockquote(html: string): string {
+    return html.replace(importantDisclaimerInBlockquoteRe, (_match, open, content, close) => {
+      const renamed = String(content).replace(
+        /<strong>\s*Important\s+Disclaimer:?\s*<\/strong>/gi,
+        "<strong>When this review may not apply:</strong>",
+      );
+      return `${open}${renamed}${close}`;
+    });
+  }
+  function wrapSpeakableTargets(html: string): string {
+    let out = html;
+    // Investigation Summary — match <h2> with optional emoji + optional
+    // <strong> wrapping. Capture the heading + following <p> as group.
+    out = out.replace(
+      /(<h2[^>]*>(?:\s*<strong>)?[^<]*?Investigation\s+Summary[^<]*?(?:<\/strong>\s*)?<\/h2>\s*<p[\s\S]*?<\/p>)/i,
+      '<section class="review-summary">$1</section>',
+    );
+    // Key Takeaways — H3 in this writer's templates. Capture heading +
+    // following <ul>.
+    out = out.replace(
+      /(<h3[^>]*>(?:\s*<strong>)?[^<]*?Key\s+Takeaways[^<]*?(?:<\/strong>\s*)?<\/h3>\s*<ul[\s\S]*?<\/ul>)/i,
+      '<section class="key-takeaways">$1</section>',
+    );
+    return out;
+  }
   const fullArticleBodyHtml =
     row.fullArticle && row.fullArticle.trim().length > 0
-      ? row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+      ? wrapSpeakableTargets(
+          relabelDisclaimerInsideBlockquote(
+            row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
+          ),
+        )
       : "";
 
   const bodyHtml = fullArticleBodyHtml
@@ -996,7 +1126,7 @@ ${heroImageHtml}
 <p><strong>Verdict:</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>
 ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
 ${heroText && heroText !== summaryText ? `<p>${esc(heroText)}</p>` : ""}
-${summaryText ? `<section><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
+${summaryText ? `<section class="review-summary"><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
 ${stats.length ? `<section><h2>Investigation at a glance</h2><ul>${stats.join("")}</ul></section>` : ""}
 ${keyFindingsHtml}
 ${contentImageByPlacement("section-1")}
@@ -1044,7 +1174,16 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     row.itemReviewed,
     canonical,
     platformName,
-    { heroDescription: row.heroDescription, summary: row.summary, threatScore: row.threatScore },
+    {
+      heroDescription: row.heroDescription,
+      summary: row.summary,
+      threatScore: row.threatScore,
+      // claims is read by the builder to harvest sameAs URLs from each
+      // ClaimReview's appearance — this is what surfaces scam-host URLs
+      // (microoxinebof.icu, wapp-eu.site, etc.) on the SoftwareApplication
+      // entity so Google can attach branded SERPs to the scam host.
+      claims: row.claims,
+    },
     tier,
   );
 
@@ -1066,9 +1205,24 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       // the correct type for a brand assessment.
       "@type": "Review",
       "@id": `${canonical}#review`,
-      headline: title,
+      // headline is the editorial headline a human would print under a byline.
+      // It must be clean prose with no truncation marker and no site suffix.
+      // Pre-2026-04-28 we passed the full <title> tag here including the
+      // truncated "Tra… | CryptoKiller" suffix — broken in SERPs and bad
+      // signal to Google. Prefer alternativeHeadline (the writer's clean
+      // 1-line summary), then headline column, then platformName label as
+      // last resort. The truncated SEO title goes in alternativeHeadline.
+      headline: String(row.alternativeHeadline || row.headline || "").trim()
+        || `${platformName} ${headlineLabel}`,
+      alternativeHeadline: title,
       url: canonical,
-      mainEntityOfPage: canonical,
+      // mainEntityOfPage is the canonical Article-style reference to the
+      // WebPage that hosts this Review. A bare URL string is technically
+      // valid but Google's canonical Article example uses a typed
+      // {@type: WebPage, @id: ...#webpage} reference, which lets the
+      // separate WebPage node carry its own properties (lastReviewed,
+      // significantLink, primaryImageOfPage, etc.) downstream.
+      mainEntityOfPage: { "@type": "WebPage", "@id": `${canonical}#webpage` },
       description,
       inLanguage: "en",
       isPartOf: { "@id": WEBSITE_ID },
@@ -1153,6 +1307,15 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
       inLanguage: "en",
+      // Backreferences to the Review + WebPage. Pre-2026-04-28 the FAQPage
+      // node stood alone in the @graph — orphaned FAQ subgraphs are still
+      // valid JSON-LD but Google reads connected graphs as stronger entity
+      // signals. `about: { @id: review }` tells Google "this FAQ is the
+      // FAQ for that Review". `isPartOf: { @id: webpage }` puts the FAQ
+      // under the same WebPage container the Review is on. Identical
+      // pattern to the Review.mainEntityOfPage upgrade above.
+      about: { "@id": `${canonical}#review` },
+      isPartOf: { "@id": `${canonical}#webpage` },
       mainEntity: faqItems.map((f) => ({
         "@type": "Question",
         name: f.question,
@@ -1296,20 +1459,20 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
   const canonical = `${BASE}/blog/${slug}`;
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = (row.publishedAt ?? row.createdAt) ? new Date((row.publishedAt ?? row.createdAt)!).toISOString() : undefined;
-  // Always emit dateModified when row.updatedAt is present. For freshly-
-  // published articles dateModified will equal datePublished — that is the
-  // schema.org-correct semantic ("last modified equals first published")
-  // and is what crawlers expect. The previous heuristic that skipped
-  // dateModified when within 5 minutes of datePublished produced null
-  // values on every new publish, weakening freshness signals on the
-  // Article schema. Auto-generation concerns should be addressed by the
-  // publish quality gate (which validates declaration-first prose, real
-  // entities, etc.), not by dropping required schema fields.
+  // Only emit dateModified when the article has actually been edited after
+  // publish. Article generation writes both timestamps within seconds of
+  // each other, which Google reads as a meaningless freshness signal
+  // (and may flag as auto-generated). Treat anything within 5 minutes of
+  // datePublished as "no real edit" and drop the field.
   let dateModified: string | undefined;
-  if (row.updatedAt) {
+  if (row.updatedAt && datePublished) {
+    const modMs = new Date(row.updatedAt).getTime();
+    const pubMs = new Date(datePublished).getTime();
+    if (Math.abs(modMs - pubMs) > 5 * 60 * 1000) {
+      dateModified = new Date(row.updatedAt).toISOString();
+    }
+  } else if (row.updatedAt) {
     dateModified = new Date(row.updatedAt).toISOString();
-  } else if (datePublished) {
-    dateModified = datePublished;
   }
 
   const persona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
@@ -1368,7 +1531,7 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 <article>
 <h1>${esc(row.headline || row.title)}</h1>
 <p><strong>By</strong> ${esc(authorName)}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.wordCount ? ` · ${row.wordCount}-word read` : ""}</p>
-${summaryText ? `<p class="section-summary">${esc(truncate(summaryText, 500))}</p>` : ""}
+${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
 ${articleBodyHtml}
 ${faqHtml}
 ${sourcesHtml}
@@ -1382,21 +1545,8 @@ ${sourcesHtml}
   // via @id refs) → FAQPage → ClaimReview[] → ItemList → HowTo → Dataset →
   // Quotation[]. All extended nodes are additive — if the DB field is absent
   // or empty, the node is simply omitted. Base Article + FAQPage always emit.
-  // ── Schema enrichment v2 — prefer full-entity columns, fall back to v1 slugs ──
-  // The Vercel pipeline (lib/schema-enrichment-resolver.js) writes complete
-  // Schema.org entities to row.about and row.mentions (with Wikidata sameAs +
-  // site-internal @id). Use them directly if present. For legacy rows that
-  // pre-date the v2 pipeline, fall back to slug-based resolution against the
-  // local ENTITY_REGISTRY in blogSchemaEnrichment.ts.
-  //
-  // NOTE: this means the in-renderer ENTITY_REGISTRY filter is now a fallback
-  // path only. Adding new entities should be done in lib/wikidata-registry.js
-  // on the Vercel side, where the pipeline can resolve them at generation
-  // time. The Replit registry remains for back-compat with legacy rows.
-  const aboutFromColumn   = Array.isArray(row.about)    ? (row.about    as Record<string, unknown>[]) : [];
-  const mentionsFromColumn = Array.isArray(row.mentions) ? (row.mentions as Record<string, unknown>[]) : [];
-  const aboutNodes    = aboutFromColumn.length    > 0 ? aboutFromColumn    : resolveAbout(row.aboutSlugs);
-  const mentionNodes  = mentionsFromColumn.length > 0 ? mentionsFromColumn : resolveMentions(row.mentionSlugs);
+  const aboutNodes    = resolveAbout(row.aboutSlugs);
+  const mentionNodes  = resolveMentions(row.mentionSlugs);
   const citationNodes = buildCitations(row.citations);
   // Blog posts don't carry a brand name (no platforms join) — pass undefined
   // for brandName; ClaimReview nodes that need itemReviewed.author fall back
@@ -1447,7 +1597,7 @@ ${sourcesHtml}
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
-    articleSection: row.topicTitle || "Cryptocurrency fraud awareness",
+    articleSection: row.contentType || "Crypto Scam Investigation",
     ...(row.targetKeyword ? { keywords: row.targetKeyword } : {}),
     // about[] and mentions[] reference the entity nodes by @type/name. Schema
     // parsers will happily correlate these back when the full node is in @graph.
@@ -2205,367 +2355,6 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
     }),
 };
 
-// ─────────────────────────────────────────────────────────────────────────
-// Topic-cluster pages — /topics and /topics/:slug
-//
-// Each entry in an article's about[] / mentions[] arrays carries an @id of
-// the form `${BASE}/topics/{slug}#topic`. The renderer needs those URLs
-// to resolve to real pages so Google's entity graph can read them as
-// canonical references. These functions self-bootstrap from existing
-// blog_posts.about_slugs — every topic referenced by ≥1 published article
-// auto-gets a stub page; legacy articles (pre-v2) work via the slug
-// array fallback.
-//
-// Topic name + sameAs is resolved from the FIRST matching article's
-// about[] jsonb (which already carries Wikidata sameAs from the v2
-// pipeline). Legacy articles fall back to title-cased slug + no sameAs.
-// ─────────────────────────────────────────────────────────────────────────
-
-// Common 2-3 letter acronyms preserved as UPPERCASE in slug-derived names.
-// Matches the casing rule in lib/wikidata-registry.js / schema-enrichment-resolver.js
-// on the Vercel side so titles stay consistent across the system.
-const TOPIC_ACRONYMS = new Set([
-  "ai", "api", "aml", "bbb", "btc", "ceo", "crm", "dao", "dex", "dns",
-  "eth", "eu", "fbi", "ftc", "gdp", "hr", "iot", "ip", "irs", "kyc",
-  "llm", "nft", "os", "pii", "sec", "seo", "sql", "tos", "uk", "un",
-  "us", "usa", "usd", "vpn",
-]);
-
-function titleCaseSlug(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => {
-      const lower = w.toLowerCase();
-      if (TOPIC_ACRONYMS.has(lower)) return lower.toUpperCase();
-      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-    })
-    .join(" ");
-}
-
-interface TopicArticle {
-  slug: string;
-  title: string;
-  headline: string;
-  summary: string;
-  metaDescription: string;
-  publishedAt: Date | null;
-  updatedAt: Date | null;
-  heroImageUrl: string | null;
-  about: unknown;
-}
-
-interface TopicEntity {
-  type: string;
-  name: string;
-  sameAs: string[];
-  description?: string;
-}
-
-/**
- * Resolve a topic slug to its canonical entity by inspecting the about[]
- * jsonb on any article tagged with the slug. Falls back to a title-cased
- * Thing if no v2 metadata is present (legacy article).
- */
-function resolveTopicEntity(slug: string, articles: TopicArticle[]): TopicEntity {
-  const expectedId = `${BASE}/topics/${slug}#topic`;
-  for (const article of articles) {
-    const about = Array.isArray(article.about) ? (article.about as Record<string, unknown>[]) : [];
-    for (const entry of about) {
-      if (entry && typeof entry === "object" && entry["@id"] === expectedId) {
-        const name = typeof entry.name === "string" ? entry.name : titleCaseSlug(slug);
-        const type = typeof entry["@type"] === "string" ? entry["@type"] : "Thing";
-        const sameAs = Array.isArray(entry.sameAs)
-          ? (entry.sameAs as unknown[]).filter((x): x is string => typeof x === "string")
-          : [];
-        return { type, name, sameAs };
-      }
-    }
-  }
-  // Legacy fallback — no v2 about[] yet on this slug's articles.
-  return { type: "Thing", name: titleCaseSlug(slug), sameAs: [] };
-}
-
-/**
- * Fetch articles tagged with a given topic slug. Uses the jsonb `@>`
- * containment operator on blog_posts.about_slugs (a jsonb array of
- * strings) to find any article whose about_slugs array contains the
- * target slug. Equivalent in semantics to `aboutSlugs ? slug` but
- * parameterizes more reliably across Drizzle's sql-template implementations.
- * Returns articles ordered most-recent first.
- */
-async function fetchArticlesForTopic(slug: string, limit = 50): Promise<TopicArticle[]> {
-  const containsSlug = JSON.stringify([slug]);
-  const rows = await db
-    .select({
-      slug: blogPostsTable.slug,
-      title: blogPostsTable.title,
-      headline: blogPostsTable.headline,
-      summary: blogPostsTable.summary,
-      metaDescription: blogPostsTable.metaDescription,
-      publishedAt: blogPostsTable.publishedAt,
-      updatedAt: blogPostsTable.updatedAt,
-      heroImageUrl: blogPostsTable.heroImageUrl,
-      about: blogPostsTable.about,
-    })
-    .from(blogPostsTable)
-    .where(
-      and(
-        eq(blogPostsTable.status, "published"),
-        sql`${blogPostsTable.aboutSlugs} @> ${containsSlug}::jsonb`,
-      ),
-    )
-    .orderBy(desc(blogPostsTable.publishedAt))
-    .limit(limit);
-  return rows as TopicArticle[];
-}
-
-/**
- * List every distinct topic slug across all published articles. Used by
- * /topics index and the sitemap. Returns slug + article count + most
- * recent updatedAt (for sitemap lastmod).
- */
-async function listAllTopics(): Promise<Array<{ slug: string; articleCount: number; lastUpdated: Date | null }>> {
-  // Unnest the jsonb array into a string set, group by slug, count.
-  const rows = await db.execute(sql`
-    SELECT slug, COUNT(*)::int AS article_count, MAX(updated_at) AS last_updated
-    FROM (
-      SELECT jsonb_array_elements_text(about_slugs) AS slug, updated_at
-      FROM blog_posts
-      WHERE status = 'published' AND jsonb_typeof(about_slugs) = 'array'
-    ) t
-    GROUP BY slug
-    ORDER BY article_count DESC, slug ASC
-  `);
-  // drizzle-orm returns { rows } from execute(); fall back if shape differs.
-  const r = (rows as unknown as { rows?: unknown[] }).rows ?? (rows as unknown[]);
-  return (r as Array<{ slug: string; article_count: number; last_updated: string | Date | null }>).map((x) => ({
-    slug: String(x.slug),
-    articleCount: Number(x.article_count) || 0,
-    lastUpdated: x.last_updated ? new Date(x.last_updated) : null,
-  }));
-}
-
-async function renderTopicsList(): Promise<RenderResult> {
-  const topics = await listAllTopics();
-
-  const title = "Topics — Crypto Scam Investigations & Guides | CryptoKiller";
-  const description =
-    "Browse CryptoKiller investigations and guides by topic. Romance scams, pig butchering, exchange fraud, dating-app fraud, deepfake schemes, and more — organized for fast reference.";
-  const canonical = `${BASE}/topics`;
-
-  if (topics.length === 0) {
-    // No topics yet — render a sparse landing page rather than 404.
-    const bodyHtml = `${siteHeaderHtml()}<main>
-<nav aria-label="Breadcrumb"><a href="/">Home</a> · Topics</nav>
-<h1>Topics</h1>
-<p>${esc(description)}</p>
-<p>No topics have been indexed yet. Browse our latest <a href="/blog">blog posts</a> or <a href="/investigations">investigations</a>.</p>
-</main>${siteFooterHtml()}`;
-    return {
-      status: 200,
-      title,
-      description,
-      canonical,
-      ogType: "website",
-      ogImage: DEFAULT_OG_IMAGE,
-      bodyHtml,
-      jsonLd: {
-        "@context": "https://schema.org",
-        "@graph": [
-          legalEntityNode(),
-          organizationNode(),
-          websiteNode(),
-          breadcrumbList([
-            { label: "Home", href: `${BASE}/` },
-            { label: "Topics", href: canonical },
-          ]),
-          {
-            "@type": "CollectionPage",
-            "@id": `${canonical}#webpage`,
-            url: canonical,
-            name: title,
-            description,
-            isPartOf: { "@id": WEBSITE_ID },
-            inLanguage: "en",
-          },
-        ],
-      },
-    };
-  }
-
-  const itemsHtml = topics
-    .map((t) => {
-      const name = titleCaseSlug(t.slug);
-      const countLabel = t.articleCount === 1 ? "1 article" : `${t.articleCount} articles`;
-      return `<li><a href="/topics/${esc(t.slug)}">${esc(name)}</a> <span class="topic-count">(${esc(countLabel)})</span></li>`;
-    })
-    .join("");
-
-  const bodyHtml = `${siteHeaderHtml()}<main>
-<nav aria-label="Breadcrumb"><a href="/">Home</a> · Topics</nav>
-<h1>Topics</h1>
-<p class="section-summary">${esc(description)}</p>
-<ul class="topics-index">${itemsHtml}</ul>
-</main>${siteFooterHtml()}`;
-
-  const lastModified = topics
-    .map((t) => t.lastUpdated)
-    .filter((d): d is Date => d != null)
-    .sort((a, b) => b.getTime() - a.getTime())[0];
-
-  return {
-    status: 200,
-    title,
-    description,
-    canonical,
-    ogType: "website",
-    ogImage: DEFAULT_OG_IMAGE,
-    bodyHtml,
-    lastModified: lastModified ? lastModified.toUTCString() : undefined,
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@graph": [
-        legalEntityNode(),
-        organizationNode(),
-        websiteNode(),
-        breadcrumbList([
-          { label: "Home", href: `${BASE}/` },
-          { label: "Topics", href: canonical },
-        ]),
-        {
-          "@type": "CollectionPage",
-          "@id": `${canonical}#webpage`,
-          url: canonical,
-          name: title,
-          description,
-          isPartOf: { "@id": WEBSITE_ID },
-          inLanguage: "en",
-          mainEntity: {
-            "@type": "ItemList",
-            "@id": `${canonical}#topic-list`,
-            numberOfItems: topics.length,
-            itemListElement: topics.map((t, i) => ({
-              "@type": "ListItem",
-              position: i + 1,
-              url: `${BASE}/topics/${t.slug}`,
-              name: titleCaseSlug(t.slug),
-            })),
-          },
-        },
-      ],
-    },
-  };
-}
-
-async function renderTopicPage(slug: string): Promise<RenderResult> {
-  const articles = await fetchArticlesForTopic(slug);
-  if (articles.length === 0) {
-    return renderNotFound(`/topics/${slug}`);
-  }
-
-  const entity = resolveTopicEntity(slug, articles);
-  const canonical = `${BASE}/topics/${slug}`;
-  const topicId = `${canonical}#topic`;
-
-  // SEO copy — synthesized from real article count + entity name. Stays
-  // factual and does not fabricate counts. Used for both meta description
-  // and the body intro paragraph.
-  const articleCountLabel = articles.length === 1 ? "1 article" : `${articles.length} articles`;
-  const description = entity.sameAs.length > 0
-    ? `${articleCountLabel} on CryptoKiller covering ${entity.name}, including investigations, red-flag analyses, and scam-prevention guides cross-referenced to Wikidata-canonical entity sources.`
-    : `${articleCountLabel} on CryptoKiller covering ${entity.name}, including investigations, red-flag analyses, and scam-prevention guides.`;
-  const title = `${entity.name} — ${articleCountLabel} on CryptoKiller`;
-
-  const lastModified = articles
-    .map((a) => a.updatedAt)
-    .filter((d): d is Date => d != null)
-    .sort((a, b) => b.getTime() - a.getTime())[0];
-
-  const itemsHtml = articles
-    .map((a) => {
-      const datePart = a.publishedAt
-        ? `<time datetime="${esc(new Date(a.publishedAt).toISOString())}">${esc(new Date(a.publishedAt).toISOString().slice(0, 10))}</time> · `
-        : "";
-      const excerpt = truncate(a.metaDescription || a.summary || "", 220);
-      return `<li>
-<h3><a href="/blog/${esc(a.slug)}">${esc(a.headline || a.title)}</a></h3>
-<p>${datePart}${esc(excerpt)}</p>
-</li>`;
-    })
-    .join("");
-
-  const bodyHtml = `${siteHeaderHtml()}<main>
-<nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/topics">Topics</a> · ${esc(entity.name)}</nav>
-<article id="topic">
-<h1>${esc(entity.name)}</h1>
-<p class="section-summary">${esc(description)}</p>
-${entity.sameAs.length > 0
-  ? `<p class="topic-references">External references: ${entity.sameAs.map((url, i) => `<a href="${esc(url)}" rel="noopener nofollow">${esc(new URL(url).host)}</a>${i < entity.sameAs.length - 1 ? ", " : ""}`).join("")}</p>`
-  : ""}
-<h2>${articleCountLabel} in this topic</h2>
-<ul class="topic-articles">${itemsHtml}</ul>
-</article>
-</main>${siteFooterHtml()}`;
-
-  // Build the @graph. The topic entity gets its own node with the SAME @id
-  // that articles reference in their about[] — this closes the entity graph.
-  // The CollectionPage has about: { @id: topic } as a backreference.
-  const topicEntityNode: Record<string, unknown> = {
-    "@type": entity.type,
-    "@id": topicId,
-    name: entity.name,
-    description,
-    url: canonical,
-  };
-  if (entity.sameAs.length > 0) topicEntityNode.sameAs = entity.sameAs;
-
-  return {
-    status: 200,
-    title,
-    description,
-    canonical,
-    ogType: "website",
-    ogImage: DEFAULT_OG_IMAGE,
-    bodyHtml,
-    lastModified: lastModified ? lastModified.toUTCString() : undefined,
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@graph": [
-        legalEntityNode(),
-        organizationNode(),
-        websiteNode(),
-        breadcrumbList([
-          { label: "Home", href: `${BASE}/` },
-          { label: "Topics", href: `${BASE}/topics` },
-          { label: entity.name, href: canonical },
-        ]),
-        topicEntityNode,
-        {
-          "@type": "CollectionPage",
-          "@id": `${canonical}#webpage`,
-          url: canonical,
-          name: title,
-          description,
-          about: { "@id": topicId },
-          isPartOf: { "@id": WEBSITE_ID },
-          inLanguage: "en",
-          mainEntity: {
-            "@type": "ItemList",
-            "@id": `${canonical}#articles-list`,
-            numberOfItems: articles.length,
-            itemListElement: articles.map((a, i) => ({
-              "@type": "ListItem",
-              position: i + 1,
-              url: `${BASE}/blog/${a.slug}`,
-              name: a.headline || a.title,
-            })),
-          },
-        },
-      ],
-    },
-  };
-}
-
 export async function renderPage(rawPath: string): Promise<RenderResult> {
   const [pathOnly, queryString = ""] = rawPath.split("?");
   const search = new URLSearchParams(queryString);
@@ -2574,20 +2363,12 @@ export async function renderPage(rawPath: string): Promise<RenderResult> {
   if (cleaned === "/") return renderHome();
   if (cleaned === "/investigations") return renderInvestigationsList(search);
   if (cleaned === "/blog") return renderBlogList();
-  if (cleaned === "/topics") return renderTopicsList();
 
   const reviewMatch = cleaned.match(/^\/review\/([^/]+)$/);
   if (reviewMatch) return renderReview(decodeURIComponent(reviewMatch[1]));
 
   const blogMatch = cleaned.match(/^\/blog\/([^/]+)$/);
   if (blogMatch) return renderBlogPost(decodeURIComponent(blogMatch[1]));
-
-  // /topics/:slug — topic-cluster stub pages. Every published article's
-  // about_slugs auto-bootstraps a topic page here. The @id pattern
-  // `${BASE}/topics/{slug}#topic` is the same one articles reference in
-  // their about[] arrays, closing the entity graph.
-  const topicMatch = cleaned.match(/^\/topics\/([^/]+)$/);
-  if (topicMatch) return renderTopicPage(decodeURIComponent(topicMatch[1]));
 
   const authorMatch = cleaned.match(/^\/author\/([^/]+)$/);
   if (authorMatch) return renderAuthor(decodeURIComponent(authorMatch[1]));
