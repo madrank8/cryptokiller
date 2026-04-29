@@ -504,8 +504,17 @@ export interface CitationInput {
 
 const CITATION_TYPE_WHITELIST = new Set([
   "ScholarlyArticle", "NewsArticle", "Report", "Dataset", "Book",
-  "WebPage", "Article", "CreativeWork", "GovernmentService",
+  "WebPage", "Article", "CreativeWork", "Legislation",
 ]);
+
+function normalizeCitationType(rawType: unknown): string {
+  if (typeof rawType !== "string" || !rawType.trim()) return "CreativeWork";
+  // GovernmentService is a schema.org Service subtype and is not a valid
+  // target for Article.citation in validator.schema.org. Coerce to Report,
+  // which is a CreativeWork subtype and preserves the "official source" intent.
+  if (rawType === "GovernmentService") return "Report";
+  return CITATION_TYPE_WHITELIST.has(rawType) ? rawType : "CreativeWork";
+}
 
 export function buildCitations(input: unknown): Record<string, unknown>[] {
   if (!Array.isArray(input)) return [];
@@ -515,7 +524,7 @@ export function buildCitations(input: unknown): Record<string, unknown>[] {
     // Accept either canonical `name` or legacy `title`. Skip if neither.
     const label = c.name ?? c.title;
     if (!label) continue;
-    const type = c.type && CITATION_TYPE_WHITELIST.has(c.type) ? c.type : "CreativeWork";
+    const type = normalizeCitationType(c.type);
     const node: Record<string, unknown> = {
       "@type": type,
       name: label,
