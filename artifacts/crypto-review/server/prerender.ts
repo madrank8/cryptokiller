@@ -1079,24 +1079,51 @@ async function renderReview(slug: string): Promise<RenderResult> {
   function wrapSpeakableTargets(html: string): string {
     let out = html;
     // Investigation Summary — match <h2> with optional emoji + optional
-    // <strong> wrapping. Capture the heading + following <p> as group.
+    // inline tags/wrappers. Capture the heading + following <p> as group.
+    // NOTE: do not use [^<]* between tags — writer templates often emit
+    // `<h2><span>📄</span>Investigation Summary</h2>`, which the older
+    // regex missed entirely, leaving `.review-summary` orphaned.
     out = out.replace(
-      /(<h2[^>]*>(?:\s*<strong>)?[^<]*?Investigation\s+Summary[^<]*?(?:<\/strong>\s*)?<\/h2>\s*<p[\s\S]*?<\/p>)/i,
+      /(<h2[^>]*>[\s\S]*?Investigation\s+Summary[\s\S]*?<\/h2>\s*<p[\s\S]*?<\/p>)/i,
       '<section class="review-summary">$1</section>',
     );
     // Key Takeaways — H3 in this writer's templates. Capture heading +
     // following <ul>.
     out = out.replace(
-      /(<h3[^>]*>(?:\s*<strong>)?[^<]*?Key\s+Takeaways[^<]*?(?:<\/strong>\s*)?<\/h3>\s*<ul[\s\S]*?<\/ul>)/i,
+      /(<h3[^>]*>[\s\S]*?Key\s+Takeaways[\s\S]*?<\/h3>\s*<ul[\s\S]*?<\/ul>)/i,
       '<section class="key-takeaways">$1</section>',
     );
     return out;
   }
+
+  // Some writer full_article payloads occasionally duplicate a funnel stage
+  // card (observed: Stage 4 repeated verbatim). The DB-side stage dedupe only
+  // protects the legacy structured-template path, so apply a lightweight
+  // full-article pass here as well.
+  function dedupeDuplicateStageCardsInFullArticle(html: string): string {
+    const seen = new Set<string>();
+    return html.replace(
+      /(<span[^>]*>\s*Stage\s+([1-4])\s*<\/span>[\s\S]{0,1200}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,2500}?<\/ul>\s*<\/div>\s*<\/div>)/gi,
+      (full, _spanBlock, stageNumber, headingHtml) => {
+        const headingText = String(headingHtml || "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase();
+        const key = `${stageNumber}:${headingText}`;
+        if (seen.has(key)) return "";
+        seen.add(key);
+        return full;
+      },
+    );
+  }
   const fullArticleBodyHtml =
     row.fullArticle && row.fullArticle.trim().length > 0
-      ? wrapSpeakableTargets(
-          relabelDisclaimerInsideBlockquote(
-            row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
+      ? dedupeDuplicateStageCardsInFullArticle(
+          wrapSpeakableTargets(
+            relabelDisclaimerInsideBlockquote(
+              row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
+            ),
           ),
         )
       : "";
