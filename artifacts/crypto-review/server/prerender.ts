@@ -866,7 +866,11 @@ async function renderReview(slug: string): Promise<RenderResult> {
       const candidate = altHeadline.slice(0, 55);
       const lastSpace = candidate.lastIndexOf(" ");
       const cut = lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate;
-      return cut.replace(/[\s—\-:,]+$/, "");
+      // Avoid SEO titles ending with dangling connectors ("... and", "... of").
+      return cut
+        .replace(/[\s—\-:,]+$/, "")
+        .replace(/\b(and|or|of|to|for|the|a|an)\s*$/i, "")
+        .trim();
     }
     // No alternative headline available — fall back to the canonical
     // "PlatformName Investigation — Threat Score N/100" form which is
@@ -1101,18 +1105,41 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // protects the legacy structured-template path, so apply a lightweight
   // full-article pass here as well.
   function dedupeDuplicateStageCardsInFullArticle(html: string): string {
+    const HOW_WORKS_MARKER = "<!-- HOW THIS SCAM WORKS";
+    const RED_FLAGS_MARKER = "<!-- RED FLAGS";
+    const cardOpener =
+      '<div style="position:relative;display:flex;gap:0;border-radius:16px;background:rgba(136,19,55,0.3);border:1px solid rgba(190,18,60,0.5);overflow:hidden">';
+
+    const start = html.indexOf(HOW_WORKS_MARKER);
+    if (start === -1) return html;
+    const end = html.indexOf(RED_FLAGS_MARKER, start);
+    if (end === -1) return html;
+
+    const before = html.slice(0, start);
+    const section = html.slice(start, end);
+    const after = html.slice(end);
+
+    if (!section.includes(cardOpener)) return html;
+
+    const chunks = section.split(cardOpener);
+    const prefix = chunks[0];
     const seen = new Set<string>();
-    return html.replace(
-      /((?:<div style="display:flex;justify-content:center;padding:4px 0">[\s\S]*?<\/div>\s*)?<div style="position:relative;display:flex;gap:0;border-radius:16px;background:rgba\(136,19,55,0\.3\);border:1px solid rgba\(190,18,60,0\.5\);overflow:hidden">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/div>)/gi,
-      (fullCard) => {
-        const stageMatch = fullCard.match(/<span[^>]*>\s*Stage\s+([1-4])\s*<\/span>/i);
-        if (!stageMatch) return fullCard;
-        const key = `stage-${stageMatch[1]}`;
-        if (seen.has(key)) return "";
-        seen.add(key);
-        return fullCard;
-      },
-    );
+    const kept: string[] = [prefix];
+
+    for (let i = 1; i < chunks.length; i++) {
+      const cardChunk = chunks[i];
+      const stageMatch = cardChunk.match(/<span[^>]*>\s*Stage\s+([1-4])\s*<\/span>/i);
+      if (!stageMatch) {
+        kept.push(cardOpener + cardChunk);
+        continue;
+      }
+      const stageKey = `stage-${stageMatch[1]}`;
+      if (seen.has(stageKey)) continue;
+      seen.add(stageKey);
+      kept.push(cardOpener + cardChunk);
+    }
+
+    return before + kept.join("") + after;
   }
   const fullArticleBodyHtml =
     row.fullArticle && row.fullArticle.trim().length > 0
