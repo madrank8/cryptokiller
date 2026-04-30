@@ -864,6 +864,13 @@ export function buildDataset(
   if (!input || typeof input !== "object") return null;
   const d = input as DatasetInput;
   if (!d.name || !d.description) return null;
+  const normalizedDatasetUrl = (() => {
+    if (!d.url) return undefined;
+    if (/cryptokiller\.io\/data\/scam-brand-tracker/i.test(d.url)) {
+      return `${BASE}/methodology#dataset`;
+    }
+    return d.url.replace(/^https?:\/\/crypto-killer\.base44\.app/i, BASE);
+  })();
 
   // spatialCoverage: string[] of country names → schema.org/Place objects.
   // Empty array → omit entirely (dangling "spatialCoverage": [] is worse than
@@ -906,7 +913,7 @@ export function buildDataset(
     ...(pageUrl ? { "@id": `${pageUrl}#spyowl-dataset` } : {}),
     name: d.name,
     description: d.description,
-    ...(d.url ? { url: d.url } : {}),
+    ...(normalizedDatasetUrl ? { url: normalizedDatasetUrl } : {}),
     ...(d.license ? { license: d.license } : {}),
     ...(d.keywords ? { keywords: d.keywords } : {}),
     ...(d.dateModified ? { dateModified: d.dateModified } : {}),
@@ -990,7 +997,7 @@ export function buildQuotations(input: unknown): Record<string, unknown>[] {
 export function buildSpeakable(selectors: unknown): Record<string, unknown> {
   const css = Array.isArray(selectors) && selectors.length > 0
     ? (selectors as unknown[]).filter((s): s is string => typeof s === "string")
-    : [".ck-key-takeaways", "h1", ".article-summary"];
+    : [".ck-key-takeaways", ".section-summary"];
   return {
     "@type": "SpeakableSpecification",
     cssSelector: css,

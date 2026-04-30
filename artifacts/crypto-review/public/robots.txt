@@ -266,4 +266,4 @@ Allow: /
 # ——————————————————————————————————————————————————————————————
 # SITEMAPS
 # ——————————————————————————————————————————————————————————————
-Sitemap: https://cryptokiller.org/api/sitemap.xml
+Sitemap: https://cryptokiller.org/sitemap.xml
