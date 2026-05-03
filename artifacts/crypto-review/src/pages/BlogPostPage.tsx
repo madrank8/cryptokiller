@@ -239,7 +239,7 @@ export default function BlogPostPage() {
 
     graph.push({
       "@type": "WebPage",
-      "@id": `${pageUrl}/#webpage`,
+      "@id": `${pageUrl}#webpage`,
       url: pageUrl,
       name: post.headline || post.title,
       isPartOf: websiteRef(),
@@ -252,7 +252,7 @@ export default function BlogPostPage() {
 
     const articleSchema: Record<string, unknown> = {
       "@type": "BlogPosting",
-      "@id": `${pageUrl}/#article`,
+      "@id": `${pageUrl}#article`,
       headline: post.headline || post.title,
       ...(post.alternativeHeadline ? { alternativeHeadline: post.alternativeHeadline } : {}),
       description: post.metaDescription || post.summary,
@@ -260,7 +260,7 @@ export default function BlogPostPage() {
       dateModified: post.updatedAt,
       author: persona ? personRef(persona) : orgRef(),
       publisher: orgRef(),
-      mainEntityOfPage: { "@id": `${pageUrl}/#webpage` },
+      mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
       wordCount: post.wordCount,
       inLanguage: "en",
       articleSection: post.contentType || "Crypto Scam Investigation",
@@ -279,7 +279,7 @@ export default function BlogPostPage() {
     if (Array.isArray(post.faq) && post.faq.length > 0) {
       graph.push({
         "@type": "FAQPage",
-        "@id": `${pageUrl}/#faq`,
+        "@id": `${pageUrl}#faq`,
         mainEntity: post.faq.map((item) => ({
           "@type": "Question",
           name: item.question,
