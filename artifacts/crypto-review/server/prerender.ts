@@ -11,6 +11,7 @@ import {
   funnelStagesTable,
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
+import { substituteStatTokens, type ReviewStats } from "../src/lib/statTokens.js";
 import {
   resolveAbout,
   resolveMentions,
@@ -677,7 +678,10 @@ function datasetJsonAlignedWithReviewStats(
 }
 
 async function renderReview(slug: string): Promise<RenderResult> {
-  const [row] = await db
+  // `row` and the child-table arrays are reassigned below to substituted
+  // copies after stat-token replacement; declared `let` for that reason.
+  // eslint-disable-next-line prefer-const
+  let [row] = await db
     .select({
       id: reviewsTable.id,
       slug: reviewsTable.slug,
@@ -753,7 +757,8 @@ async function renderReview(slug: string): Promise<RenderResult> {
   //    list keyed by review_id. Prior to this change none of these were
   //    rendered into the server HTML, so Google saw ~10% of the actual
   //    investigation content.
-  const [redFlags, faqItems, keyFindings, funnelStages] = await Promise.all([
+  // eslint-disable-next-line prefer-const
+  let [redFlags, faqItems, keyFindings, funnelStages] = await Promise.all([
     db
       .select({
         emoji: redFlagsTable.emoji,
@@ -817,9 +822,64 @@ async function renderReview(slug: string): Promise<RenderResult> {
       if (!existingHasDesc && fsHasDesc) _funnelStagesByNumber.set(n, fs);
     }
   }
-  const dedupedFunnelStages = [..._funnelStagesByNumber.entries()]
+  let dedupedFunnelStages = [..._funnelStagesByNumber.entries()]
     .sort(([a], [b]) => a - b)
     .map(([, fs]) => fs);
+
+  // ── Stat-token substitution =========================================
+  // Producer side (Vercel writer pipeline) is being migrated to emit
+  // `{{stat:KEY}}` tokens in prose so live `review_stats` values can be
+  // swapped in at render time, eliminating the schema-vs-body number
+  // drift documented on the 2026-05-03 audit. Backwards compatible —
+  // prose without tokens passes through unchanged. Helper contract:
+  // ../src/lib/statTokens.ts.
+  {
+    const tokenStats: ReviewStats = {
+      adCreatives: row.adCreatives ?? null,
+      countriesTargeted: row.countriesTargeted ?? null,
+      daysActive: row.daysActive ?? null,
+      celebritiesAbused: row.celebritiesAbused ?? null,
+      weeklyVelocity: row.weeklyVelocity ?? null,
+      firstDetected: row.firstDetected ? String(row.firstDetected) : null,
+      lastActive: row.lastActive ? String(row.lastActive) : null,
+    };
+    const sub = (s: string | null | undefined) => substituteStatTokens(s, tokenStats);
+    row = {
+      ...row,
+      summary: sub(row.summary),
+      heroDescription: sub(row.heroDescription),
+      warningCallout: sub(row.warningCallout),
+      methodologyText: sub(row.methodologyText),
+      disclaimerText: sub(row.disclaimerText),
+      metaDescription: sub(row.metaDescription),
+      notForYou: sub(row.notForYou),
+      expertiseDepth: sub(row.expertiseDepth),
+      protectionSteps: sub(row.protectionSteps),
+      verdict: sub(row.verdict),
+    };
+    redFlags = redFlags.map((r) => ({
+      ...r,
+      title: sub(r.title),
+      description: sub(r.description),
+    }));
+    faqItems = faqItems.map((f) => ({
+      ...f,
+      question: sub(f.question),
+      answer: sub(f.answer),
+    }));
+    keyFindings = keyFindings.map((k) => ({
+      ...k,
+      content: sub(k.content),
+    }));
+    dedupedFunnelStages = dedupedFunnelStages.map((s) => ({
+      ...s,
+      title: sub(s.title),
+      description: sub(s.description),
+      statValue: sub(s.statValue),
+      statLabel: sub(s.statLabel),
+      bullets: Array.isArray(s.bullets) ? s.bullets.map((b) => sub(b)) : s.bullets,
+    }));
+  }
 
   const platformName = row.platformName || slug;
 

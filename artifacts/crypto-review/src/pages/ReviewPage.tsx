@@ -22,6 +22,7 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { substituteStatTokensInReview } from "@/lib/statTokens";
 import { resolveReviewTier } from "@/lib/reviewTier";
 import { buildItemReviewedJsonLdNode } from "@/lib/reviewItemReviewedSchema";
 
@@ -526,15 +527,28 @@ function NotFoundPage({ slug }: { slug: string }) {
 }
 
 function ReviewContent({ slug }: { slug: string }) {
-  const { data: review, isLoading, error } = useGetReview(slug);
+  const { data: rawReview, isLoading, error } = useGetReview(slug);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  // Resolve writer persona from the review's authorPersonaId. Mirrors the
-  // resolveAuthorPersona() helper in artifacts/crypto-review/server/prerender.ts
-  // so the visible byline and the JSON-LD Person node are always sourced from
-  // the same WRITER_PERSONAS entry. Without this, the byline hard-coded
-  // "CryptoKiller Research Team" while the @graph emitted M. Webb / P. Nair /
-  // D. Ortiz — visible E-E-A-T mismatch on every published review.
+  // Replace `{{stat:KEY}}` tokens in prose with live values from
+  // review_stats so the visible body matches the JSON-LD @graph (which
+  // pulls those numbers directly). Pass-through when prose has no tokens
+  // — backwards compatible with all existing rows. Helper contract:
+  // @/lib/statTokens.ts. Producer side (Vercel writer pipeline) emits
+  // tokens; consumer side (this component + server/prerender.ts) swaps.
+  const review = useMemo(
+    () => (rawReview ? substituteStatTokensInReview(rawReview) : rawReview),
+    [rawReview],
+  );
+
+  // Resolve writer persona from the (substituted) review's authorPersonaId.
+  // Mirrors the resolveAuthorPersona() helper in
+  // artifacts/crypto-review/server/prerender.ts so the visible byline and
+  // the JSON-LD Person node are always sourced from the same
+  // WRITER_PERSONAS entry. Without this, the byline hard-coded
+  // "CryptoKiller Research Team" while the @graph emitted M. Webb /
+  // P. Nair / D. Ortiz — visible E-E-A-T mismatch on every published
+  // review.
   const authorPersona = review?.authorPersonaId
     ? WRITER_PERSONAS[review.authorPersonaId]
     : undefined;
