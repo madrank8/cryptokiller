@@ -435,6 +435,10 @@ components:
           type: integer
         author:
           type: string
+        authorPersonaId:
+          type: string
+          nullable: true
+          description: Writer persona ID (e.g. "webb", "nair", "ortiz"). Resolves to a WRITER_PERSONAS entry on the client to render the byline and JSON-LD Person node from the same source. Null on pre-migration rows; client falls back to the legacy author field or the corporate default.
         adCreatives:
           type: integer
         countriesTargeted:

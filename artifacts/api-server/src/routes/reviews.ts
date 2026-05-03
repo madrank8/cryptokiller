@@ -67,6 +67,11 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       wordCount: reviewsTable.wordCount,
       readingMinutes: reviewsTable.readingMinutes,
       author: reviewsTable.author,
+      // Persona ID drives the on-page byline + JSON-LD Person node. Without it,
+      // ReviewPage.tsx falls back to the corporate "CryptoKiller Research Team"
+      // string, while the SSR @graph (prerender.ts:1217) correctly resolves to
+      // the M. Webb / P. Nair / D. Ortiz persona — visible E-E-A-T mismatch.
+      authorPersonaId: reviewsTable.authorPersonaId,
       metaDescription: reviewsTable.metaDescription,
       // Rich-content columns (migration 0002). Surface them on the public
       // API so the React CSR hydration and any external consumers (next
@@ -126,6 +131,9 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     ...row,
     investigationDate: row.investigationDate?.toISOString() ?? "",
     metaDescription: row.metaDescription ?? "",
+    // Pre-migration rows have no persona; client must fall back to the legacy
+    // free-text `author` column or the corporate default in that case.
+    authorPersonaId: row.authorPersonaId ?? null,
     // Normalise the rich-content fields so clients always get a consistent
     // shape regardless of whether the row has been re-synced under the new
     // schema or still has pre-migration null/empty values.

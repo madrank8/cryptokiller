@@ -1193,7 +1193,19 @@ ${faqHtml}
 ${sourcesHtml}
 ${notForYouHtml}
 ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
-<p><strong>Investigation by:</strong> ${esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
+<p><strong>Investigation by:</strong> ${(() => {
+  // Resolve byline from the same persona registry that drives the @graph
+  // Person node below (line ~1217). The legacy fallback was reading the
+  // free-text reviews.author column, which is null on most rows — producing
+  // a "CryptoKiller Research Team" byline while JSON-LD emitted M. Webb.
+  // Mirrors the persona resolution in renderBlogPost (line ~1529) and the
+  // CSR equivalent in src/pages/ReviewPage.tsx::ReviewContent.
+  const persona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
+  if (persona) {
+    return `<a href="/author/${persona.slug}" rel="author">${esc(persona.name)}</a>`;
+  }
+  return esc(row.author || "CryptoKiller Research Team");
+})()}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
 </main>${siteFooterHtml()}`;
