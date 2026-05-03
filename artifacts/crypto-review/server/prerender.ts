@@ -12,7 +12,7 @@ import {
   platformAggregatesTable,
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
-import { substituteStatTokens, type ReviewStats } from "../src/lib/statTokens.js";
+import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
 import {
   resolveAbout,
   resolveMentions,
@@ -894,6 +894,24 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // prose without tokens passes through unchanged. Helper contract:
   // ../src/lib/statTokens.ts.
   {
+    // Use the recursive deep walker for the row itself — same helper that
+    // ReviewPage.tsx uses (cryptokiller#21). The previous hand-walk missed
+    // `row.fullArticle` (the long-form HTML body); verified empirically on
+    // /review/equiloompro 2026-05-03: structured fields substituted cleanly
+    // (summary, redFlags, methodologyText) but ~40 {{stat:KEY}} tokens
+    // leaked through fullArticle. The deep walker was supposed to close
+    // this for both render paths but only the CSR path got migrated;
+    // this closes the SSR parallel.
+    //
+    // Any new prose-bearing field added to the row in the future gets
+    // walked automatically — no further helper update required.
+    row = substituteStatTokensInReview(row);
+
+    // Child tables (redFlags, faqItems, etc.) come from separate Drizzle
+    // queries — they don't carry the stats fields, so they can't be passed
+    // to substituteStatTokensInReview directly. Hand-roll the equivalent
+    // walk using the row's stats, applied via substituteStatTokens to each
+    // string field.
     const tokenStats: ReviewStats = {
       adCreatives: row.adCreatives ?? null,
       countriesTargeted: row.countriesTargeted ?? null,
@@ -904,19 +922,6 @@ async function renderReview(slug: string): Promise<RenderResult> {
       lastActive: row.lastActive ? String(row.lastActive) : null,
     };
     const sub = (s: string | null | undefined) => substituteStatTokens(s, tokenStats);
-    row = {
-      ...row,
-      summary: sub(row.summary),
-      heroDescription: sub(row.heroDescription),
-      warningCallout: sub(row.warningCallout),
-      methodologyText: sub(row.methodologyText),
-      disclaimerText: sub(row.disclaimerText),
-      metaDescription: sub(row.metaDescription),
-      notForYou: sub(row.notForYou),
-      expertiseDepth: sub(row.expertiseDepth),
-      protectionSteps: sub(row.protectionSteps),
-      verdict: sub(row.verdict),
-    };
     redFlags = redFlags.map((r) => ({
       ...r,
       title: sub(r.title),
