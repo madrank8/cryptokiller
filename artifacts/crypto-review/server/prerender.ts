@@ -14,6 +14,14 @@ import {
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
 import {
+  organizationSameAs,
+  organizationNode,
+  websiteNode,
+  legalEntityNode,
+  personNode,
+  personRef,
+} from "../src/lib/schemaBuilder.js";
+import {
   resolveAbout,
   resolveMentions,
   buildCitations,
@@ -180,84 +188,13 @@ function clean(s: string | null | undefined): string {
   return (s ?? "").replace(/\s+/g, " ").trim();
 }
 
-function organizationSameAs(): string[] {
-  const envUrls = [
-    process.env.CRYPTOKILLER_LINKEDIN_URL,
-    process.env.CRYPTOKILLER_TWITTER_URL,
-    process.env.CRYPTOKILLER_CRUNCHBASE_URL,
-    process.env.CRYPTOKILLER_GITHUB_URL,
-    process.env.CRYPTOKILLER_WIKIDATA_URL,
-  ]
-    .map((u) => clean(u))
-    .filter((u) => u.startsWith("https://"));
-
-  if (envUrls.length > 0) return envUrls;
-
-  // Fallback keeps Organization.sameAs populated when env propagation
-  // lags between Vercel/Replit; use only canonical profiles.
-  // NB: Twitter handle is @cryptokiller (matches index.html twitter:site
-  // and twitter:creator). Earlier `@cryptokiller_org` was a divergence
-  // that Google entity disambiguation flagged on the 2026-05-03 audit.
-  return [
-    "https://www.linkedin.com/company/cryptokiller/",
-    "https://twitter.com/cryptokiller",
-    "https://www.crunchbase.com/organization/cryptokiller",
-    "https://github.com/madrank8",
-  ];
-}
-
-function organizationNode(): Record<string, unknown> {
-  return {
-    "@type": "Organization",
-    "@id": ORG_ID,
-    name: "CryptoKiller",
-    url: BASE,
-    logo: `${BASE}/logo.png`,
-    description:
-      "Independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries with evidence-based threat scores.",
-    parentOrganization: { "@id": LEGAL_ENTITY_ID },
-    email: "corrections@cryptokiller.org",
-    areaServed: "Worldwide",
-    sameAs: organizationSameAs(),
-  };
-}
-
-function websiteNode(): Record<string, unknown> {
-  return {
-    "@type": "WebSite",
-    "@id": WEBSITE_ID,
-    url: BASE,
-    name: "CryptoKiller",
-    publisher: { "@id": ORG_ID },
-    inLanguage: "en",
-    // Sitelinks Search Box — Google's on-SERP search affordance. The
-    // urlTemplate must resolve to an actual searchable page (investigations
-    // listing supports ?q=). Harmless if no rich result unlocks; required
-    // for Search Box eligibility when Google decides to render one.
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${BASE}/investigations?q={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    },
-  };
-}
-
-function legalEntityNode(): Record<string, unknown> {
-  return {
-    "@type": "Organization",
-    "@id": LEGAL_ENTITY_ID,
-    name: "DEX Algo Technologies Pte Ltd.",
-    legalName: "DEX Algo Technologies Pte Ltd.",
-    address: {
-      "@type": "PostalAddress",
-      addressCountry: "SG",
-      addressLocality: "Singapore",
-    },
-  };
-}
+// `organizationSameAs`, `organizationNode`, `websiteNode`, `legalEntityNode`,
+// `personNode` are imported from `../src/lib/schemaBuilder.js` so SSR and CSR
+// emit identical entity-graph nodes. Previously these were duplicated locally
+// here AND in schemaBuilder.ts with subtly different shapes (different Person
+// @id format, missing potentialAction, missing knowsAbout/contactPoint on
+// Organization, etc.) — that's the SSR-vs-CSR drift class the 2026-05-03
+// audit hunter flagged. Single source of truth lives in schemaBuilder.ts now.
 
 function breadcrumbList(items: { label: string; href: string }[]): Record<string, unknown> {
   // @id anchors the BreadcrumbList to its terminal page for entity graph
@@ -273,40 +210,6 @@ function breadcrumbList(items: { label: string; href: string }[]): Record<string
       name: it.label,
       item: it.href,
     })),
-  };
-}
-
-/**
- * Build a full schema.org/Person node for an author persona.
- * Used as an entity graph node (not a reference). The Review node
- * references this via `author: { "@id": ... }`.
- *
- * YMYL E-E-A-T: every scam review is YMYL per Google QRG 2024, which
- * explicitly requires personal authorship signals. Organization-only
- * authors suppress rich results and reduce E-E-A-T trust score.
- */
-function personNode(persona: WriterPersona): Record<string, unknown> {
-  const slugId = persona.slug;
-  return {
-    "@type": "Person",
-    "@id": `${BASE}/author/${slugId}#person`,
-    name: persona.name,
-    url: `${BASE}/author/${slugId}`,
-    jobTitle: persona.role,
-    description: persona.bio,
-    worksFor: { "@id": ORG_ID },
-    memberOf: { "@id": ORG_ID },
-    knowsAbout: persona.specialties,
-    ...(persona.sameAs && persona.sameAs.length ? { sameAs: persona.sameAs } : {}),
-    ...(persona.credentials
-      ? {
-          hasCredential: {
-            "@type": "EducationalOccupationalCredential",
-            credentialCategory: "Professional Experience",
-            description: persona.credentials,
-          },
-        }
-      : {}),
   };
 }
 
@@ -330,7 +233,7 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
     : "webb";
   const persona = WRITER_PERSONAS[id];
   const node = personNode(persona);
-  const ref = { "@id": `${BASE}/author/${persona.slug}#person` };
+  const ref = personRef(persona);
   return { ref, node };
 }
 
@@ -1796,20 +1699,10 @@ ${sourcesHtml}
 
   // Author with sameAs (only persona-linked authors; fall back to Organization
   // when no persona is set — we never fabricate sameAs for missing authors).
+  // personNode() lives in schemaBuilder.ts and is shared with CSR so both
+  // render paths emit identical Person @id + body shape.
   const authorNode: Record<string, unknown> = persona
-    ? {
-        "@type": "Person",
-        "@id": `${BASE}/#author-${persona.slug}`,
-        name: persona.name,
-        url: `${BASE}/author/${persona.slug}`,
-        jobTitle: persona.role,
-        description: persona.bio,
-        knowsAbout: persona.specialties,
-        worksFor: { "@id": ORG_ID },
-        memberOf: { "@id": ORG_ID },
-        // No verified external profiles yet; leave sameAs off rather than
-        // invent entries. Add them here once the personas have verified URLs.
-      }
+    ? personNode(persona)
     : { "@type": "Organization", name: authorName, url: BASE };
 
   const articleNode: Record<string, unknown> = {
@@ -1824,7 +1717,7 @@ ${sourcesHtml}
     inLanguage: "en",
     isPartOf: { "@id": WEBSITE_ID },
     publisher: { "@id": ORG_ID },
-    author: persona ? { "@id": `${BASE}/#author-${persona.slug}` } : authorNode,
+    author: persona ? personRef(persona) : authorNode,
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
@@ -1931,23 +1824,17 @@ function renderAuthor(slug: string): RenderResult {
           { label: "Home", href: `${BASE}/` },
           { label: persona.name, href: canonical },
         ]),
-        {
-          "@type": "Person",
-          "@id": `${BASE}/#author-${persona.slug}`,
-          name: persona.name,
-          url: canonical,
-          jobTitle: persona.role,
-          description: persona.fullBio || persona.bio,
-          worksFor: { "@id": ORG_ID },
-          memberOf: { "@id": ORG_ID },
-          knowsAbout: persona.specialties,
-        },
+        // Use the canonical personNode and override description/url for
+        // the dedicated /author/{slug} profile page (uses fullBio when
+        // available, and the page itself is the canonical url for the
+        // Person — not the slug-derived path personNode defaults to).
+        { ...personNode(persona), description: persona.fullBio || persona.bio, url: canonical },
         {
           "@type": "ProfilePage",
           url: canonical,
           name: title,
           description,
-          mainEntity: { "@id": `${BASE}/#author-${persona.slug}` },
+          mainEntity: personRef(persona),
           isPartOf: { "@id": WEBSITE_ID },
           inLanguage: "en",
         },

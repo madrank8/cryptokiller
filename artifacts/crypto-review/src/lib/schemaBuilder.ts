@@ -1,9 +1,9 @@
 import type { WriterPersona } from "./writerPersonas";
 
-const BASE = "https://cryptokiller.org";
-const ORG_ID = `${BASE}/#organization`;
-const WEBSITE_ID = `${BASE}/#website`;
-const LEGAL_ENTITY_ID = `${BASE}/#legal-entity`;
+export const BASE = "https://cryptokiller.org";
+export const ORG_ID = `${BASE}/#organization`;
+export const WEBSITE_ID = `${BASE}/#website`;
+export const LEGAL_ENTITY_ID = `${BASE}/#legal-entity`;
 
 const KNOWS_ABOUT = [
   "Cryptocurrency Scam Investigation",
@@ -22,7 +22,7 @@ function clean(value: string | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
-function organizationSameAs(): string[] {
+export function organizationSameAs(): string[] {
   const envUrls = [
     process.env.CRYPTOKILLER_LINKEDIN_URL,
     process.env.CRYPTOKILLER_TWITTER_URL,
@@ -109,27 +109,67 @@ export function websiteNode(): Record<string, unknown> {
       "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands with evidence-based threat scores.",
     publisher: { "@id": ORG_ID },
     inLanguage: "en",
+    // Sitelinks Search Box — Google's on-SERP search affordance. The
+    // urlTemplate must resolve to an actual searchable page (the
+    // /investigations listing supports ?q=). Harmless if no rich
+    // result unlocks; required for Search Box eligibility.
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${BASE}/investigations?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
   };
 }
 
+/**
+ * Build a full schema.org/Person node for an author persona.
+ * Used as an entity graph node (not a reference).
+ *
+ * @id is `${BASE}/author/{slug}#person` — semantic, ties directly to
+ * the visitable /author/{slug} URL. Used by both SSR (prerender.ts)
+ * and CSR (ReviewPage, BlogPostPage). Standardizing this @id format
+ * across all render paths closed the SSR-vs-CSR drift discovered in
+ * the 2026-05-03 audit.
+ *
+ * YMYL E-E-A-T: every scam review is YMYL per Google QRG 2024, which
+ * explicitly requires personal authorship signals. Organization-only
+ * authors suppress rich results and reduce E-E-A-T trust score.
+ *
+ * Optional fields (sameAs, hasCredential) emit only when populated on
+ * the persona — keeps legacy minimal personas working without forcing
+ * synthetic data.
+ */
 export function personNode(persona: WriterPersona): Record<string, unknown> {
   const slugId = persona.slug || persona.name.toLowerCase().replace(/[^a-z]/g, "-");
   return {
     "@type": "Person",
-    "@id": `${BASE}/#author-${slugId}`,
+    "@id": `${BASE}/author/${slugId}#person`,
     name: persona.name,
-    url: `${BASE}/author/${persona.slug}`,
+    url: `${BASE}/author/${slugId}`,
     jobTitle: persona.role,
     description: persona.bio,
     worksFor: { "@id": ORG_ID },
     memberOf: { "@id": ORG_ID },
     knowsAbout: persona.specialties,
+    ...(persona.sameAs && persona.sameAs.length ? { sameAs: persona.sameAs } : {}),
+    ...(persona.credentials
+      ? {
+          hasCredential: {
+            "@type": "EducationalOccupationalCredential",
+            credentialCategory: "Professional Experience",
+            description: persona.credentials,
+          },
+        }
+      : {}),
   };
 }
 
 export function personRef(persona: WriterPersona): Record<string, unknown> {
   const slugId = persona.slug || persona.name.toLowerCase().replace(/[^a-z]/g, "-");
-  return { "@id": `${BASE}/#author-${slugId}` };
+  return { "@id": `${BASE}/author/${slugId}#person` };
 }
 
 export function orgRef(): Record<string, unknown> {
