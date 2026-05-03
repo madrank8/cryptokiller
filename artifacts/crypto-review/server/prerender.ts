@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, asc } from "drizzle-orm";
+import { eq, and, desc, sql, asc, count } from "drizzle-orm";
 import {
   db,
   reviewsTable,
@@ -9,6 +9,7 @@ import {
   faqItemsTable,
   keyFindingsTable,
   funnelStagesTable,
+  platformAggregatesTable,
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, type ReviewStats } from "../src/lib/statTokens.js";
@@ -27,6 +28,54 @@ import {
 } from "../src/lib/blogSchemaEnrichment.js";
 import { resolveReviewTier, type TierInfo } from "../src/lib/reviewTier.js";
 import { buildItemReviewedJsonLdNode } from "../src/lib/reviewItemReviewedSchema.js";
+import {
+  substitutePlatformStatTokensDeep,
+  type PlatformAggregatesForTokens,
+} from "../src/lib/platformStatTokens.js";
+
+// Fetch the combined platform-aggregate snapshot used to substitute
+// {{platform_stat:KEY}} tokens on blog renders. Vercel-synced fields come
+// from the platform_aggregates row keyed source='vercel-sync'; the
+// total_brands_reviewed value is computed live from Replit's reviews count
+// (canonical, never cached). Mirrors getPlatformAggregates in
+// artifacts/api-server/src/lib/platform-aggregates.ts — kept in sync by
+// shape, not by import (the two render paths run in different node entry
+// points and we'd rather duplicate ~25 lines than create a workspace
+// helper for two callsites).
+//
+// On failure: returns null. The renderer then skips substitution and the
+// raw `{{platform_stat:KEY}}` tokens remain in the prerendered HTML —
+// visible-but-recoverable rather than a 5xx response.
+async function fetchPlatformAggregatesForRender(): Promise<PlatformAggregatesForTokens | null> {
+  try {
+    const [vRows, replitCountRows] = await Promise.all([
+      db
+        .select()
+        .from(platformAggregatesTable)
+        .where(eq(platformAggregatesTable.source, "vercel-sync"))
+        .limit(1),
+      db
+        .select({ n: count() })
+        .from(reviewsTable)
+        .where(eq(reviewsTable.status, "published")),
+    ]);
+    const vRow = vRows[0];
+    const totalReviewed = replitCountRows[0]?.n;
+    return {
+      totalBrandsTracked: vRow?.totalBrandsTracked ?? null,
+      totalCreativesAnalyzed: vRow?.totalCreativesAnalyzed ?? null,
+      totalBrandsWithCelebrityAbuse: vRow?.totalBrandsWithCelebrityAbuse ?? null,
+      totalBrandsReviewed: typeof totalReviewed === "number" ? totalReviewed : null,
+      avgScamScore: vRow?.avgScamScore ?? null,
+      topVelocityTrend: vRow?.topVelocityTrend ?? null,
+      topScamBrandName: vRow?.topScamBrandName ?? null,
+      topScamBrandScore: vRow?.topScamBrandScore ?? null,
+    };
+  } catch (err) {
+    console.error("[prerender] fetchPlatformAggregatesForRender failed:", err);
+    return null;
+  }
+}
 
 const BASE = "https://cryptokiller.org";
 const DEFAULT_OG_IMAGE = `${BASE}/opengraph.jpg`;
@@ -569,19 +618,27 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
 }
 
 async function renderBlogList(): Promise<RenderResult> {
-  const rows = await db
-    .select({
-      slug: blogPostsTable.slug,
-      title: blogPostsTable.title,
-      headline: blogPostsTable.headline,
-      summary: blogPostsTable.summary,
-      metaDescription: blogPostsTable.metaDescription,
-      updatedAt: blogPostsTable.updatedAt,
-    })
-    .from(blogPostsTable)
-    .where(eq(blogPostsTable.status, "published"))
-    .orderBy(desc(blogPostsTable.updatedAt))
-    .limit(50);
+  // Fetch the post list and platform aggregates in parallel — token
+  // substitution is applied to titles / headlines / summaries below so
+  // {{platform_stat:KEY}} references in those fields render with current
+  // values.
+  const [rawRows, platformAggregates] = await Promise.all([
+    db
+      .select({
+        slug: blogPostsTable.slug,
+        title: blogPostsTable.title,
+        headline: blogPostsTable.headline,
+        summary: blogPostsTable.summary,
+        metaDescription: blogPostsTable.metaDescription,
+        updatedAt: blogPostsTable.updatedAt,
+      })
+      .from(blogPostsTable)
+      .where(eq(blogPostsTable.status, "published"))
+      .orderBy(desc(blogPostsTable.updatedAt))
+      .limit(50),
+    fetchPlatformAggregatesForRender(),
+  ]);
+  const rows = substitutePlatformStatTokensDeep(rawRows, platformAggregates);
 
   const title = "Blog — Crypto Safety Insights & Guides | CryptoKiller";
   const description =
@@ -1548,13 +1605,27 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
 }
 
 async function renderBlogPost(slug: string): Promise<RenderResult> {
-  const [row] = await db
-    .select()
-    .from(blogPostsTable)
-    .where(and(eq(blogPostsTable.slug, slug), eq(blogPostsTable.status, "published")))
-    .limit(1);
+  // Fetch the row and platform-stat aggregates in parallel; substitution is
+  // applied below to every string field of the row so {{platform_stat:KEY}}
+  // tokens emitted by the writer (lib/aux-writer.js / content-prompts.js on
+  // the Vercel side) render with current values rather than the snapshot
+  // values frozen into prose at write time.
+  const [rowsResult, platformAggregates] = await Promise.all([
+    db
+      .select()
+      .from(blogPostsTable)
+      .where(and(eq(blogPostsTable.slug, slug), eq(blogPostsTable.status, "published")))
+      .limit(1),
+    fetchPlatformAggregatesForRender(),
+  ]);
+  const rawRow = rowsResult[0];
 
-  if (!row) return renderNotFound(`/blog/${slug}`);
+  if (!rawRow) return renderNotFound(`/blog/${slug}`);
+
+  // Substitute tokens once on the entire row before any downstream code reads
+  // it. Backwards compatible: rows without {{platform_stat: substrings pass
+  // through unchanged; the helper short-circuits on `text.indexOf(...)`.
+  const row = substitutePlatformStatTokensDeep(rawRow, platformAggregates);
 
   // Title selection — prefer the SEO `title` column (writer prompt caps it at
   // 60 chars and instructs the model to include the target keyword) over the

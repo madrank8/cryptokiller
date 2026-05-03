@@ -8,3 +8,4 @@ export * from "./key_findings";
 export * from "./geo_targets";
 export * from "./scam_reports";
 export * from "./blog_posts";
+export * from "./platform_aggregates";

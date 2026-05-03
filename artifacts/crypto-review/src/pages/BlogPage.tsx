@@ -8,6 +8,10 @@ import SiteFooter from "@/components/SiteFooter";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { globalSiteSchema } from "@/lib/schemaBuilder";
+import {
+  substitutePlatformStatTokensDeep,
+  type PlatformAggregatesForTokens,
+} from "@/lib/platformStatTokens";
 import { useMemo } from "react";
 
 interface BlogPostSummary {
@@ -24,6 +28,11 @@ interface BlogPostSummary {
   authorPersonaId: string | null;
   heroImageUrl: string | null;
   heroImageAlt: string | null;
+}
+
+interface BlogIndexResponse {
+  items: BlogPostSummary[];
+  platformAggregates: PlatformAggregatesForTokens | null;
 }
 
 const BASE = "https://cryptokiller.org";
@@ -155,7 +164,7 @@ function HorizontalPostCard({ post }: { post: BlogPostSummary }) {
 }
 
 export default function BlogPage() {
-  const { data: posts, isLoading } = useQuery<BlogPostSummary[]>({
+  const { data, isLoading } = useQuery<BlogIndexResponse>({
     queryKey: ["/api/blog"],
     queryFn: async () => {
       const res = await fetch("/api/blog");
@@ -163,6 +172,15 @@ export default function BlogPage() {
       return res.json();
     },
   });
+
+  // Apply platform-stat token substitution to every string field of every
+  // post summary so titles / headlines / summaries that reference live
+  // platform stats render with current values. Memoized on the raw input
+  // so the substituted reference is stable when the API response is.
+  const posts = useMemo<BlogPostSummary[] | undefined>(
+    () => substitutePlatformStatTokensDeep(data?.items, data?.platformAggregates),
+    [data?.items, data?.platformAggregates],
+  );
 
   const crumbs = [
     { label: "Home", href: `${BASE}/` },
