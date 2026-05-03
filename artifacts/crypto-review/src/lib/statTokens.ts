@@ -146,11 +146,53 @@ export function substituteStatTokens(
  * fields the helper doesn't touch like sources, platformName, etc.) by
  * using `unknown` indexing internally and `as T` on the result.
  */
+// Recursive walker that substitutes tokens in every string anywhere in the
+// review tree. Returns the original reference when nothing changed (so
+// React useMemo deps stay stable on rows without tokens — the common case
+// for legacy rows generated before multi-agent-v1.3-stat-tokens).
+//
+// Why deep-walk instead of per-field enumeration: the previous version
+// hand-listed `summary`, `methodologyText`, `redFlags[].description`, etc.
+// — but missed `fullArticle` (the long-form rendered HTML body added by
+// commit 663c649) plus jsonb fields like `citations`, `quotes`, `claims`
+// that can also contain prose. Verified empirically on the equiloompro
+// live render 2026-05-03: structured-field tokens resolved cleanly while
+// `fullArticle`-embedded tokens stayed visible as `{{stat:KEY}}` text.
+//
+// Safety: substituteStatTokens short-circuits on `text.indexOf("{{stat:")`
+// so any string without the prefix passes through unchanged. Slugs, IDs,
+// status enums — all untouched. Same pattern as platformStatTokensDeep
+// for the article side (cryptokiller#20).
+function substituteDeep<V>(value: V, stats: ReviewStats): V {
+  if (value == null) return value;
+  if (typeof value === "string") {
+    return substituteStatTokens(value, stats) as unknown as V;
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const out = (value as unknown[]).map((item) => {
+      const next = substituteDeep(item, stats);
+      if (next !== item) changed = true;
+      return next;
+    });
+    return (changed ? (out as unknown as V) : value);
+  }
+  if (typeof value === "object") {
+    const src = value as Record<string, unknown>;
+    let changed = false;
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(src)) {
+      const next = substituteDeep(src[k], stats);
+      if (next !== src[k]) changed = true;
+      out[k] = next;
+    }
+    return (changed ? (out as unknown as V) : value);
+  }
+  return value;
+}
+
 export function substituteStatTokensInReview<T>(review: T): T {
-  // Treat `review` as a loose record internally (the caller's T preserves
-  // the precise type on the way out via `as T`). Fields the helper doesn't
-  // touch — sources, platformName, threatScore, etc. — flow through
-  // unchanged via the spread.
+  if (review == null) return review;
   const r = review as Record<string, unknown>;
   const stats: ReviewStats = {
     adCreatives: r.adCreatives as number | null | undefined,
@@ -161,61 +203,5 @@ export function substituteStatTokensInReview<T>(review: T): T {
     firstDetected: r.firstDetected as string | null | undefined,
     lastActive: r.lastActive as string | null | undefined,
   };
-  const sub = <V>(v: V): V =>
-    typeof v === "string" ? (substituteStatTokens(v, stats) as unknown as V) : v;
-
-  type FunnelStage = {
-    title?: unknown;
-    description?: unknown;
-    statValue?: unknown;
-    statLabel?: unknown;
-    bullets?: unknown;
-    [k: string]: unknown;
-  };
-  type RedFlag = { title?: unknown; description?: unknown; [k: string]: unknown };
-  type FaqItem = { question?: unknown; answer?: unknown; [k: string]: unknown };
-  type KeyFinding = { content?: unknown; [k: string]: unknown };
-
-  const out: Record<string, unknown> = { ...r };
-  out.summary = sub(r.summary);
-  out.heroDescription = sub(r.heroDescription);
-  out.warningCallout = sub(r.warningCallout);
-  out.methodologyText = sub(r.methodologyText);
-  out.metaDescription = sub(r.metaDescription);
-  out.notForYou = sub(r.notForYou);
-  out.expertiseDepth = sub(r.expertiseDepth);
-  out.protectionSteps = sub(r.protectionSteps);
-  out.verdict = sub(r.verdict);
-
-  if (Array.isArray(r.funnelStages)) {
-    out.funnelStages = (r.funnelStages as FunnelStage[]).map((s) => ({
-      ...s,
-      title: sub(s.title),
-      description: sub(s.description),
-      statValue: sub(s.statValue),
-      statLabel: sub(s.statLabel),
-      bullets: Array.isArray(s.bullets) ? (s.bullets as unknown[]).map((b) => sub(b)) : s.bullets,
-    }));
-  }
-  if (Array.isArray(r.redFlags)) {
-    out.redFlags = (r.redFlags as RedFlag[]).map((rf) => ({
-      ...rf,
-      title: sub(rf.title),
-      description: sub(rf.description),
-    }));
-  }
-  if (Array.isArray(r.faqItems)) {
-    out.faqItems = (r.faqItems as FaqItem[]).map((f) => ({
-      ...f,
-      question: sub(f.question),
-      answer: sub(f.answer),
-    }));
-  }
-  if (Array.isArray(r.keyFindings)) {
-    out.keyFindings = (r.keyFindings as KeyFinding[]).map((k) => ({
-      ...k,
-      content: sub(k.content),
-    }));
-  }
-  return out as T;
+  return substituteDeep(review, stats);
 }
