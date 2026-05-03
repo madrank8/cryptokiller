@@ -529,6 +529,19 @@ function ReviewContent({ slug }: { slug: string }) {
   const { data: review, isLoading, error } = useGetReview(slug);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // Resolve writer persona from the review's authorPersonaId. Mirrors the
+  // resolveAuthorPersona() helper in artifacts/crypto-review/server/prerender.ts
+  // so the visible byline and the JSON-LD Person node are always sourced from
+  // the same WRITER_PERSONAS entry. Without this, the byline hard-coded
+  // "CryptoKiller Research Team" while the @graph emitted M. Webb / P. Nair /
+  // D. Ortiz — visible E-E-A-T mismatch on every published review.
+  const authorPersona = review?.authorPersonaId
+    ? WRITER_PERSONAS[review.authorPersonaId]
+    : undefined;
+  const bylineName = authorPersona?.name || review?.author || "CryptoKiller Research Team";
+  const bylineHref = authorPersona ? `/author/${authorPersona.slug}` : "/methodology";
+  const bylineLinkLabel = authorPersona ? "View profile ↗" : "Methodology ↗";
+
   const jsonLd = useMemo(() => {
     if (!review) return undefined;
 
@@ -727,7 +740,7 @@ function ReviewContent({ slug }: { slug: string }) {
     canonical: `https://cryptokiller.org/review/${slug}`,
     ogType: "article",
     jsonLd,
-    author: "CryptoKiller Research Team — cryptokiller.org",
+    author: authorPersona ? `${authorPersona.name} — cryptokiller.org` : "CryptoKiller Research Team — cryptokiller.org",
   });
 
 
@@ -803,7 +816,13 @@ function ReviewContent({ slug }: { slug: string }) {
             )}
             <div className="flex items-center gap-1.5">
               <User className="h-4 w-4 text-slate-500" />
-              <span>CryptoKiller Research Team · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></span>
+              <span>{authorPersona ? (
+                <>
+                  <a href={bylineHref} rel="author" className="text-slate-200 hover:text-white transition-colors">{bylineName}</a> · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a>
+                </>
+              ) : (
+                <>{bylineName} · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></>
+              )}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Eye className="h-4 w-4 text-slate-500" />
@@ -1282,7 +1301,9 @@ function ReviewContent({ slug }: { slug: string }) {
               </CardContent>
 
               <CardFooter className="border-t border-slate-800 pt-4 pb-4 block">
-                <p className="text-xs text-slate-500 mb-3">Reviewed by CryptoKiller Research Team · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></p>
+                <p className="text-xs text-slate-500 mb-3">Reviewed by {authorPersona ? (
+                  <a href={bylineHref} rel="author" className="text-slate-200 hover:text-white transition-colors">{bylineName}</a>
+                ) : bylineName} · <a href="/methodology" className="text-red-400 hover:text-red-300 transition-colors">Methodology ↗</a></p>
                 <Button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold" size="sm">
                   Report Your Experience
                 </Button>

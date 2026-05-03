@@ -155,6 +155,8 @@ export interface ReviewFull {
   wordCount: number;
   readingMinutes: number;
   author: string;
+  /** Writer persona ID (e.g. "webb", "nair", "ortiz"). Resolves to a WRITER_PERSONAS entry on the client to render the byline and JSON-LD Person node from the same source. Null on pre-migration rows; client falls back to the legacy author field or the corporate default. */
+  authorPersonaId?: string | null;
   adCreatives: number;
   countriesTargeted: number;
   daysActive: number;
