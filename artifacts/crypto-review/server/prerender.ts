@@ -146,9 +146,12 @@ function organizationSameAs(): string[] {
 
   // Fallback keeps Organization.sameAs populated when env propagation
   // lags between Vercel/Replit; use only canonical profiles.
+  // NB: Twitter handle is @cryptokiller (matches index.html twitter:site
+  // and twitter:creator). Earlier `@cryptokiller_org` was a divergence
+  // that Google entity disambiguation flagged on the 2026-05-03 audit.
   return [
     "https://www.linkedin.com/company/cryptokiller/",
-    "https://twitter.com/cryptokiller_org",
+    "https://twitter.com/cryptokiller",
     "https://www.crunchbase.com/organization/cryptokiller",
     "https://github.com/madrank8",
   ];
