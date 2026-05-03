@@ -23,6 +23,10 @@ import {
   publisherLogoImage,
   heroImageNode,
 } from "@/lib/blogSchemaEnrichment";
+import {
+  substitutePlatformStatTokensDeep,
+  type PlatformAggregatesForTokens,
+} from "@/lib/platformStatTokens";
 import { useState, useMemo } from "react";
 
 interface VisualMetaItem {
@@ -71,6 +75,12 @@ interface BlogPost {
   howTo?: unknown;
   quotes?: unknown[] | null;
   claims?: unknown[] | null;
+
+  // Live aggregates returned alongside the post, used to substitute
+  // {{platform_stat:KEY}} tokens at render time. Never null in practice
+  // — the API always populates the field; null/undefined here only when
+  // an older API contract is in flight (defensive).
+  platformAggregates?: PlatformAggregatesForTokens | null;
 }
 
 const BASE = "https://cryptokiller.org";
@@ -163,7 +173,7 @@ export default function BlogPostPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
 
-  const { data: post, isLoading, error } = useQuery<BlogPost>({
+  const { data: rawPost, isLoading, error } = useQuery<BlogPost>({
     queryKey: ["/api/blog", slug],
     queryFn: async () => {
       const res = await fetch(`/api/blog/${slug}`);
@@ -172,6 +182,15 @@ export default function BlogPostPage() {
     },
     enabled: !!slug,
   });
+
+  // Substitute {{platform_stat:KEY}} tokens against the live platform
+  // aggregates returned alongside the post. Memoized on rawPost so the
+  // substituted reference is stable when the API response is — keeps
+  // downstream useMemo deps cheap.
+  const post = useMemo<BlogPost | undefined>(
+    () => substitutePlatformStatTokensDeep(rawPost, rawPost?.platformAggregates),
+    [rawPost],
+  );
 
   const crumbs = [
     { label: "Home", href: `${BASE}/` },

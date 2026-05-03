@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, blogPostsTable } from "@workspace/db";
+import { getPlatformAggregates } from "../lib/platform-aggregates";
 
 interface VisualMetaItem {
   url?: string;
@@ -380,28 +381,34 @@ function normalizeInternalLinks(links: unknown): { text: string; url: string }[]
 const router: IRouter = Router();
 
 router.get("/blog", async (_req, res): Promise<void> => {
-  const posts = await db
-    .select({
-      id: blogPostsTable.id,
-      title: blogPostsTable.title,
-      headline: blogPostsTable.headline,
-      slug: blogPostsTable.slug,
-      metaDescription: blogPostsTable.metaDescription,
-      summary: blogPostsTable.summary,
-      contentType: blogPostsTable.contentType,
-      wordCount: blogPostsTable.wordCount,
-      publishedAt: blogPostsTable.publishedAt,
-      targetKeyword: blogPostsTable.targetKeyword,
-      authorPersonaId: blogPostsTable.authorPersonaId,
-      heroImageUrl: blogPostsTable.heroImageUrl,
-      heroImageAlt: blogPostsTable.heroImageAlt,
-      visualMeta: blogPostsTable.visualMeta,
-    })
-    .from(blogPostsTable)
-    .where(eq(blogPostsTable.status, "published"))
-    .orderBy(desc(blogPostsTable.publishedAt));
+  // Fetch posts and platform aggregates in parallel — independent reads.
+  // Aggregates are included so the index page can substitute
+  // `{{platform_stat:*}}` tokens in titles / headlines / summaries.
+  const [posts, platformAggregates] = await Promise.all([
+    db
+      .select({
+        id: blogPostsTable.id,
+        title: blogPostsTable.title,
+        headline: blogPostsTable.headline,
+        slug: blogPostsTable.slug,
+        metaDescription: blogPostsTable.metaDescription,
+        summary: blogPostsTable.summary,
+        contentType: blogPostsTable.contentType,
+        wordCount: blogPostsTable.wordCount,
+        publishedAt: blogPostsTable.publishedAt,
+        targetKeyword: blogPostsTable.targetKeyword,
+        authorPersonaId: blogPostsTable.authorPersonaId,
+        heroImageUrl: blogPostsTable.heroImageUrl,
+        heroImageAlt: blogPostsTable.heroImageAlt,
+        visualMeta: blogPostsTable.visualMeta,
+      })
+      .from(blogPostsTable)
+      .where(eq(blogPostsTable.status, "published"))
+      .orderBy(desc(blogPostsTable.publishedAt)),
+    getPlatformAggregates(),
+  ]);
 
-  res.json(posts.map((p: (typeof posts)[number]) => {
+  const items = posts.map((p: (typeof posts)[number]) => {
     const hero = resolveHeroImage(p.heroImageUrl, p.heroImageAlt, p.visualMeta);
     return {
       ...p,
@@ -410,17 +417,23 @@ router.get("/blog", async (_req, res): Promise<void> => {
       heroImageUrl: hero.url,
       heroImageAlt: hero.alt,
     };
-  }));
+  });
+
+  res.json({ items, platformAggregates });
 });
 
 router.get("/blog/:slug", async (req, res): Promise<void> => {
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
 
-  const [post] = await db
-    .select()
-    .from(blogPostsTable)
-    .where(eq(blogPostsTable.slug, slug));
+  // Fetch the post and platform aggregates in parallel. Aggregates are
+  // returned alongside the post so the client can substitute
+  // `{{platform_stat:*}}` tokens against current values without a second round-trip.
+  const [postRows, platformAggregates] = await Promise.all([
+    db.select().from(blogPostsTable).where(eq(blogPostsTable.slug, slug)),
+    getPlatformAggregates(),
+  ]);
 
+  const post = postRows[0];
   if (!post || post.status !== "published") {
     res.status(404).json({ error: "Post not found" });
     return;
@@ -443,6 +456,7 @@ router.get("/blog/:slug", async (req, res): Promise<void> => {
     publishedAt: post.publishedAt?.toISOString() ?? "",
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
+    platformAggregates,
   });
 });
 

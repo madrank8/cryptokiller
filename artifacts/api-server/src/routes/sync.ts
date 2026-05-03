@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 import { submitToIndexNow } from "../lib/indexnow";
+import { upsertVercelSyncRow, type VercelSyncPayload } from "../lib/platform-aggregates";
 import { createHash } from "crypto";
 
 const router: IRouter = Router();
@@ -380,6 +381,87 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     res.status(500).json({ error: "Sync failed", detail: String(err) });
   } finally {
     client.release();
+  }
+});
+
+// Receives platform-aggregate snapshots pushed from the Vercel side.
+// Source-of-truth for the cross-cutting numbers articles reference via
+// `{{platform_stat:KEY}}` tokens (e.g. total_brands_tracked, total_creatives_analyzed).
+// totalBrandsReviewed is intentionally NOT accepted from the sender — Replit
+// computes it live from its own reviews count.
+router.post("/sync/platform-aggregates", async (req, res): Promise<void> => {
+  const auth = req.headers.authorization;
+  const expected = process.env.SYNC_SECRET;
+  if (!expected || !auth || auth !== `Bearer ${expected}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  // Coerce + range-check each numeric field. Reject the whole payload if any
+  // present field fails coercion — the Vercel sender should be sending sane
+  // numbers; weird values mean the producer side is broken and we'd rather
+  // surface the error than silently store NULL.
+  const num = (v: unknown, name: string): number | null | string => {
+    if (v === null || v === undefined) return null;
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return Math.round(v);
+    return `Invalid number for ${name}: ${typeof v} ${String(v).slice(0, 50)}`;
+  };
+
+  type NumericKey =
+    | "totalBrandsTracked"
+    | "totalCreativesAnalyzed"
+    | "totalBrandsWithCelebrityAbuse"
+    | "avgScamScore"
+    | "topScamBrandScore";
+  const checks: Array<{ key: NumericKey; raw: unknown }> = [
+    { key: "totalBrandsTracked", raw: body.totalBrandsTracked },
+    { key: "totalCreativesAnalyzed", raw: body.totalCreativesAnalyzed },
+    { key: "totalBrandsWithCelebrityAbuse", raw: body.totalBrandsWithCelebrityAbuse },
+    { key: "avgScamScore", raw: body.avgScamScore },
+    { key: "topScamBrandScore", raw: body.topScamBrandScore },
+  ];
+
+  const payload: VercelSyncPayload = {};
+  for (const { key, raw } of checks) {
+    const v = num(raw, key);
+    if (typeof v === "string") {
+      res.status(400).json({ error: v });
+      return;
+    }
+    payload[key] = v;
+  }
+
+  if (typeof body.topVelocityTrend === "string" || body.topVelocityTrend === null) {
+    payload.topVelocityTrend = (body.topVelocityTrend as string | null) ?? null;
+  } else if (body.topVelocityTrend !== undefined) {
+    res.status(400).json({ error: "topVelocityTrend must be string or null" });
+    return;
+  }
+
+  if (typeof body.topScamBrandName === "string" || body.topScamBrandName === null) {
+    payload.topScamBrandName = (body.topScamBrandName as string | null) ?? null;
+  } else if (body.topScamBrandName !== undefined) {
+    res.status(400).json({ error: "topScamBrandName must be string or null" });
+    return;
+  }
+
+  if (body.metadata !== undefined) {
+    if (body.metadata === null || (typeof body.metadata === "object" && !Array.isArray(body.metadata))) {
+      payload.metadata = (body.metadata as Record<string, unknown> | null) ?? null;
+    } else {
+      res.status(400).json({ error: "metadata must be object or null" });
+      return;
+    }
+  }
+
+  try {
+    await upsertVercelSyncRow(payload);
+    res.json({ ok: true, source: "vercel-sync", updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.error("[sync/platform-aggregates] upsert failed:", err);
+    res.status(500).json({ error: "Sync failed", detail: String(err) });
   }
 });
 
