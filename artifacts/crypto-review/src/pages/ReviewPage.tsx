@@ -594,11 +594,15 @@ function ReviewContent({ slug }: { slug: string }) {
           description: `Platform under investigation by CryptoKiller. Threat score ${review.threatScore ?? "?"}/100 (${tier.label}).`,
         };
 
-    const allPersonas = Object.values(WRITER_PERSONAS);
-    const personNodes = allPersonas.map((p) => personNode(p));
-    const personRefs = allPersonas.map((p) => personRef(p));
-
-    const authorValue = personRefs.length > 0 ? personRefs : orgRefId;
+    // Emit ONE Person node — the actual author of THIS review — not the
+    // entire WRITER_PERSONAS registry. Previously this enumerated all 5
+    // analysts and emitted them as `Review.author = [refs…]`, which falsely
+    // claimed every review was co-authored by every analyst on staff.
+    // SSR `prerender.ts → renderReview` correctly emits one Person; this
+    // closes the parallel CSR mismatch (drift hunter risk #6, 2026-05-03).
+    // Falls back to Organization when authorPersonaId is null on legacy rows.
+    const personNodes = authorPersona ? [personNode(authorPersona)] : [];
+    const authorValue = authorPersona ? personRef(authorPersona) : orgRefId;
 
     const graph: Record<string, unknown>[] = [
       legalEntityNode(),
