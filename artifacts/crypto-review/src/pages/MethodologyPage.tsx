@@ -167,7 +167,7 @@ const editorialPolicies = [
   {
     icon: <Ban className="h-5 w-5 text-red-400" />,
     title: "Independence & Conflicts",
-    desc: "CryptoKiller does not accept advertising from cryptocurrency platforms, exchanges, or financial services. We have no financial relationships with any platform we investigate. Our revenue comes from educational content and institutional threat intelligence licensing.",
+    desc: "We hold no direct financial relationships with the platforms we investigate. We do not sell sponsored placements, accept payment to add, modify, or remove listings, or solicit advertising from cryptocurrency platforms, exchanges, or financial services. Editorial revenue comes from programmatic display advertising (Google AdSense), educational content, and institutional threat intelligence licensing. Programmatic ads are matched and served by third-party networks based on Google's targeting signals — we do not select individual advertisers and an ad served on a page has no influence on the threat score for the platform reviewed there. Threat scores are determined solely by the evidence categories described above.",
   },
   {
     icon: <Shield className="h-5 w-5 text-purple-400" />,
@@ -404,7 +404,11 @@ export default function MethodologyPage() {
               },
               {
                 q: "Does CryptoKiller accept payment to modify scores?",
-                a: "Absolutely not. CryptoKiller has never accepted payment to add, modify, or remove any investigation. Our threat scores are determined entirely by evidence. We have no financial relationships with any platform we investigate.",
+                a: "Absolutely not. CryptoKiller has never accepted payment to add, modify, or remove any investigation. Our threat scores are determined entirely by evidence. We have no direct financial relationships with the platforms we investigate.",
+              },
+              {
+                q: "Does CryptoKiller display ads, and could a platform we review pay to appear here?",
+                a: "Pages on this site display programmatic ads served by Google AdSense. AdSense matches ads to users based on Google's targeting signals — we do not select advertisers, sell direct placements, or take payment from any specific platform to appear on a review page. A platform we have investigated cannot pay us to alter its threat score, soften the review, or be removed; the editorial pipeline and the ad pipeline are completely independent. If you see an ad for a platform that has a critical review on this site, treat that as a coincidence of programmatic targeting, not an endorsement — and please report it via corrections@cryptokiller.org so we can review the placement.",
               },
               {
                 q: "What if I've been scammed by a platform you've reviewed?",
