@@ -35,9 +35,13 @@ function organizationSameAs(): string[] {
 
   if (envUrls.length > 0) return envUrls;
 
+  // Canonical Twitter handle is @cryptokiller — matches index.html
+  // twitter:site/twitter:creator. The earlier `@cryptokiller_org` value
+  // was an entity-disambiguation divergence flagged in the 2026-05-03
+  // audit. CRYPTOKILLER_TWITTER_URL env var override remains supported.
   return [
     "https://www.linkedin.com/company/cryptokiller/",
-    "https://twitter.com/cryptokiller_org",
+    "https://twitter.com/cryptokiller",
     "https://www.crunchbase.com/organization/cryptokiller",
     "https://github.com/madrank8",
   ];
