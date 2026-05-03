@@ -1,3 +1,8 @@
+// Public authorities and intelligence organisations whose reports + warning
+// lists CryptoKiller investigations reference. Wording deliberately reads
+// "Public Sources We Reference" (not "Referenced By", which read ambiguously
+// as endorsement) — these orgs do not endorse CryptoKiller; we cite their
+// publicly available reports in our investigations and recovery guides.
 const referencedBy = ["FBI IC3", "FTC", "Chainalysis", "DFPI California", "Europol"];
 const adSources = ["Meta Ad Library", "Google Ads Transparency", "TikTok Ad Center", "Telegram", "YouTube"];
 
@@ -28,7 +33,7 @@ export default function TrustBar() {
   return (
     <div className="bg-slate-900/60 border-y border-slate-800">
       <div className="container mx-auto px-4 max-w-6xl py-6 space-y-3">
-        <BadgeRow label="Intelligence Referenced By" items={referencedBy} />
+        <BadgeRow label="Public Sources We Reference" items={referencedBy} />
         <BadgeRow label="Ad Data Sources" items={adSources} />
       </div>
       <div className="border-t border-slate-800/60 py-3">
