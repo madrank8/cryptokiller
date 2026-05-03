@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useGetReview, useGetRelatedReviews } from "@workspace/api-client-react";
+import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   Shield, AlertTriangle, Flag, X, CheckCircle,
@@ -536,8 +537,12 @@ function ReviewContent({ slug }: { slug: string }) {
   // — backwards compatible with all existing rows. Helper contract:
   // @/lib/statTokens.ts. Producer side (Vercel writer pipeline) emits
   // tokens; consumer side (this component + server/prerender.ts) swaps.
-  const review = useMemo(
-    () => (rawReview ? substituteStatTokensInReview(rawReview) : rawReview),
+  // The helper's `<T>(review: T): T` signature should preserve T = ReviewFull,
+  // but the internal `as Record<string, unknown>` cast inside substituteDeep
+  // collapses TS's view of the narrowed shape; explicit cast restores it so
+  // downstream `.map` / `.split` calls keep their inferred element types.
+  const review = useMemo<ReviewFull | undefined>(
+    () => (rawReview ? (substituteStatTokensInReview(rawReview) as ReviewFull) : rawReview),
     [rawReview],
   );
 
@@ -718,8 +723,8 @@ function ReviewContent({ slug }: { slug: string }) {
     }
     if (reviewNode && Array.isArray(review.sources) && review.sources.length > 0) {
       reviewNode.citation = review.sources
-        .filter((s) => s && s.url)
-        .map((s) => ({
+        .filter((s: ReviewSource) => s && s.url)
+        .map((s: ReviewSource) => ({
           "@type": "CreativeWork",
           name: s.title,
           url: s.url,
@@ -894,8 +899,8 @@ function ReviewContent({ slug }: { slug: string }) {
             empty. */}
         {(() => {
           const bullets = Array.isArray(review.keyFindings) && review.keyFindings.length > 0
-            ? review.keyFindings.map((k) => k.content).filter(Boolean)
-            : (review.summary || "").split("\n").map((s) => s.trim()).filter(Boolean);
+            ? review.keyFindings.map((k: KeyFinding) => k.content).filter(Boolean)
+            : (review.summary || "").split("\n").map((s: string) => s.trim()).filter(Boolean);
           if (bullets.length === 0) return null;
           return (
             <div className="mb-12 bg-red-950/20 border border-red-900/40 rounded-xl p-6">
@@ -903,7 +908,7 @@ function ReviewContent({ slug }: { slug: string }) {
                 <AlertOctagon className="h-5 w-5" /> Key Takeaways
               </h3>
               <ul className="space-y-3">
-                {bullets.map((point, i) => (
+                {bullets.map((point: string, i: number) => (
                   <li key={i} className="flex gap-3 items-start text-sm text-slate-300 leading-relaxed">
                     <X className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                     {point}
@@ -934,12 +939,12 @@ function ReviewContent({ slug }: { slug: string }) {
                 const rendered = new Set<string>();
                 const imageForParagraph = (idx: number) => {
                   const placement = `section-${idx + 1}`;
-                  const match = images.find((c) => c && c.placement === placement && c.url && !rendered.has(c.url));
+                  const match = images.find((c: ContentImage) => c && c.placement === placement && c.url && !rendered.has(c.url));
                   if (!match) return null;
                   rendered.add(match.url);
                   return match;
                 };
-                return paragraphs.map((para, i) => {
+                return paragraphs.map((para: string, i: number) => {
                   const img = imageForParagraph(i);
                   return (
                     <div key={i}>
@@ -998,7 +1003,7 @@ function ReviewContent({ slug }: { slug: string }) {
                 <div className="relative">
                   <div className="absolute left-[27px] top-12 bottom-12 w-0.5 bg-gradient-to-b from-orange-600 via-red-600 to-red-900 hidden md:block" />
                   <div className="space-y-4">
-                    {review.funnelStages.map((stage, i) => {
+                    {review.funnelStages.map((stage: FunnelStage, i: number) => {
                       const cfg = stageConfig[i] ?? stageConfig[3];
                       return (
                         <div key={i} className={`relative flex gap-0 md:gap-6 rounded-2xl ${cfg.bgCard} border ${cfg.border} overflow-hidden`}>
@@ -1016,7 +1021,7 @@ function ReviewContent({ slug }: { slug: string }) {
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-white text-lg leading-snug mb-4">{stage.title}</h3>
                                 <ul className="space-y-2.5 mb-4">
-                                  {stage.bullets.map((bullet, bi) => (
+                                  {stage.bullets.map((bullet: string, bi: number) => (
                                     <li key={bi} className="flex items-start gap-2.5 text-sm text-slate-300 leading-relaxed">
                                       <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${cfg.iconBg} shrink-0`} />
                                       {bullet}
@@ -1045,7 +1050,7 @@ function ReviewContent({ slug }: { slug: string }) {
               <section>
                 <SectionTitle icon={<Flag className="h-6 w-6" />}>Red Flags</SectionTitle>
                 <div className="space-y-4">
-                  {review.redFlags.map((flag, i) => (
+                  {review.redFlags.map((flag: RedFlag, i: number) => (
                     <div key={i} className="rounded-xl bg-slate-900/60 border border-slate-800 overflow-hidden">
                       <div className="flex items-start gap-4 p-5">
                         <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-red-950/60 border border-red-900/60 text-base">
@@ -1078,14 +1083,14 @@ function ReviewContent({ slug }: { slug: string }) {
                 (rendered inline above) so we skip them here to avoid double
                 rendering. Only succeeded=true entries are shown. */}
             {(() => {
-              const visuals = (Array.isArray(review.visualMeta) ? review.visualMeta : [])
-                .filter((v) => v && v.succeeded && v.url && v.type && v.type !== "IMAGE");
+              const visuals = ((Array.isArray(review.visualMeta) ? review.visualMeta : []) as VisualMeta[])
+                .filter((v: VisualMeta) => v && v.succeeded && v.url && v.type && v.type !== "IMAGE");
               if (visuals.length === 0) return null;
               return (
                 <section>
                   <SectionTitle icon={<BarChart2 className="h-6 w-6" />}>Evidence Visuals</SectionTitle>
                   <div className="space-y-6">
-                    {visuals.map((v, i) => (
+                    {visuals.map((v: VisualMeta, i: number) => (
                       <figure
                         key={i}
                         className={`overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 review-visual review-visual-${v.type.toLowerCase()}`}
@@ -1132,7 +1137,7 @@ function ReviewContent({ slug }: { slug: string }) {
                   chargeback windows, locale-specific reporting bodies, etc.). */}
               {review.protectionSteps && (
                 <div className="mb-6 space-y-4">
-                  {review.protectionSteps.split("\n\n").map((para, i) => (
+                  {review.protectionSteps.split("\n\n").map((para: string, i: number) => (
                     <p key={i} className="text-slate-300 text-sm leading-relaxed">{para}</p>
                   ))}
                 </div>
@@ -1163,7 +1168,7 @@ function ReviewContent({ slug }: { slug: string }) {
               <section>
                 <SectionTitle icon={<BookOpen className="h-6 w-6" />}>Frequently Asked Questions</SectionTitle>
                 <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden">
-                  {review.faqItems.map((faq, i) => (
+                  {review.faqItems.map((faq: FaqItem, i: number) => (
                     <div key={i} className="bg-slate-900/50">
                       <button
                         className="w-full text-left flex items-center justify-between gap-4 p-5 hover:bg-slate-800/40 transition-colors"
@@ -1189,7 +1194,7 @@ function ReviewContent({ slug }: { slug: string }) {
             {review.methodologyText && (
               <section>
                 <SectionTitle icon={<Microscope className="h-6 w-6" />}>Our Investigation Methodology</SectionTitle>
-                {review.methodologyText.split("\n\n").map((para, i) => (
+                {review.methodologyText.split("\n\n").map((para: string, i: number) => (
                   <p key={i} className="text-slate-400 text-sm leading-relaxed mb-4">{para}</p>
                 ))}
               </section>
@@ -1202,7 +1207,7 @@ function ReviewContent({ slug }: { slug: string }) {
             {review.expertiseDepth && (
               <section>
                 <SectionTitle icon={<Users className="h-6 w-6" />}>Our Investigation Expertise</SectionTitle>
-                {review.expertiseDepth.split("\n\n").map((para, i) => (
+                {review.expertiseDepth.split("\n\n").map((para: string, i: number) => (
                   <p key={i} className="text-slate-400 text-sm leading-relaxed mb-4">{para}</p>
                 ))}
               </section>
@@ -1215,7 +1220,7 @@ function ReviewContent({ slug }: { slug: string }) {
               <section>
                 <SectionTitle icon={<BookOpen className="h-6 w-6" />}>Sources &amp; References</SectionTitle>
                 <ol className="space-y-3 border border-slate-800 rounded-xl bg-slate-900/40 p-5">
-                  {review.sources.map((s, i) => (
+                  {review.sources.map((s: ReviewSource, i: number) => (
                     <li key={i} className="flex items-start gap-3 text-sm">
                       <span className="shrink-0 mt-0.5 w-6 h-6 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
                         {i + 1}
@@ -1292,7 +1297,7 @@ function ReviewContent({ slug }: { slug: string }) {
                 <CardContent className="pt-4 pb-4 px-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Geographic Targeting</p>
                   <div className="divide-y divide-slate-800">
-                    {review.geoTargets.map((geo, i) => (
+                    {review.geoTargets.map((geo: GeoTarget, i: number) => (
                       <div key={i} className="flex justify-between items-center px-4 py-2 hover:bg-slate-800/40 transition-colors">
                         <span className="text-slate-300 text-xs font-medium">{geo.region}</span>
                         <span className="text-slate-500 text-xs">{geo.countryCodes}</span>
@@ -1356,7 +1361,7 @@ function ReviewContent({ slug }: { slug: string }) {
               </CardHeader>
               <CardContent className="pt-3 space-y-2">
                 {Array.isArray(review.sources) && review.sources.length > 0 ? (
-                  review.sources.slice(0, 5).map((s, i) => (
+                  review.sources.slice(0, 5).map((s: ReviewSource, i: number) => (
                     <a
                       key={i}
                       href={s.url}
