@@ -12,6 +12,7 @@ import {
   substitutePlatformStatTokensDeep,
   type PlatformAggregatesForTokens,
 } from "@/lib/platformStatTokens";
+import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
 import { useMemo } from "react";
 
 interface BlogPostSummary {
@@ -178,7 +179,10 @@ export default function BlogPage() {
   // platform stats render with current values. Memoized on the raw input
   // so the substituted reference is stable when the API response is.
   const posts = useMemo<BlogPostSummary[] | undefined>(
-    () => substitutePlatformStatTokensDeep(data?.items, data?.platformAggregates),
+    () =>
+      stripMarkdownLinksDeep(
+        substitutePlatformStatTokensDeep(data?.items, data?.platformAggregates),
+      ),
     [data?.items, data?.platformAggregates],
   );
 

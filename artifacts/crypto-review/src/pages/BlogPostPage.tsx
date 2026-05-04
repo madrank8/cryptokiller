@@ -27,6 +27,7 @@ import {
   substitutePlatformStatTokensDeep,
   type PlatformAggregatesForTokens,
 } from "@/lib/platformStatTokens";
+import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
 import { useState, useMemo } from "react";
 
 interface VisualMetaItem {
@@ -188,7 +189,10 @@ export default function BlogPostPage() {
   // substituted reference is stable when the API response is — keeps
   // downstream useMemo deps cheap.
   const post = useMemo<BlogPost | undefined>(
-    () => substitutePlatformStatTokensDeep(rawPost, rawPost?.platformAggregates),
+    () =>
+      stripMarkdownLinksDeep(
+        substitutePlatformStatTokensDeep(rawPost, rawPost?.platformAggregates),
+      ),
     [rawPost],
   );
 
