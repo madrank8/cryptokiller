@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
+import { stripMarkdownLinks, stripMarkdownLinksDeep } from "../src/lib/markdownLinks.js";
 import {
   organizationSameAs,
   organizationNode,
@@ -541,7 +542,9 @@ async function renderBlogList(): Promise<RenderResult> {
       .limit(50),
     fetchPlatformAggregatesForRender(),
   ]);
-  const rows = substitutePlatformStatTokensDeep(rawRows, platformAggregates);
+  const rows = stripMarkdownLinksDeep(
+    substitutePlatformStatTokensDeep(rawRows, platformAggregates),
+  );
 
   const title = "Blog — Crypto Safety Insights & Guides | CryptoKiller";
   const description =
@@ -810,6 +813,14 @@ async function renderReview(slug: string): Promise<RenderResult> {
     // walked automatically — no further helper update required.
     row = substituteStatTokensInReview(row);
 
+    // Strip markdown link syntax `[text](url)` from prose. The Vercel
+    // writer emits markdown links by default (Claude's natural format) but
+    // the renderer doesn't convert markdown to HTML — leaving raw bracket-
+    // paren syntax visible on the page. See lib/markdownLinks.ts for the
+    // YMYL-safety rationale (we drop the URL rather than emit clickable
+    // <a> tags around scam URLs being cited as evidence).
+    row = stripMarkdownLinksDeep(row);
+
     // Child tables (redFlags, faqItems, etc.) come from separate Drizzle
     // queries — they don't carry the stats fields, so they can't be passed
     // to substituteStatTokensInReview directly. Hand-roll the equivalent
@@ -824,7 +835,13 @@ async function renderReview(slug: string): Promise<RenderResult> {
       firstDetected: row.firstDetected ? String(row.firstDetected) : null,
       lastActive: row.lastActive ? String(row.lastActive) : null,
     };
-    const sub = (s: string | null | undefined) => substituteStatTokens(s, tokenStats);
+    // Compose stat-token substitution with markdown-link stripping for
+    // every string field — same pattern as the row-level pass above, just
+    // applied per child-table-array because the helpers are deep-walkers
+    // designed for whole-object inputs and these arrays carry their own
+    // shape (no stats columns).
+    const sub = (s: string | null | undefined) =>
+      stripMarkdownLinks(substituteStatTokens(s, tokenStats));
     redFlags = redFlags.map((r) => ({
       ...r,
       title: sub(r.title),
@@ -1533,7 +1550,11 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
   // Substitute tokens once on the entire row before any downstream code reads
   // it. Backwards compatible: rows without {{platform_stat: substrings pass
   // through unchanged; the helper short-circuits on `text.indexOf(...)`.
-  const row = substitutePlatformStatTokensDeep(rawRow, platformAggregates);
+  // Then strip markdown link syntax from all prose (writer emits markdown
+  // by default; the renderer doesn't convert it).
+  const row = stripMarkdownLinksDeep(
+    substitutePlatformStatTokensDeep(rawRow, platformAggregates),
+  );
 
   // Title selection — prefer the SEO `title` column (writer prompt caps it at
   // 60 chars and instructs the model to include the target keyword) over the

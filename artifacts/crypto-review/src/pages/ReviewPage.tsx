@@ -24,6 +24,7 @@ import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
+import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
 import { resolveReviewTier } from "@/lib/reviewTier";
 import { buildItemReviewedJsonLdNode } from "@/lib/reviewItemReviewedSchema";
 
@@ -542,7 +543,10 @@ function ReviewContent({ slug }: { slug: string }) {
   // collapses TS's view of the narrowed shape; explicit cast restores it so
   // downstream `.map` / `.split` calls keep their inferred element types.
   const review = useMemo<ReviewFull | undefined>(
-    () => (rawReview ? (substituteStatTokensInReview(rawReview) as ReviewFull) : rawReview),
+    () =>
+      rawReview
+        ? (stripMarkdownLinksDeep(substituteStatTokensInReview(rawReview)) as ReviewFull)
+        : rawReview,
     [rawReview],
   );
 
