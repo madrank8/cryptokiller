@@ -162,6 +162,14 @@ export interface RenderResult {
   ogType: string;
   ogImage: string;
   robots?: string;
+  // Optional persona-specific value for the <meta name="author"> tag.
+  // When omitted, the SSR template falls back to the corporate default
+  // baked into index.html. Set on review and blog-post pages so the
+  // first-byte HTML matches the persona that authored the page (e.g.
+  // "P. Nair — cryptokiller.org") instead of "CryptoKiller Research Team".
+  // Must mirror what usePageMeta sets client-side after hydration so
+  // crawlers that don't execute JS see the same value as those that do.
+  author?: string;
   bodyHtml: string;
   jsonLd?: Record<string, unknown>;
   lastModified?: string;
@@ -882,6 +890,13 @@ async function renderReview(slug: string): Promise<RenderResult> {
   });
   const headlineLabel = reviewHeadlineLabel(tier);
 
+  // Resolve the persona once so it can drive both the visible byline (IIFE
+  // at line ~1249 below) and the SSR <meta name="author"> tag (RenderResult
+  // `author` field at the function's return). Same resolution rule as the
+  // CSR side in src/pages/ReviewPage.tsx (line ~563): persona id → registry
+  // entry, fall back to undefined when the id is missing or unknown.
+  const reviewPersona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
+
   // <title> — tier-aware. Only include the score when it's non-zero;
   // shipping "Threat Score 0/100" on a review that lost its score during
   // sync is worse than omitting it. Score > 0 is the floor; below that
@@ -1238,19 +1253,9 @@ ${faqHtml}
 ${sourcesHtml}
 ${notForYouHtml}
 ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
-<p><strong>Investigation by:</strong> ${(() => {
-  // Resolve byline from the same persona registry that drives the @graph
-  // Person node below (line ~1217). The legacy fallback was reading the
-  // free-text reviews.author column, which is null on most rows — producing
-  // a "CryptoKiller Research Team" byline while JSON-LD emitted M. Webb.
-  // Mirrors the persona resolution in renderBlogPost (line ~1529) and the
-  // CSR equivalent in src/pages/ReviewPage.tsx::ReviewContent.
-  const persona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
-  if (persona) {
-    return `<a href="/author/${persona.slug}" rel="author">${esc(persona.name)}</a>`;
-  }
-  return esc(row.author || "CryptoKiller Research Team");
-})()}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
+<p><strong>Investigation by:</strong> ${reviewPersona
+  ? `<a href="/author/${reviewPersona.slug}" rel="author">${esc(reviewPersona.name)}</a>`
+  : esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
 </main>${siteFooterHtml()}`;
@@ -1523,6 +1528,12 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     canonical,
     ogType: "article",
     ogImage: DEFAULT_OG_IMAGE,
+    // SSR <meta name="author"> matches usePageMeta's CSR value (see
+    // src/pages/ReviewPage.tsx line ~770) so crawlers see the persona on
+    // first byte instead of the corporate fallback baked into index.html.
+    author: reviewPersona
+      ? `${reviewPersona.name} — cryptokiller.org`
+      : undefined,
     bodyHtml,
     jsonLd: { "@context": "https://schema.org", "@graph": graph },
     lastModified,
@@ -1803,6 +1814,12 @@ ${sourcesHtml}
     canonical,
     ogType: "article",
     ogImage: heroImage,
+    // SSR <meta name="author"> matches usePageMeta's CSR value so crawlers
+    // see the persona on first byte. `persona` was resolved above for the
+    // byline + jsonLd Person node.
+    author: persona
+      ? `${persona.name} — cryptokiller.org`
+      : undefined,
     bodyHtml,
     jsonLd,
     lastModified,

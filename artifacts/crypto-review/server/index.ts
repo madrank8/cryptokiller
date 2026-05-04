@@ -61,6 +61,15 @@ function applyMeta(template: string, r: RenderResult): string {
   replaceAttr(/<meta name="twitter:title"[^>]*>/, r.title);
   replaceAttr(/<meta name="twitter:description"[^>]*>/, r.description);
   replaceAttr(/<meta name="twitter:image"[^>]*>/, r.ogImage);
+  // <meta name="author"> — only rewrite when the renderer supplies a
+  // page-specific value (review/blog-post pages with a known persona).
+  // Pages that don't set `author` keep whatever the static index.html
+  // template ships with (currently the corporate "CryptoKiller Research
+  // Team" default), so the home/investigations/static pages are
+  // unaffected by this hook.
+  if (r.author) {
+    replaceAttr(/<meta name="author"[^>]*>/, r.author);
+  }
 
   let headInject = `<link rel="canonical" href="${escapeAttr(r.canonical)}" data-ssr="1" />`;
   if (r.jsonLd) {
