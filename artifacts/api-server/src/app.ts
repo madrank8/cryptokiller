@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { knownAgentsMiddleware } from "./lib/known-agents";
 
 const app: Express = express();
 
@@ -26,6 +27,11 @@ app.use(
   }),
 );
 app.use(cors());
+// Track every incoming request for AI agent / bot analytics via Known Agents.
+// Reads KNOWNAGENTS_ACCESS_TOKEN from env; no-ops if the secret is unset so
+// local dev and missing-env deploys continue to work. Mounted before body
+// parsers so trackVisit fires for *every* response, including 413s.
+app.use(knownAgentsMiddleware);
 // Express's default body limit is 100kb; full review payloads (with long
 // articles, red_flags, faq, visual_meta, etc.) and the Vercel admin's
 // /sync/blog payload (with schema_enrichment arrays — ClaimReview[],
