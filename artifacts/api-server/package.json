@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@knownagents/sdk": "^1.11.0",
     "@supabase/supabase-js": "^2.101.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
