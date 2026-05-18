@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, blogPostsTable } from "@workspace/db";
 import { getPlatformAggregates } from "../lib/platform-aggregates";
+import { sanitizeRichHtml } from "../lib/html-sanitizer";
 
 interface VisualMetaItem {
   url?: string;
@@ -228,6 +229,8 @@ function processContentBody(html: string): string {
     /<div[^>]*class="[^"]*not-for-you[^"]*"[^>]*>([\s\S]*?)<\/div>/g,
     (_m, inner) => `<div class="ck-not-for-you" style="margin:2rem 0;padding:1.25rem 1.5rem;border:1px solid rgba(148,163,184,0.2);background:rgba(148,163,184,0.05);border-radius:0.75rem;font-size:0.9rem;color:#94a3b8;">${inner}</div>`
   );
+
+  out = sanitizeRichHtml(out);
 
   return out;
 }

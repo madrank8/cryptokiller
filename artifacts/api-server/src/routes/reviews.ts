@@ -16,6 +16,7 @@ import {
 } from "@workspace/db";
 import { LOCALE_HREFLANG as SITEMAP_LOCALE_HREFLANG } from "@workspace/i18n";
 import { logger } from "../lib/logger";
+import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
 
 const router: IRouter = Router();
 
@@ -157,6 +158,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
 
   res.json({
     ...row,
+    heroDescription: sanitizeInlineHtml(row.heroDescription ?? ""),
     investigationDate: row.investigationDate?.toISOString() ?? "",
     metaDescription: row.metaDescription ?? "",
     // Pre-migration rows have no persona; client must fall back to the legacy
@@ -390,6 +392,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
 
   const masterShell = {
     ...masterRow,
+    heroDescription: sanitizeInlineHtml(masterRow.heroDescription ?? ""),
     investigationDate: masterRow.investigationDate?.toISOString() ?? "",
     metaDescription: masterRow.metaDescription ?? "",
     authorPersonaId: masterRow.authorPersonaId ?? null,
@@ -491,10 +494,10 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     metaDescription: translationRow.metaDescription,
     headline: translationRow.headline,
     alternativeHeadline: translationRow.alternativeHeadline,
-    summary: translationRow.summary,
+    summary: sanitizeInlineHtml(translationRow.summary ?? ""),
     verdict: translationRow.verdict,
     howItWorks: translationRow.howItWorks,
-    fullArticle: translationRow.fullArticle,
+    fullArticle: translationRow.fullArticle ? sanitizeRichHtml(translationRow.fullArticle) : translationRow.fullArticle,
     redFlags: translationRow.redFlags ?? null,
     faq: translationRow.faq ?? null,
     keyTakeaways: translationRow.keyTakeaways ?? null,

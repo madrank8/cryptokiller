@@ -50,6 +50,7 @@ import {
   substitutePlatformStatTokensDeep,
   type PlatformAggregatesForTokens,
 } from "../src/lib/platformStatTokens.js";
+import { sanitizeRichHtml } from "./html-sanitizer.js";
 
 // Fetch the combined platform-aggregate snapshot used to substitute
 // {{platform_stat:KEY}} tokens on blog renders. Vercel-synced fields come
@@ -1538,7 +1539,7 @@ async function renderReview(
       ? dedupeDuplicateStageCardsInFullArticle(
           wrapSpeakableTargets(
             relabelDisclaimerInsideBlockquote(
-              row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
+              sanitizeRichHtml(row.fullArticle),
             ),
           ),
         )
@@ -2059,11 +2060,11 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 
   let articleBodyHtml = "";
   if (row.fullArticle && row.fullArticle.trim().length > 0) {
-    // Strip any <script> tags (esp. embedded JSON-LD) baked into article content.
-    // Duplicate schema blocks in the body downgrade structured-data trust signals
-    // and are better emitted by the SSR jsonLd pipeline only. Mirrors the same
-    // strip performed in artifacts/api-server/src/routes/blog.ts::processContentBody.
-    articleBodyHtml = row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+    // Sanitize HTML from the article body. This removes dangerous elements and
+    // attributes (event handlers, javascript: URIs, etc.) while preserving all
+    // safe structural and styling markup. Mirrors the same sanitization performed
+    // in artifacts/api-server/src/routes/blog.ts::processContentBody.
+    articleBodyHtml = sanitizeRichHtml(row.fullArticle);
   } else if (sections.length > 0) {
     articleBodyHtml = sections
       .map((s) => `${s.heading ? `<h2>${esc(s.heading)}</h2>` : ""}${s.body ? `<p>${esc(s.body)}</p>` : ""}`)
