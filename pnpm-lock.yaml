@@ -186,6 +186,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/i18n':
+        specifier: workspace:*
+        version: link:../../lib/i18n
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -238,6 +241,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/i18n':
+        specifier: workspace:*
+        version: link:../../lib/i18n
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@types/pg@8.18.0)(pg@8.20.0)
@@ -669,6 +675,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
+
+  lib/i18n: {}
 
   scripts:
     dependencies:

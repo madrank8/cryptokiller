@@ -12,6 +12,13 @@ import {
   platformAggregatesTable,
   reviewTranslationsTable,
 } from "@workspace/db";
+import {
+  LOCALE_HREFLANG as TRANSLATION_LOCALE_HREFLANG,
+  LOCALE_LANGUAGE_LABEL_EN,
+  TRANSLATION_METHOD_LABEL,
+  formatLocaleDate,
+  STALE_TRANSLATION_THRESHOLD_MS,
+} from "@workspace/i18n";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
 import { stripMarkdownLinks, stripMarkdownLinksDeep } from "../src/lib/markdownLinks.js";
@@ -693,13 +700,8 @@ const TRANSLATION_LOCALE_HTML_LANG: Record<string, string> = {
 // `en` (NOT en-US) for the master, bare `it`/`es`/`de`/`fr` for European
 // locales, canonical `pt-BR` for Brazilian Portuguese. Google rejects
 // `es-419` and treats `en-US` as a US-only target when we don't want that.
-const TRANSLATION_LOCALE_HREFLANG: Record<string, string> = {
-  it: "it",
-  es: "es",
-  de: "de",
-  fr: "fr",
-  "pt-BR": "pt-BR",
-};
+// TRANSLATION_LOCALE_HREFLANG, LOCALE_LANGUAGE_LABEL_EN,
+// TRANSLATION_METHOD_LABEL — see @workspace/i18n (imported at top).
 
 // Build the full set of hreflang alternates for a review (master + every
 // published translation + x-default → master). Identical set is emitted
@@ -1457,51 +1459,27 @@ async function renderReview(
   // in the legacy structured path so both branches satisfy E-E-A-T
   // transparency for YMYL. Stale = source_review_updated_at lags
   // row.updatedAt by >1h (server-of-truth — same threshold as the API).
-  const LOCALE_LANGUAGE_LABEL_EN_SSR: Record<string, string> = {
-    it: "Italian",
-    es: "Spanish",
-    de: "German",
-    fr: "French",
-    "pt-BR": "Brazilian Portuguese",
-  };
-  const TRANSLATION_METHOD_LABEL_SSR: Record<string, string> = {
-    ai_full: "AI translation",
-    ai_assisted: "AI-assisted translation, editorially reviewed",
-    human_only: "Human translation",
-  };
-  function formatLocaleDateSSR(iso: Date | string | null | undefined, bcp47: string): string {
-    if (!iso) return "";
-    try {
-      const d = iso instanceof Date ? iso : new Date(iso);
-      if (Number.isNaN(d.getTime())) return "";
-      return new Intl.DateTimeFormat(bcp47, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }).format(d);
-    } catch {
-      return "";
-    }
-  }
+  // Locale label, method label, date formatter, and stale threshold all
+  // imported at top of file from @workspace/i18n — single source of
+  // truth shared with CSR and API.
   let translationDisclosureHtml = "";
   if (translationRow) {
     const locale = translationRow.locale;
     const bcp47 = TRANSLATION_LOCALE_HREFLANG[locale] ?? locale;
-    const STALE_THRESHOLD_MS = 60 * 60 * 1000;
     const sourceMs = translationRow.sourceReviewUpdatedAt?.getTime() ?? null;
     const isStale =
-      sourceMs !== null && sourceMs < row.updatedAt.getTime() - STALE_THRESHOLD_MS;
-    const languageLabel = LOCALE_LANGUAGE_LABEL_EN_SSR[locale] ?? locale;
+      sourceMs !== null && sourceMs < row.updatedAt.getTime() - STALE_TRANSLATION_THRESHOLD_MS;
+    const languageLabel = LOCALE_LANGUAGE_LABEL_EN[locale] ?? locale;
     const translatorName = translationRow.translatorName ?? "";
     const methodKey = translationRow.translationMethod ?? "";
-    const methodLabel = methodKey ? (TRANSLATION_METHOD_LABEL_SSR[methodKey] ?? "") : "";
-    const sourceFormatted = formatLocaleDateSSR(translationRow.sourceReviewUpdatedAt, bcp47);
-    const reviewedFormatted = formatLocaleDateSSR(
+    const methodLabel = methodKey ? (TRANSLATION_METHOD_LABEL[methodKey] ?? "") : "";
+    const sourceFormatted = formatLocaleDate(translationRow.sourceReviewUpdatedAt, bcp47);
+    const reviewedFormatted = formatLocaleDate(
       translationRow.reviewedAt ?? translationRow.publishedAt ?? null,
       bcp47,
     );
     const masterUpdatedFormatted =
-      formatLocaleDateSSR(row.updatedAt, bcp47) || "recently";
+      formatLocaleDate(row.updatedAt, bcp47) || "recently";
 
     const staleBanner = isStale
       ? `<div role="status" data-translation-stale style="border:1px solid rgba(217,119,6,0.4);background:rgba(120,53,15,0.2);color:#fef3c7;padding:0.75rem 1rem;border-radius:0.5rem;margin-bottom:0.75rem;font-size:0.875rem;line-height:1.5"><strong style="color:#fde68a;font-weight:600">Heads up:</strong> This article may be slightly out of date — the original English version was updated <strong style="color:#fde68a">${esc(masterUpdatedFormatted)}</strong>. A refreshed translation is in progress.</div>`

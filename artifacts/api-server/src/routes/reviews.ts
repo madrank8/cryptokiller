@@ -13,6 +13,7 @@ import {
   blogPostsTable,
   reviewTranslationsTable,
 } from "@workspace/db";
+import { LOCALE_HREFLANG as SITEMAP_LOCALE_HREFLANG } from "@workspace/i18n";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -541,13 +542,7 @@ const SITEMAP_LOCALE_URL_SEGMENT: Record<string, string> = {
   fr: "fr",
   "pt-BR": "pt-br",
 };
-const SITEMAP_LOCALE_HREFLANG: Record<string, string> = {
-  it: "it",
-  es: "es",
-  de: "de",
-  fr: "fr",
-  "pt-BR": "pt-BR",
-};
+// SITEMAP_LOCALE_HREFLANG — see @workspace/i18n (imported at top).
 
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const [rows, blogRows, latestDates, topicRowsRaw, translationRows] = await Promise.all([

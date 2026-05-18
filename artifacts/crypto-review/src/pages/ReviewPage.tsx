@@ -2,6 +2,12 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useGetReview, useGetRelatedReviews, useGetReviewTranslation } from "@workspace/api-client-react";
 import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated } from "@workspace/api-client-react";
+import {
+  LOCALE_HREFLANG,
+  LOCALE_LANGUAGE_LABEL_EN,
+  TRANSLATION_METHOD_LABEL,
+  formatLocaleDate,
+} from "@workspace/i18n";
 
 // URL locale segment → BCP-47 canonical case. URLs use lowercase by
 // convention (`/pt-br/...`) but the DB, the API, the `<html lang>`
@@ -36,56 +42,11 @@ const LOCALE_HTML_LANG: Record<string, string> = {
   "pt-BR": "pt-BR",
 };
 
-// Phase 5 — BCP-47 → hreflang attribute value. NOT `en-US` (we don't
-// target US specifically) and NOT `es-419` (Google rejects).
-const LOCALE_HREFLANG: Record<string, string> = {
-  it: "it",
-  es: "es",
-  de: "de",
-  fr: "fr",
-  "pt-BR": "pt-BR",
-};
-
-// Phase 7 — Disclosure block needs a human-readable language label for
-// the prose ("…translated into [Language]…"). Keep these in English for
-// V1: the disclosure copy itself is English (the surrounding article is
-// localised, but the disclosure is editorial chrome). Same labels are
-// duplicated in artifacts/crypto-review/server/prerender.ts for SSR.
-const LOCALE_LANGUAGE_LABEL_EN: Record<string, string> = {
-  it: "Italian",
-  es: "Spanish",
-  de: "German",
-  fr: "French",
-  "pt-BR": "Brazilian Portuguese",
-};
-
-// Phase 7 — translation_method DB enum → user-facing prose. Unknown
-// values fall back to a generic "Editorial translation" instead of
-// leaking the raw enum string into the page.
-const TRANSLATION_METHOD_LABEL: Record<string, string> = {
-  ai_full: "AI translation",
-  ai_assisted: "AI-assisted translation, editorially reviewed",
-  human_only: "Human translation",
-};
-
-// Format an ISO timestamp with the page's BCP-47 locale so the date
-// reads naturally in the target language (e.g. "18 maggio 2026" on /it,
-// "May 18, 2026" on the English master). Returns "" on null/invalid so
-// callers can collapse the surrounding clause.
-function formatLocaleDate(iso: string | null | undefined, bcp47: string): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return new Intl.DateTimeFormat(bcp47, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  } catch {
-    return "";
-  }
-}
+// i18n constants and helpers (locale hreflang map, language labels,
+// translation method labels, date formatter) live in @workspace/i18n —
+// single source of truth shared by CSR, SSR, and the API. Phase 5
+// hreflangs: NOT `en-US` (we don't target US) and NOT `es-419` (Google
+// rejects).
 
 // Build a ReviewFull-shaped object from a translation response. The
 // translation endpoint returns translated text fields + a `master` shell
