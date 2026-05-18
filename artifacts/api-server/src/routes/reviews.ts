@@ -110,7 +110,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
-    .where(eq(reviewsTable.slug, slug));
+    .where(and(eq(reviewsTable.slug, slug), eq(reviewsTable.status, "published")));
 
   if (!row) {
     res.status(404).json({ error: "Review not found" });
