@@ -16,6 +16,77 @@ const LOCALE_URL_TO_CANONICAL: Record<string, string> = {
   "pt-br": "pt-BR",
 };
 
+// Phase 5 — BCP-47 (DB canonical case) → URL segment (lowercase). Inverse
+// of LOCALE_URL_TO_CANONICAL. Used to build alternate URLs for hreflang.
+const LOCALE_CANONICAL_TO_URL_SEGMENT: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-br",
+};
+
+// Phase 5 — BCP-47 → `<html lang>` long form. Cheat sheet: hreflang uses
+// the bare form (`it`, `es`); `<html lang>` uses the regional form.
+const LOCALE_HTML_LANG: Record<string, string> = {
+  it: "it-IT",
+  es: "es-ES",
+  de: "de-DE",
+  fr: "fr-FR",
+  "pt-BR": "pt-BR",
+};
+
+// Phase 5 — BCP-47 → hreflang attribute value. NOT `en-US` (we don't
+// target US specifically) and NOT `es-419` (Google rejects).
+const LOCALE_HREFLANG: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-BR",
+};
+
+// Phase 7 — Disclosure block needs a human-readable language label for
+// the prose ("…translated into [Language]…"). Keep these in English for
+// V1: the disclosure copy itself is English (the surrounding article is
+// localised, but the disclosure is editorial chrome). Same labels are
+// duplicated in artifacts/crypto-review/server/prerender.ts for SSR.
+const LOCALE_LANGUAGE_LABEL_EN: Record<string, string> = {
+  it: "Italian",
+  es: "Spanish",
+  de: "German",
+  fr: "French",
+  "pt-BR": "Brazilian Portuguese",
+};
+
+// Phase 7 — translation_method DB enum → user-facing prose. Unknown
+// values fall back to a generic "Editorial translation" instead of
+// leaking the raw enum string into the page.
+const TRANSLATION_METHOD_LABEL: Record<string, string> = {
+  ai_full: "AI translation",
+  ai_assisted: "AI-assisted translation, editorially reviewed",
+  human_only: "Human translation",
+};
+
+// Format an ISO timestamp with the page's BCP-47 locale so the date
+// reads naturally in the target language (e.g. "18 maggio 2026" on /it,
+// "May 18, 2026" on the English master). Returns "" on null/invalid so
+// callers can collapse the surrounding clause.
+function formatLocaleDate(iso: string | null | undefined, bcp47: string): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat(bcp47, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(d);
+  } catch {
+    return "";
+  }
+}
+
 // Build a ReviewFull-shaped object from a translation response. The
 // translation endpoint returns translated text fields + a `master` shell
 // carrying every structural/identity field; we spread master first, then
@@ -634,6 +705,28 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
   const error = locale ? translationQuery.error : masterQuery.error;
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // Phase 7/8 — Extract disclosure + stale metadata from the raw
+  // translation payload (buildTranslatedReview drops these fields when
+  // collapsing to ReviewFull). All values pre-formatted with the page's
+  // BCP-47 locale so the React tree just reads strings.
+  const translationMeta = useMemo(() => {
+    if (!locale || !translationQuery.data) return null;
+    const t = translationQuery.data;
+    const bcp47 = LOCALE_HREFLANG[locale] ?? locale;
+    const methodKey = t.translationMethod ?? "";
+    return {
+      languageLabel: LOCALE_LANGUAGE_LABEL_EN[locale] ?? locale,
+      translatorName: t.translatorName ?? null,
+      methodLabel: methodKey ? (TRANSLATION_METHOD_LABEL[methodKey] ?? null) : null,
+      sourceFormatted: formatLocaleDate(t.sourceReviewUpdatedAt, bcp47),
+      reviewedFormatted: formatLocaleDate(t.reviewedAt ?? t.publishedAt ?? null, bcp47),
+      // Phase 8 — server-computed flag; CSR doesn't recompute (avoids
+      // CSR/SSR divergence if the threshold changes server-side).
+      stale: Boolean(t.stale),
+      masterUpdatedAt: t.masterUpdatedAt ?? null,
+    };
+  }, [locale, translationQuery.data]);
+
   // Replace `{{stat:KEY}}` tokens in prose with live values from
   // review_stats so the visible body matches the JSON-LD @graph (which
   // pulls those numbers directly). Pass-through when prose has no tokens
@@ -667,10 +760,22 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
   const bylineHref = authorPersona ? `/author/${authorPersona.slug}` : "/methodology";
   const bylineLinkLabel = authorPersona ? "View profile ↗" : "Methodology ↗";
 
+  // Phase 5 — locale-aware URLs and language tags. When rendering a locale
+  // page, `slug` is the per-locale translation slug and `review.slug`
+  // (inherited from the master shell) is the EN master slug. We need BOTH
+  // to build the canonical (self) and the master @id for `translationOfWork`.
+  const masterSlug = review?.slug ?? slug;
+  const masterUrl = `https://cryptokiller.org/review/${masterSlug}`;
+  const localeUrlSegment = locale ? LOCALE_CANONICAL_TO_URL_SEGMENT[locale] : undefined;
+  const pageUrlForLocale = locale && localeUrlSegment
+    ? `https://cryptokiller.org/${localeUrlSegment}/review/${slug}`
+    : masterUrl;
+  const pageInLanguage = locale ? (LOCALE_HREFLANG[locale] ?? locale) : "en";
+
   const jsonLd = useMemo(() => {
     if (!review) return undefined;
 
-    const pageUrl = `https://cryptokiller.org/review/${slug}`;
+    const pageUrl = pageUrlForLocale;
 
     const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
     const orgRefId = orgRef();
@@ -724,7 +829,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         description: desc,
         isPartOf: { "@id": "https://cryptokiller.org/#website" },
         mainEntity: { "@id": `${pageUrl}#review` },
-        inLanguage: "en",
+        inLanguage: pageInLanguage,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
       },
@@ -740,7 +845,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
-        inLanguage: "en",
+        inLanguage: pageInLanguage,
         itemReviewed: itemRef,
         reviewRating: {
           "@type": "Rating",
@@ -764,7 +869,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
         isPartOf: { "@id": "https://cryptokiller.org/#website" },
         about: itemRef,
-        inLanguage: "en",
+        inLanguage: pageInLanguage,
         wordCount: review.wordCount || undefined,
         timeRequired: review.readingMinutes ? `PT${review.readingMinutes}M` : undefined,
       },
@@ -778,8 +883,8 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
-        mainEntityOfPage: `https://cryptokiller.org/review/${slug}`,
-        inLanguage: "en",
+        mainEntityOfPage: pageUrl,
+        inLanguage: pageInLanguage,
       },
     ];
 
@@ -794,6 +899,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         "@type": "FAQPage",
         "@id": `${pageUrl}#faq`,
         url: pageUrl,
+        inLanguage: pageInLanguage,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
         mainEntity: review.faqItems.map((faq: { question: string; answer: string }) => ({
           "@type": "Question",
@@ -843,11 +949,46 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         }));
     }
 
+    // Phase 5 — i18n graph links. EN master Review gets workTranslation[]
+    // pointing at each locale Review's @id; each locale Review gets
+    // translationOfWork → master + a translator Organization node. Mirrors
+    // the SSR implementation in server/prerender.ts; see comments there.
+    if (reviewNode) {
+      const siblings = (review.translations ?? []).filter(
+        (t) => !!t && typeof t.locale === "string" && typeof t.slug === "string",
+      );
+      if (!locale && siblings.length > 0) {
+        reviewNode.workTranslation = siblings
+          .map((t) => {
+            const seg = LOCALE_CANONICAL_TO_URL_SEGMENT[t.locale];
+            if (!seg) return null;
+            return { "@id": `https://cryptokiller.org/${seg}/review/${t.slug}#review` };
+          })
+          .filter((x): x is { "@id": string } => x !== null);
+      } else if (locale) {
+        reviewNode.translationOfWork = { "@id": `${masterUrl}#review` };
+        const current = siblings.find((t) => t.locale === locale);
+        const translatorName = (current?.translatorName?.trim()) || "CryptoKiller Editorial Team";
+        const method = current?.translationMethod || "ai_assisted";
+        const methodDesc =
+          method === "ai_full"
+            ? "AI translation"
+            : method === "human_only"
+              ? "Human translation, editorially reviewed"
+              : "AI-assisted human-reviewed translation team";
+        reviewNode.translator = {
+          "@type": "Organization",
+          name: translatorName,
+          description: methodDesc,
+        };
+      }
+    }
+
     return {
       "@context": "https://schema.org",
       "@graph": graph,
     };
-  }, [review, slug]);
+  }, [review, slug, locale, pageUrlForLocale, pageInLanguage, masterUrl]);
 
   const seoTitle = review
     ? (`${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`.length <= 60
@@ -863,13 +1004,46 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
       ? `No investigation data found for "${slug}". Browse all crypto scam investigations on CryptoKiller.`
       : "Loading crypto scam investigation...";
 
+  // Phase 5 — compute alternates from the master + sibling translations.
+  // EVERY page in the cluster (EN master and each locale) emits the SAME
+  // alternate set so Google sees reciprocal pairs. `x-default` points at
+  // the EN master (Google's recommended convention for English originals).
+  const alternates = useMemo(() => {
+    if (!review) return undefined;
+    const siblings = (review.translations ?? []).filter(
+      (t) => !!t && typeof t.locale === "string" && typeof t.slug === "string",
+    );
+    if (siblings.length === 0 && !locale) return undefined;
+    const out: Array<{ hreflang: string; href: string }> = [
+      { hreflang: "en", href: masterUrl },
+    ];
+    for (const t of siblings) {
+      const seg = LOCALE_CANONICAL_TO_URL_SEGMENT[t.locale];
+      const hl = LOCALE_HREFLANG[t.locale];
+      if (!seg || !hl) continue;
+      out.push({ hreflang: hl, href: `https://cryptokiller.org/${seg}/review/${t.slug}` });
+    }
+    out.push({ hreflang: "x-default", href: masterUrl });
+    return out;
+  }, [review, locale, masterUrl]);
+
+  const htmlLang = locale ? (LOCALE_HTML_LANG[locale] ?? "en") : undefined;
+  const hasTranslations = (review?.translations?.length ?? 0) > 0;
+  // notranslate goes on the EN master only when ≥1 editorial translation
+  // exists — locale pages should remain translatable by Google for users
+  // whose target language we don't yet cover editorially.
+  const noTranslate = !locale && hasTranslations;
+
   usePageMeta({
     title: seoTitle,
     description: seoDescription,
-    canonical: `https://cryptokiller.org/review/${slug}`,
+    canonical: pageUrlForLocale,
     ogType: "article",
     jsonLd,
     author: authorPersona ? `${authorPersona.name} — cryptokiller.org` : "CryptoKiller Research Team — cryptokiller.org",
+    htmlLang,
+    alternates,
+    noTranslate,
   });
 
 
@@ -958,6 +1132,47 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
               <span>CryptoKiller Ad Surveillance</span>
             </div>
           </div>
+
+          {/* Phase 7 — Translation disclosure block. Renders only on
+              locale pages (master EN page is silent). Visible below the
+              byline / above the body, per Google's AI-content
+              disclosure recommendation + E-E-A-T transparency norms for
+              YMYL. translationMeta is hoisted from translationQuery.data
+              so we get translator/method/dates without relying on
+              buildTranslatedReview to plumb them through ReviewFull.
+              Phase 8 — when API marks the translation stale (source
+              snapshot lags live master.updatedAt by >1h), prepend a
+              yellow advisory so the reader knows a refresh is queued.
+              Stale page still serves (not 404'd) per brief. */}
+          {locale && translationMeta && (
+            <div className="mb-6 space-y-3" data-translation-disclosure>
+              {translationMeta.stale && (
+                <div
+                  role="status"
+                  className="rounded-lg border border-amber-600/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-100"
+                  data-translation-stale
+                >
+                  <strong className="font-semibold text-amber-200">Heads up:</strong>{" "}
+                  This article may be slightly out of date — the original English version was updated{" "}
+                  <strong className="text-amber-200">
+                    {formatLocaleDate(translationMeta.masterUpdatedAt, pageInLanguage) || "recently"}
+                  </strong>
+                  . A refreshed translation is in progress.
+                </div>
+              )}
+              <p className="text-xs text-slate-400 leading-relaxed border-l-2 border-slate-700 pl-3">
+                <em>
+                  This article was originally published in English
+                  {translationMeta.sourceFormatted ? <> on <strong className="text-slate-300">{translationMeta.sourceFormatted}</strong></> : null}
+                  {" "}and translated into <strong className="text-slate-300">{translationMeta.languageLabel}</strong>
+                  {translationMeta.translatorName ? <> by <strong className="text-slate-300">{translationMeta.translatorName}</strong></> : null}
+                  {translationMeta.reviewedFormatted ? <> on <strong className="text-slate-300">{translationMeta.reviewedFormatted}</strong></> : null}
+                  {translationMeta.methodLabel ? <>. Translation method: <strong className="text-slate-300">{translationMeta.methodLabel}</strong></> : null}
+                  .
+                </em>
+              </p>
+            </div>
+          )}
 
           <div className="mb-8 space-y-1.5">
             <p className="text-xs text-slate-500">

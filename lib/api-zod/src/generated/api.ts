@@ -368,6 +368,16 @@ export const GetReviewTranslationResponse = zod
     publishedAt: zod.string().nullish(),
     sourceReviewUpdatedAt: zod.string().nullish(),
     updatedAt: zod.string(),
+    masterUpdatedAt: zod
+      .string()
+      .describe(
+        "Live ISO-8601 updatedAt of the English master row at request time. Used by the renderer to compare against sourceReviewUpdatedAt for stale detection and to compute the `stale` flag below.",
+      ),
+    stale: zod
+      .boolean()
+      .describe(
+        'True when the translation was generated against an older version of the master (source_review_updated_at lags masterUpdatedAt by more than 1 hour). Renders a yellow \"out-of-date\" banner; the page still serves.',
+      ),
     masterSlug: zod.string(),
     master: zod.object({
       id: zod.number(),

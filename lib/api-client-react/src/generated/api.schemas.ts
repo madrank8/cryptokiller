@@ -276,6 +276,10 @@ export interface ReviewFullTranslated {
   publishedAt?: string | null;
   sourceReviewUpdatedAt?: string | null;
   updatedAt: string;
+  /** Live ISO-8601 updatedAt of the English master row at request time. Used by the renderer to compare against sourceReviewUpdatedAt for stale detection and to compute the `stale` flag below. */
+  masterUpdatedAt: string;
+  /** True when the translation was generated against an older version of the master (source_review_updated_at lags masterUpdatedAt by more than 1 hour). Renders a yellow "out-of-date" banner; the page still serves. */
+  stale: boolean;
   masterSlug: string;
   master: ReviewFull;
   siblingTranslations: ReviewTranslationSummary[];

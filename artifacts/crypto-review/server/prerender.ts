@@ -168,6 +168,16 @@ export interface RenderResult {
   lastModified?: string;
   prevPage?: string;
   nextPage?: string;
+  // Phase 5 — SEO localization. `htmlLang` overrides the `<html lang>` attr
+  // (default `en` in index.html). `alternates` emits one
+  // `<link rel="alternate" hreflang>` per entry plus an `x-default`. When
+  // `noTranslate` is true we emit `<meta name="googlebot" content="notranslate">`
+  // — used on the EN master review page when ≥1 translation exists so
+  // Google's Translated Results doesn't ship a machine translation that
+  // competes with our editorial one.
+  htmlLang?: string;
+  alternates?: Array<{ hreflang: string; href: string }>;
+  noTranslate?: boolean;
 }
 
 function esc(s: string | null | undefined): string {
@@ -657,6 +667,62 @@ const TRANSLATION_LOCALE_CANONICAL: Record<string, string> = {
   "pt-br": "pt-BR",
 };
 
+// BCP-47 (DB canonical case, the value stored in review_translations.locale)
+// → URL segment (always lowercase). Inverse of TRANSLATION_LOCALE_CANONICAL.
+const TRANSLATION_LOCALE_URL_SEGMENT: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-br",
+};
+
+// BCP-47 → `<html lang>` long form. Per Phase 5 cheat sheet: the URL/hreflang
+// value is bare (`it`, `es`, `de`, `fr`) but `<html lang>` carries the
+// regional variant (`it-IT`, `es-ES`, `de-DE`, `fr-FR`). pt-BR is the same
+// in both contexts because it's already a regional form.
+const TRANSLATION_LOCALE_HTML_LANG: Record<string, string> = {
+  it: "it-IT",
+  es: "es-ES",
+  de: "de-DE",
+  fr: "fr-FR",
+  "pt-BR": "pt-BR",
+};
+
+// BCP-47 → hreflang attribute value. Per the brief's cheat sheet:
+// `en` (NOT en-US) for the master, bare `it`/`es`/`de`/`fr` for European
+// locales, canonical `pt-BR` for Brazilian Portuguese. Google rejects
+// `es-419` and treats `en-US` as a US-only target when we don't want that.
+const TRANSLATION_LOCALE_HREFLANG: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-BR",
+};
+
+// Build the full set of hreflang alternates for a review (master + every
+// published translation + x-default → master). Identical set is emitted
+// on the EN master AND every locale page — bidirectional reciprocity is
+// required or Google silently ignores the whole hreflang cluster.
+function buildReviewAlternates(args: {
+  masterSlug: string;
+  siblings: Array<{ locale: string; slug: string }>;
+}): Array<{ hreflang: string; href: string }> {
+  const masterUrl = `${BASE}/review/${args.masterSlug}`;
+  const out: Array<{ hreflang: string; href: string }> = [
+    { hreflang: "en", href: masterUrl },
+  ];
+  for (const t of args.siblings) {
+    const seg = TRANSLATION_LOCALE_URL_SEGMENT[t.locale];
+    const hl = TRANSLATION_LOCALE_HREFLANG[t.locale];
+    if (!seg || !hl) continue;
+    out.push({ hreflang: hl, href: `${BASE}/${seg}/review/${t.slug}` });
+  }
+  out.push({ hreflang: "x-default", href: masterUrl });
+  return out;
+}
+
 async function renderReview(
   slug: string,
   opts?: { locale?: string },
@@ -1066,7 +1132,58 @@ async function renderReview(
     row.metaDescription || row.heroDescription || row.summary || `${platformName} crypto scam investigation. Threat score ${row.threatScore}/100. Evidence, red flags, ad surveillance, and verdict from the CryptoKiller research team.`,
     160,
   );
-  const canonical = `${BASE}/review/${slug}`;
+  // ─── Phase 5: SEO localisation primitives ──────────────────────────
+  // Load all published sibling translations for this master review (always,
+  // not just when rendering a locale page). Needed for:
+  //   • hreflang reciprocity — every page in the cluster (EN + each locale)
+  //     emits the SAME alternate set.
+  //   • workTranslation[] on the EN master's Review JSON-LD node.
+  //   • notranslate meta on EN master when ≥1 translation exists.
+  //
+  // The translator_name comes along so the locale page's Review.translator
+  // node has a real attribution. Status is filtered to 'published' here —
+  // drafts MUST NOT leak into hreflang/sitemap/JSON-LD or Google will index
+  // 404s and disable the cluster.
+  const siblings = await db
+    .select({
+      locale: reviewTranslationsTable.locale,
+      slug: reviewTranslationsTable.slug,
+      translatorName: reviewTranslationsTable.translatorName,
+      translationMethod: reviewTranslationsTable.translationMethod,
+    })
+    .from(reviewTranslationsTable)
+    .where(
+      and(
+        eq(reviewTranslationsTable.reviewId, row.id),
+        eq(reviewTranslationsTable.status, "published"),
+      ),
+    )
+    .orderBy(asc(reviewTranslationsTable.locale));
+
+  const isLocale = !!opts?.locale && !!translationRow;
+  const inLanguage = isLocale
+    ? (TRANSLATION_LOCALE_HREFLANG[opts!.locale!] ?? opts!.locale!)
+    : "en";
+  const htmlLang = isLocale
+    ? (TRANSLATION_LOCALE_HTML_LANG[opts!.locale!] ?? opts!.locale!)
+    : "en";
+  // Self-canonical per page. NEVER point a translation at the EN master —
+  // Google will then ignore the translation and dedupe it under the master.
+  const canonical = isLocale
+    ? `${BASE}/${TRANSLATION_LOCALE_URL_SEGMENT[opts!.locale!]}/review/${translationRow!.slug}`
+    : `${BASE}/review/${slug}`;
+  // Identical alternates set is emitted on EN master AND every locale page
+  // (bidirectional reciprocity). Includes self.
+  const alternates = buildReviewAlternates({
+    masterSlug: row.slug,
+    siblings,
+  });
+  // googlebot=notranslate on the EN master ONLY — and only when at least
+  // one editorial translation exists. Without this, Google's Translated
+  // Results feature serves a machine translation of the EN page that
+  // competes with our manual one. Translation pages never get notranslate.
+  const noTranslate = !isLocale && siblings.length > 0;
+
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = row.investigationDate ? new Date(row.investigationDate).toISOString() : undefined;
   const dateModified = row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined;
@@ -1333,14 +1450,88 @@ async function renderReview(
         )
       : "";
 
+  // ── Phase 7/8 — translation disclosure + stale banner (SSR) ──
+  // Mirrors the React block in src/pages/ReviewPage.tsx. Renders ONLY
+  // when serving a locale URL (translationRow set). Disclosure HTML is
+  // injected before <article> in the full-article path AND before <h1>
+  // in the legacy structured path so both branches satisfy E-E-A-T
+  // transparency for YMYL. Stale = source_review_updated_at lags
+  // row.updatedAt by >1h (server-of-truth — same threshold as the API).
+  const LOCALE_LANGUAGE_LABEL_EN_SSR: Record<string, string> = {
+    it: "Italian",
+    es: "Spanish",
+    de: "German",
+    fr: "French",
+    "pt-BR": "Brazilian Portuguese",
+  };
+  const TRANSLATION_METHOD_LABEL_SSR: Record<string, string> = {
+    ai_full: "AI translation",
+    ai_assisted: "AI-assisted translation, editorially reviewed",
+    human_only: "Human translation",
+  };
+  function formatLocaleDateSSR(iso: Date | string | null | undefined, bcp47: string): string {
+    if (!iso) return "";
+    try {
+      const d = iso instanceof Date ? iso : new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return new Intl.DateTimeFormat(bcp47, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(d);
+    } catch {
+      return "";
+    }
+  }
+  let translationDisclosureHtml = "";
+  if (translationRow) {
+    const locale = translationRow.locale;
+    const bcp47 = TRANSLATION_LOCALE_HREFLANG[locale] ?? locale;
+    const STALE_THRESHOLD_MS = 60 * 60 * 1000;
+    const sourceMs = translationRow.sourceReviewUpdatedAt?.getTime() ?? null;
+    const isStale =
+      sourceMs !== null && sourceMs < row.updatedAt.getTime() - STALE_THRESHOLD_MS;
+    const languageLabel = LOCALE_LANGUAGE_LABEL_EN_SSR[locale] ?? locale;
+    const translatorName = translationRow.translatorName ?? "";
+    const methodKey = translationRow.translationMethod ?? "";
+    const methodLabel = methodKey ? (TRANSLATION_METHOD_LABEL_SSR[methodKey] ?? "") : "";
+    const sourceFormatted = formatLocaleDateSSR(translationRow.sourceReviewUpdatedAt, bcp47);
+    const reviewedFormatted = formatLocaleDateSSR(
+      translationRow.reviewedAt ?? translationRow.publishedAt ?? null,
+      bcp47,
+    );
+    const masterUpdatedFormatted =
+      formatLocaleDateSSR(row.updatedAt, bcp47) || "recently";
+
+    const staleBanner = isStale
+      ? `<div role="status" data-translation-stale style="border:1px solid rgba(217,119,6,0.4);background:rgba(120,53,15,0.2);color:#fef3c7;padding:0.75rem 1rem;border-radius:0.5rem;margin-bottom:0.75rem;font-size:0.875rem;line-height:1.5"><strong style="color:#fde68a;font-weight:600">Heads up:</strong> This article may be slightly out of date — the original English version was updated <strong style="color:#fde68a">${esc(masterUpdatedFormatted)}</strong>. A refreshed translation is in progress.</div>`
+      : "";
+
+    // Build the disclosure prose by concatenating optional clauses so
+    // missing translator/method/dates collapse cleanly instead of
+    // surfacing "translated into Italian by ." with awkward punctuation.
+    const parts: string[] = ["This article was originally published in English"];
+    if (sourceFormatted) parts.push(` on <strong>${esc(sourceFormatted)}</strong>`);
+    parts.push(` and translated into <strong>${esc(languageLabel)}</strong>`);
+    if (translatorName) parts.push(` by <strong>${esc(translatorName)}</strong>`);
+    if (reviewedFormatted) parts.push(` on <strong>${esc(reviewedFormatted)}</strong>`);
+    if (methodLabel) parts.push(`. Translation method: <strong>${esc(methodLabel)}</strong>`);
+    parts.push(".");
+
+    translationDisclosureHtml = `<aside data-translation-disclosure aria-label="Translation information" style="margin:0 0 1.5rem 0;padding:0">${staleBanner}<p style="border-left:2px solid #334155;padding:0 0 0 0.75rem;margin:0;color:#94a3b8;font-size:0.75rem;line-height:1.6"><em>${parts.join("")}</em></p></aside>`;
+  }
+
   const bodyHtml = fullArticleBodyHtml
     ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
       // Writer produces a complete article page with breadcrumb, hero, sections,
       // and disclaimer. We render it inside <article> with the site chrome and
       // append a small navigation footer for crawl-graph signal. No structured
       // sections are emitted here — they live in JSON-LD via the Task 7B graph.
+      // Phase 7: translationDisclosureHtml renders before <article> on locale
+      // pages so the disclosure sits above the writer-emitted H1 (we can't
+      // inject after the H1 without parsing the writer's HTML).
       `${siteHeaderHtml()}<main>
-<article id="article-body">
+${translationDisclosureHtml}<article id="article-body">
 ${fullArticleBodyHtml}
 </article>
 <nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
@@ -1354,6 +1545,7 @@ ${fullArticleBodyHtml}
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
 <h1>${esc(platformName)} ${headlineLabel}${scoreSuffix}</h1>
+${translationDisclosureHtml}
 ${heroImageHtml}
 <p><strong>Verdict:</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>
 ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
@@ -1468,7 +1660,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       // significantLink, primaryImageOfPage, etc.) downstream.
       mainEntityOfPage: { "@type": "WebPage", "@id": `${canonical}#webpage` },
       description,
-      inLanguage: "en",
+      inLanguage,
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
       author: authorRef,
@@ -1550,7 +1742,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     graph.push({
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
-      inLanguage: "en",
+      inLanguage,
       // Backreferences to the Review + WebPage. Pre-2026-04-28 the FAQPage
       // node stood alone in the @graph — orphaned FAQ subgraphs are still
       // valid JSON-LD but Google reads connected graphs as stronger entity
@@ -1643,6 +1835,50 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       reviewNode.isBasedOn = { "@id": `${canonical}#spyowl-dataset` };
     }
     reviewNode.speakable = speakableSpec;
+
+    // ─── Phase 5: i18n graph links (workTranslation / translationOfWork) ───
+    // The EN master Review carries `workTranslation: [<each locale review @id>]`
+    // so AI consumers (Gemini / Perplexity / Google AI Overviews) and Google
+    // Search can unify the entity across the language graph. Each locale
+    // Review carries the inverse edge: `translationOfWork: {@id: <master>}`
+    // plus a `translator` Organization (or named individual when supplied).
+    //
+    // The locale Review's @id uses its OWN canonical URL — so e.g. the IT
+    // Review is `https://cryptokiller.org/it/review/<it-slug>#review`, NOT
+    // the EN master URL. This is what makes the cross-language graph
+    // reciprocal at the JSON-LD level (matching the hreflang reciprocity at
+    // the HTML link level).
+    if (!isLocale && siblings.length > 0) {
+      reviewNode.workTranslation = siblings
+        .map((t) => {
+          const seg = TRANSLATION_LOCALE_URL_SEGMENT[t.locale];
+          if (!seg) return null;
+          return { "@id": `${BASE}/${seg}/review/${t.slug}#review` };
+        })
+        .filter((x): x is { "@id": string } => x !== null);
+    } else if (isLocale) {
+      reviewNode.translationOfWork = {
+        "@id": `${BASE}/review/${row.slug}#review`,
+      };
+      // Translator attribution. `translator_name` is editorially supplied
+      // — when blank, fall back to a generic Organization name so the
+      // node still validates. `translation_method` informs the description
+      // (Google's AI content guidance asks how content was produced).
+      const translatorName = clean(translationRow!.translatorName || "")
+        || "CryptoKiller Editorial Team";
+      const method = translationRow!.translationMethod || "ai_assisted";
+      const methodDesc =
+        method === "ai_full"
+          ? "AI translation"
+          : method === "human_only"
+            ? "Human translation, editorially reviewed"
+            : "AI-assisted human-reviewed translation team";
+      reviewNode.translator = {
+        "@type": "Organization",
+        name: translatorName,
+        description: methodDesc,
+      };
+    }
   }
 
   // Push the standalone enrichment nodes as siblings in the graph.
@@ -1662,6 +1898,9 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     bodyHtml,
     jsonLd: { "@context": "https://schema.org", "@graph": graph },
     lastModified,
+    htmlLang,
+    alternates,
+    noTranslate,
   };
 }
 

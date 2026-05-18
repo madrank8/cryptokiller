@@ -72,11 +72,35 @@ function applyMeta(template: string, r: RenderResult): string {
   if (r.nextPage) {
     headInject += `<link rel="next" href="${escapeAttr(r.nextPage)}" data-ssr="1" />`;
   }
+  // Phase 5 — hreflang alternates. Bidirectional reciprocity is required:
+  // every page in the cluster (EN master + each locale) emits the SAME
+  // alternate set including self. Order doesn't matter to Google but we
+  // emit in the order the renderer supplied (en first, locales next,
+  // x-default last) for log readability.
+  if (r.alternates && r.alternates.length > 0) {
+    for (const a of r.alternates) {
+      headInject += `<link rel="alternate" hreflang="${escapeAttr(a.hreflang)}" href="${escapeAttr(a.href)}" data-ssr="1" />`;
+    }
+  }
+  // Phase 5 — googlebot=notranslate on EN master review pages when ≥1
+  // editorial translation exists. Stops Google's Translated Results from
+  // shipping a machine translation that competes with our editorial one.
+  if (r.noTranslate) {
+    headInject += `<meta name="googlebot" content="notranslate" data-ssr="1" />`;
+  }
 
   if (html.includes("<!--SSR-HEAD-INJECT-->")) {
     html = html.replace("<!--SSR-HEAD-INJECT-->", headInject);
   } else {
     html = html.replace("</head>", `${headInject}</head>`);
+  }
+
+  // Phase 5 — `<html lang>` reflects the page locale (BCP-47 long form like
+  // `it-IT`, `pt-BR`). Skipped when the renderer didn't set it (static
+  // pages stay at the index.html default of `en`).
+  if (r.htmlLang) {
+    html = html.replace(/<html\b[^>]*\blang="[^"]*"/i, (m) =>
+      m.replace(/lang="[^"]*"/, `lang="${escapeAttr(r.htmlLang!)}"`));
   }
 
   if (html.includes("<!--SSR-BODY-START-->") && html.includes("<!--SSR-BODY-END-->")) {

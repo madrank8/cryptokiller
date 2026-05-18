@@ -302,6 +302,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
       threatBadge: reviewsTable.threatBadge,
       frameAsScam: reviewsTable.frameAsScam,
       itemReviewed: reviewsTable.itemReviewed,
+      updatedAt: reviewsTable.updatedAt,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -436,6 +437,18 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     })),
   };
 
+  // ── Phase 8 stale detection ──
+  // Translation is considered stale when source_review_updated_at lags
+  // the live master.updatedAt by more than 1 hour. We use 1h instead of
+  // an exact-equals check because the sync pipeline writes both columns
+  // in separate transactions; small drift between them is normal and
+  // should not surface a "refreshed translation in progress" banner.
+  // Missing sourceReviewUpdatedAt → treat as fresh (pre-Phase 8 rows).
+  const STALE_THRESHOLD_MS = 60 * 60 * 1000;
+  const masterUpdatedAtMs = masterRow.updatedAt.getTime();
+  const sourceMs = translationRow.sourceReviewUpdatedAt?.getTime() ?? null;
+  const stale = sourceMs !== null && sourceMs < masterUpdatedAtMs - STALE_THRESHOLD_MS;
+
   res.json({
     locale: translationRow.locale,
     slug: translationRow.slug,
@@ -466,6 +479,8 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     publishedAt: translationRow.publishedAt?.toISOString() ?? null,
     sourceReviewUpdatedAt: translationRow.sourceReviewUpdatedAt?.toISOString() ?? null,
     updatedAt: translationRow.updatedAt.toISOString(),
+    masterUpdatedAt: masterRow.updatedAt.toISOString(),
+    stale,
     masterSlug: masterRow.slug,
     master: masterShell,
     siblingTranslations: masterShell.translations,
@@ -516,10 +531,29 @@ function encodeSlugForLoc(slug: string): string {
   return escapeXml(encodeURI(slug));
 }
 
+// Phase 6 — i18n sitemap helpers. Locale URL segments are lowercase
+// (`/it/`, `/pt-br/`) while DB / hreflang values are BCP-47 canonical
+// (`it`, `pt-BR`). Hreflang uses bare codes per Phase 5 cheat sheet.
+const SITEMAP_LOCALE_URL_SEGMENT: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-br",
+};
+const SITEMAP_LOCALE_HREFLANG: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-BR",
+};
+
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
-  const [rows, blogRows, latestDates, topicRowsRaw] = await Promise.all([
+  const [rows, blogRows, latestDates, topicRowsRaw, translationRows] = await Promise.all([
     db
       .select({
+        id: reviewsTable.id,
         slug: reviewsTable.slug,
         updatedAt: reviewsTable.updatedAt,
       })
@@ -557,6 +591,18 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
       GROUP BY slug
       ORDER BY slug ASC
     `),
+    // Phase 6 — published review_translations. Grouped per-review-id so we
+    // can attach xhtml:link clusters to each master URL AND emit a `<url>`
+    // entry per locale with the same reciprocal cluster.
+    db
+      .select({
+        reviewId: reviewTranslationsTable.reviewId,
+        locale: reviewTranslationsTable.locale,
+        slug: reviewTranslationsTable.slug,
+        updatedAt: reviewTranslationsTable.updatedAt,
+      })
+      .from(reviewTranslationsTable)
+      .where(eq(reviewTranslationsTable.status, "published")),
   ]);
 
   // drizzle.execute() shape varies by driver — handle both.
@@ -599,7 +645,42 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
 
   const base = "https://cryptokiller.org";
 
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  // Phase 6 — bucket translations by review id so each master row can emit
+  // the full reciprocal alternate cluster (en + each published locale +
+  // x-default), and locale URLs can emit the SAME cluster (reciprocity is
+  // the whole point — Google ignores one-way hreflang).
+  const translationsByReviewId = new Map<
+    number,
+    Array<{ locale: string; slug: string; updatedAt: Date | null }>
+  >();
+  for (const t of translationRows) {
+    if (!SITEMAP_LOCALE_URL_SEGMENT[t.locale]) continue; // unsupported locale, skip
+    const bucket = translationsByReviewId.get(t.reviewId) ?? [];
+    bucket.push({ locale: t.locale, slug: t.slug, updatedAt: t.updatedAt });
+    translationsByReviewId.set(t.reviewId, bucket);
+  }
+
+  // Helper: render the alternate cluster for a review (master en + locales
+  // + x-default). Same cluster is emitted on the master URL and on every
+  // locale URL — bidirectional reciprocity at the sitemap layer.
+  const renderAlternates = (
+    masterSlug: string,
+    siblings: Array<{ locale: string; slug: string }>,
+  ): string => {
+    if (siblings.length === 0) return "";
+    let out =
+      `    <xhtml:link rel="alternate" hreflang="en" href="${base}/review/${encodeSlugForLoc(masterSlug)}"/>\n`;
+    for (const s of siblings) {
+      const seg = SITEMAP_LOCALE_URL_SEGMENT[s.locale];
+      const hl = SITEMAP_LOCALE_HREFLANG[s.locale];
+      if (!seg || !hl) continue;
+      out += `    <xhtml:link rel="alternate" hreflang="${hl}" href="${base}/${seg}/review/${encodeSlugForLoc(s.slug)}"/>\n`;
+    }
+    out += `    <xhtml:link rel="alternate" hreflang="x-default" href="${base}/review/${encodeSlugForLoc(masterSlug)}"/>\n`;
+    return out;
+  };
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
 
   for (const p of staticPages) {
     xml += `  <url>\n    <loc>${base}${p.loc}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>\n`;
@@ -610,10 +691,27 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   }
 
   for (const r of rows) {
+    const siblings = translationsByReviewId.get(r.id) ?? [];
+    const alternatesXml = renderAlternates(r.slug, siblings);
     const lastmod = r.updatedAt ? new Date(r.updatedAt).toISOString().split("T")[0] : "";
     xml += `  <url>\n    <loc>${base}/review/${encodeSlugForLoc(r.slug)}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
-    xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n${alternatesXml}  </url>\n`;
+
+    // Phase 6 — emit one `<url>` entry per published translation, each
+    // carrying the SAME reciprocal alternate cluster. Lastmod uses the
+    // translation row's own updatedAt so Google can see when the locale
+    // copy was refreshed independently of the master.
+    for (const s of siblings) {
+      const seg = SITEMAP_LOCALE_URL_SEGMENT[s.locale];
+      if (!seg) continue;
+      const tLastmod = s.updatedAt
+        ? new Date(s.updatedAt).toISOString().split("T")[0]
+        : lastmod;
+      xml += `  <url>\n    <loc>${base}/${seg}/review/${encodeSlugForLoc(s.slug)}</loc>\n`;
+      if (tLastmod) xml += `    <lastmod>${tLastmod}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n${alternatesXml}  </url>\n`;
+    }
   }
 
   for (const b of blogRows) {

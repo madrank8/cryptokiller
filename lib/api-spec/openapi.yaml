@@ -783,6 +783,20 @@ components:
           nullable: true
         updatedAt:
           type: string
+        masterUpdatedAt:
+          type: string
+          description: >-
+            Live ISO-8601 updatedAt of the English master row at request
+            time. Used by the renderer to compare against
+            sourceReviewUpdatedAt for stale detection and to compute the
+            `stale` flag below.
+        stale:
+          type: boolean
+          description: >-
+            True when the translation was generated against an older
+            version of the master (source_review_updated_at lags
+            masterUpdatedAt by more than 1 hour). Renders a yellow
+            "out-of-date" banner; the page still serves.
         # Inherited from the English master so the translation page can
         # render brand chrome, hero image, dates, schema enrichment, etc.
         # All keys mirror ReviewFull. masterSlug is the EN URL slug — used
@@ -804,6 +818,8 @@ components:
         - slug
         - status
         - updatedAt
+        - masterUpdatedAt
+        - stale
         - masterSlug
         - master
         - siblingTranslations
