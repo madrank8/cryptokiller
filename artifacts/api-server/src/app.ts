@@ -7,6 +7,11 @@ import { knownAgentsMiddleware } from "./lib/known-agents";
 
 const app: Express = express();
 
+// Trust the first upstream proxy so req.ip reflects the real client address
+// from the X-Forwarded-For header set by Replit's reverse proxy, rather than
+// the proxy's own IP. This is required for per-IP rate limiting to work.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -32,6 +37,13 @@ app.use(cors());
 // local dev and missing-env deploys continue to work. Mounted before body
 // parsers so trackVisit fires for *every* response, including 413s.
 app.use(knownAgentsMiddleware);
+// Tighter body limit for the public unauthenticated scam-report endpoint.
+// Must be mounted BEFORE the global parsers so body-parser enforces 50kb on
+// this path and marks req._body = true, causing the global parsers below to
+// skip re-parsing the already-consumed body stream.
+app.use("/api/reports", express.json({ limit: "50kb" }));
+app.use("/api/reports", express.urlencoded({ extended: true, limit: "50kb" }));
+
 // Express's default body limit is 100kb; full review payloads (with long
 // articles, red_flags, faq, visual_meta, etc.) and the Vercel admin's
 // /sync/blog payload (with schema_enrichment arrays — ClaimReview[],
