@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useGetReview, useGetRelatedReviews, useGetReviewTranslation } from "@workspace/api-client-react";
-import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated } from "@workspace/api-client-react";
+import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated, RecentAd } from "@workspace/api-client-react";
 import {
   LOCALE_HREFLANG,
   LOCALE_LANGUAGE_LABEL_EN,
@@ -294,6 +294,154 @@ function ThreatGauge({ score }: { score: number }) {
       </svg>
       <p className="text-red-400 font-semibold text-sm mt-1">Extreme Risk — Do Not Deposit</p>
     </div>
+  );
+}
+
+// ─── RecentAdsGrid ─────────────────────────────────────────────────────
+// Renders up to 20 SpyOwl ad creatives captured in the trailing 7d as a
+// responsive grid of metadata-only cards. SpyOwl exposes no image URLs,
+// so the card visual anchor is the original-language ad copy + named
+// celebrities + landing domain + Facebook post link (a stronger E-E-A-T
+// signal than a thumbnail). Section hides entirely when the array is
+// empty so legacy/no-activity reviews don't show a placeholder.
+const COOKIE_BOILERPLATE_RE = /^(cookies from other companies|we use cookies|this (site|page) uses cookies|privacy and cookies|cookie (notice|policy|preferences))/i;
+
+function isCookieBoilerplate(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return COOKIE_BOILERPLATE_RE.test(text.trim());
+}
+
+// ISO-3166-1 alpha-2 → Unicode regional-indicator flag emoji. Returns ""
+// for anything that isn't a 2-letter A-Z code.
+function geoFlag(geo: string | null | undefined): string {
+  if (!geo || geo.length !== 2) return "";
+  const code = geo.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  const A = 0x1f1e6;
+  return String.fromCodePoint(A + code.charCodeAt(0) - 65, A + code.charCodeAt(1) - 65);
+}
+
+function relativeDaysAgo(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const days = Math.floor((Date.now() - t) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "1d ago";
+  return `${days}d ago`;
+}
+
+function truncate(text: string, n: number): string {
+  if (text.length <= n) return text;
+  return text.slice(0, n).replace(/\s+\S*$/, "") + "…";
+}
+
+// Protocol allowlist for any URL we render into an <a href>. Upstream data
+// is third-party-sourced (SpyOwl → Vercel → us); a malicious or malformed
+// payload that smuggles a javascript: URL would otherwise turn the
+// "View Facebook post" CTA into a click-to-execute vector. Returns null
+// for anything that isn't a valid http(s) URL.
+function safeHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
+  if (!Array.isArray(ads) || ads.length === 0) return null;
+  const countryCount = new Set(ads.map(a => a.geo).filter(Boolean)).size;
+  return (
+    <section
+      aria-labelledby="recent-ads-heading"
+      className="mb-10 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6"
+    >
+      <header className="mb-5">
+        <h2 id="recent-ads-heading" className="text-lg sm:text-xl font-black text-white tracking-tight">
+          Ads scraped this week
+        </h2>
+        <p className="text-xs text-slate-400 mt-1">
+          {ads.length} ad {ads.length === 1 ? "creative" : "creatives"} detected
+          {countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""} · last 7 days
+        </p>
+      </header>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {ads.map((ad) => {
+          const flag = geoFlag(ad.geo);
+          const fullText = (ad.mainText ?? "").trim();
+          const cardText = fullText ? truncate(fullText, 120) : "";
+          const showLinkText = !isCookieBoilerplate(ad.linkText) && (ad.linkText ?? "").trim().length > 0;
+          const safePostUrl = safeHttpUrl(ad.postUrl);
+          return (
+            <article
+              key={ad.creativeId}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-slate-700 transition-colors flex flex-col gap-3"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                {ad.geo && (
+                  <span className="inline-flex items-center gap-1 text-slate-300">
+                    <span aria-hidden="true">{flag}</span>
+                    <span className="font-semibold">{ad.geo}</span>
+                  </span>
+                )}
+                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wide">
+                  {ad.isVideo ? "Video" : "Image"}
+                </span>
+                {ad.landLanguage && (
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase tracking-wide">
+                    {ad.landLanguage}
+                  </span>
+                )}
+                {ad.firstSeenAt && (
+                  <time dateTime={ad.firstSeenAt} className="ml-auto text-slate-500">
+                    {relativeDaysAgo(ad.firstSeenAt)}
+                  </time>
+                )}
+              </div>
+              {ad.celebrityName && (
+                <div className="text-sm font-semibold text-amber-300">
+                  <span aria-hidden="true">🎭 </span>{ad.celebrityName}
+                </div>
+              )}
+              {cardText && (
+                <p
+                  className="text-xs text-slate-300 leading-relaxed italic"
+                  title={fullText}
+                >
+                  &ldquo;{cardText}&rdquo;
+                </p>
+              )}
+              {showLinkText && (
+                <p className="text-[11px] text-slate-400 line-clamp-2">
+                  {ad.linkText}
+                </p>
+              )}
+              <div className="mt-auto pt-2 border-t border-slate-800/70 flex flex-col gap-1 text-xs">
+                {ad.linkDomain && (
+                  <div className="text-slate-400">
+                    <span aria-hidden="true">🔗 </span>
+                    <span className="font-mono text-slate-300">{ad.linkDomain}</span>
+                  </div>
+                )}
+                {safePostUrl && (
+                  <a
+                    href={safePostUrl}
+                    target="_blank"
+                    rel="nofollow noopener"
+                    className="text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1"
+                  >
+                    View Facebook post <span aria-hidden="true">↗</span>
+                  </a>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1175,6 +1323,12 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         <div className="mb-8">
           <VelocityWidget velocity={review.weeklyVelocity} platformName={review.platformName} />
         </div>
+
+        {/* RECENT ADS — first-hand investigation evidence (E-E-A-T).
+            Silently absent when the trailing-7d sample is empty or the
+            payload predates recent_ads_sample. */}
+        <RecentAdsGrid ads={review.recentAds ?? []} />
+
 
         {/* KEY TAKEAWAYS — sourced from keyFindings (the Supabase
             key_takeaways jsonb array, mapped on the Vercel shaper to

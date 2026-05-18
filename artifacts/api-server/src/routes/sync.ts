@@ -310,6 +310,50 @@ router.post("/sync/review", async (req, res): Promise<void> => {
       }
     }
 
+    // ─── review_recent_ads ───
+    // Up to 20 SpyOwl ad creatives scraped in the last 7 days for this brand.
+    // Metadata-only (SpyOwl exposes no image URLs). Delete-then-insert keeps
+    // the table in lockstep with the latest Vercel snapshot. CRITICAL: only
+    // touch the table when the payload explicitly carries recent_ads_sample
+    // — legacy senders omit the field entirely, and DELETE-on-undefined
+    // would silently wipe existing evidence on every old-shape sync.
+    // Explicit empty array still triggers DELETE (sender says "no ads in
+    // the trailing 7d"); undefined is a no-op.
+    if (Array.isArray(review.recent_ads_sample)) {
+      await client.query("DELETE FROM review_recent_ads WHERE review_id = $1", [reviewId]);
+      for (let i = 0; i < review.recent_ads_sample.length; i++) {
+        const ad = review.recent_ads_sample[i];
+        if (!ad || typeof ad !== "object") continue;
+        const creativeId = typeof ad.creative_id === "string" ? ad.creative_id.trim() : "";
+        if (!creativeId) continue;
+        await client.query(
+          `INSERT INTO review_recent_ads (
+            review_id, creative_id, offer_name, celebrity_name, geo, land_language,
+            is_video, first_seen_at, spyowl_created_at,
+            main_text, link_text, link_domain, post_url, fp_link,
+            order_index, created_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())`,
+          [
+            reviewId,
+            creativeId,
+            ad.offer_name ?? null,
+            ad.celebrity_name ?? null,
+            ad.geo ?? null,
+            ad.land_language ?? null,
+            Boolean(ad.is_video),
+            ad.first_seen_at ?? null,
+            ad.spyowl_created_at ?? null,
+            ad.main_text ?? null,
+            ad.link_text ?? null,
+            ad.link_domain ?? null,
+            ad.post_url ?? null,
+            ad.fp_link ?? null,
+            i,
+          ],
+        );
+      }
+    }
+
     await client.query("DELETE FROM key_findings WHERE review_id = $1", [reviewId]);
     if (Array.isArray(review.key_findings)) {
       for (let i = 0; i < review.key_findings.length; i++) {

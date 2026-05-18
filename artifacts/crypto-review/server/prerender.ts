@@ -9,6 +9,7 @@ import {
   faqItemsTable,
   keyFindingsTable,
   funnelStagesTable,
+  reviewRecentAdsTable,
   platformAggregatesTable,
   reviewTranslationsTable,
 } from "@workspace/db";
@@ -864,7 +865,7 @@ async function renderReview(
   //    rendered into the server HTML, so Google saw ~10% of the actual
   //    investigation content.
   // eslint-disable-next-line prefer-const
-  let [redFlags, faqItems, keyFindings, funnelStages] = await Promise.all([
+  let [redFlags, faqItems, keyFindings, funnelStages, recentAds] = await Promise.all([
     db
       .select({
         emoji: redFlagsTable.emoji,
@@ -899,6 +900,27 @@ async function renderReview(
       .from(funnelStagesTable)
       .where(eq(funnelStagesTable.reviewId, row.id))
       .orderBy(asc(funnelStagesTable.stageNumber)),
+    // recent_ads_sample — up to 20 SpyOwl ad creatives captured in the
+    // trailing 7d. Rendered SSR so the evidence text (named celebrities,
+    // ad copy in original language, landing domain) is in the HTML Google
+    // and AI Overviews crawl. Empty array on legacy/no-activity reviews
+    // short-circuits to no section.
+    db
+      .select({
+        creativeId: reviewRecentAdsTable.creativeId,
+        celebrityName: reviewRecentAdsTable.celebrityName,
+        geo: reviewRecentAdsTable.geo,
+        landLanguage: reviewRecentAdsTable.landLanguage,
+        isVideo: reviewRecentAdsTable.isVideo,
+        firstSeenAt: reviewRecentAdsTable.firstSeenAt,
+        mainText: reviewRecentAdsTable.mainText,
+        linkText: reviewRecentAdsTable.linkText,
+        linkDomain: reviewRecentAdsTable.linkDomain,
+        postUrl: reviewRecentAdsTable.postUrl,
+      })
+      .from(reviewRecentAdsTable)
+      .where(eq(reviewRecentAdsTable.reviewId, row.id))
+      .orderBy(asc(reviewRecentAdsTable.orderIndex)),
   ]);
 
   // ── Defensive funnel_stages dedup ─────────────────────────────────────
@@ -1245,6 +1267,76 @@ async function renderReview(
         .join("")}</section>`
     : "";
 
+  // ── Recent ads grid (SSR mirror of <RecentAdsGrid> in ReviewPage.tsx) ──
+  // Filter the same cookie-consent boilerplate as the client, render the same
+  // metadata fields. Section omitted when no ads were captured in the window.
+  const COOKIE_BOILERPLATE_RE = /^(cookies from other companies|we use cookies|this (site|page) uses cookies|privacy and cookies|cookie (notice|policy|preferences))/i;
+  const isCookieBoilerplate = (t: string | null): boolean =>
+    !!t && COOKIE_BOILERPLATE_RE.test(t.trim());
+  const geoFlagSsr = (geo: string | null): string => {
+    if (!geo || geo.length !== 2) return "";
+    const code = geo.toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return "";
+    return String.fromCodePoint(0x1f1e6 + code.charCodeAt(0) - 65, 0x1f1e6 + code.charCodeAt(1) - 65);
+  };
+  const daysAgoSsr = (iso: Date | null): string => {
+    if (!iso) return "";
+    const days = Math.floor((Date.now() - iso.getTime()) / 86400000);
+    if (days <= 0) return "today";
+    if (days === 1) return "1d ago";
+    return `${days}d ago`;
+  };
+  const truncateSsr = (txt: string, n: number): string =>
+    txt.length <= n ? txt : txt.slice(0, n).replace(/\s+\S*$/, "") + "…";
+  // Same protocol allowlist as the CSR component (safeHttpUrl in ReviewPage.tsx).
+  // Defends against a malicious upstream payload smuggling a javascript: URL into
+  // the "View Facebook post" CTA. Returns null when the href isn't safe http(s).
+  const safeHttpUrlSsr = (raw: string | null): string | null => {
+    if (!raw) return null;
+    try {
+      const u = new URL(raw);
+      return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const recentAdsHtml = recentAds.length
+    ? (() => {
+        const countryCount = new Set(recentAds.map((a) => a.geo).filter(Boolean)).size;
+        const cards = recentAds
+          .map((ad) => {
+            const flag = geoFlagSsr(ad.geo);
+            const fullText = (ad.mainText ?? "").trim();
+            const cardText = fullText ? truncateSsr(fullText, 120) : "";
+            const showLinkText =
+              !isCookieBoilerplate(ad.linkText) && (ad.linkText ?? "").trim().length > 0;
+            const dateIso = ad.firstSeenAt ? ad.firstSeenAt.toISOString() : "";
+            const parts: string[] = [];
+            const meta: string[] = [];
+            if (ad.geo) meta.push(`<span class="ra-geo"><span aria-hidden="true">${flag}</span> <strong>${esc(ad.geo)}</strong></span>`);
+            meta.push(`<span class="ra-badge">${ad.isVideo ? "Video" : "Image"}</span>`);
+            if (ad.landLanguage) meta.push(`<span class="ra-badge ra-lang">${esc(ad.landLanguage)}</span>`);
+            if (dateIso) meta.push(`<time datetime="${esc(dateIso)}" class="ra-date">${esc(daysAgoSsr(ad.firstSeenAt))}</time>`);
+            parts.push(`<div class="ra-meta">${meta.join("")}</div>`);
+            if (ad.celebrityName) parts.push(`<div class="ra-celeb"><span aria-hidden="true">🎭 </span>${esc(ad.celebrityName)}</div>`);
+            if (cardText) parts.push(`<p class="ra-copy" title="${esc(fullText)}">&ldquo;${esc(cardText)}&rdquo;</p>`);
+            if (showLinkText) parts.push(`<p class="ra-link-text">${esc(ad.linkText ?? "")}</p>`);
+            const foot: string[] = [];
+            if (ad.linkDomain) foot.push(`<div class="ra-domain"><span aria-hidden="true">🔗 </span><code>${esc(ad.linkDomain)}</code></div>`);
+            const safePostUrl = safeHttpUrlSsr(ad.postUrl);
+            if (safePostUrl) foot.push(`<a href="${esc(safePostUrl)}" target="_blank" rel="nofollow noopener" class="ra-cta">View Facebook post <span aria-hidden="true">↗</span></a>`);
+            if (foot.length) parts.push(`<div class="ra-foot">${foot.join("")}</div>`);
+            return `<article class="recent-ad">${parts.join("")}</article>`;
+          })
+          .join("");
+        const subtitle = `${recentAds.length} ad ${recentAds.length === 1 ? "creative" : "creatives"} detected${
+          countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""
+        } · last 7 days`;
+        return `<section aria-labelledby="recent-ads-heading" class="recent-ads"><header><h2 id="recent-ads-heading">Ads scraped this week</h2><p class="ra-sub">${esc(subtitle)}</p></header><div class="recent-ads-grid">${cards}</div></section>`;
+      })()
+    : "";
+
   const celebrityNames = Array.isArray(row.celebrityNames) ? row.celebrityNames.filter(Boolean) : [];
   const celebritiesHtml = celebrityNames.length
     ? `<section aria-labelledby="celebs-heading"><h2 id="celebs-heading">Celebrities impersonated</h2><p>The ${esc(platformName)} campaign fabricates endorsements from ${celebrityNames.length} public figures, including:</p><ul>${celebrityNames
@@ -1512,6 +1604,7 @@ async function renderReview(
 ${translationDisclosureHtml}<article id="article-body">
 ${fullArticleBodyHtml}
 </article>
+${recentAdsHtml}
 <nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
 </main>${siteFooterHtml()}`
     : // ── Legacy fallback path (pre-Task 7D rows): structured template ──
@@ -1535,6 +1628,7 @@ ${contentImageByPlacement("section-1")}
 ${redFlagsHtml}
 ${contentImageByPlacement("section-2")}
 ${funnelStagesHtml}
+${recentAdsHtml}
 ${visualsHtml}
 ${celebritiesHtml}
 ${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}

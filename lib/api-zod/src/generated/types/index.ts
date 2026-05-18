@@ -13,6 +13,7 @@ export * from "./funnelStage";
 export * from "./geoTarget";
 export * from "./healthStatus";
 export * from "./keyFinding";
+export * from "./recentAd";
 export * from "./redFlag";
 export * from "./relatedReview";
 export * from "./reportResult";

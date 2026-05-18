@@ -298,6 +298,77 @@ export const GetReviewResponse = zod.object({
     .describe(
       'Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible \"also-available-in\" affordance. Fetch full translated content via GET \/reviews\/translations\/{locale}\/{slug}. Empty array when no translations exist.',
     ),
+  recentAds: zod
+    .array(
+      zod
+        .object({
+          creativeId: zod
+            .string()
+            .describe(
+              "SpyOwl-assigned ID; stable per ad creative and used as the row key.",
+            ),
+          offerName: zod.string().nullish(),
+          celebrityName: zod
+            .string()
+            .nullish()
+            .describe(
+              "Comma-separated list of named figures abused in the creative.",
+            ),
+          geo: zod
+            .string()
+            .nullish()
+            .describe('ISO-3166-1 alpha-2 country code (e.g. \"ES\", \"IT\").'),
+          landLanguage: zod
+            .string()
+            .nullish()
+            .describe(
+              'BCP-47-ish language code of the landing page (e.g. \"es\", \"it\").',
+            ),
+          isVideo: zod
+            .boolean()
+            .describe("True for video creatives, false for image\/static."),
+          firstSeenAt: zod
+            .string()
+            .nullish()
+            .describe("ISO-8601 timestamp of first sighting on the platform."),
+          spyowlCreatedAt: zod
+            .string()
+            .nullish()
+            .describe("ISO-8601 timestamp SpyOwl recorded the creative."),
+          mainText: zod
+            .string()
+            .nullish()
+            .describe(
+              "Ad body copy (already upstream-truncated to ~280 chars).",
+            ),
+          linkText: zod
+            .string()
+            .nullish()
+            .describe(
+              "Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering.",
+            ),
+          linkDomain: zod
+            .string()
+            .nullish()
+            .describe("Bare domain of the landing URL."),
+          postUrl: zod
+            .string()
+            .nullish()
+            .describe(
+              'Facebook post permalink used by the \"View Facebook post\" CTA.',
+            ),
+          fpLink: zod
+            .string()
+            .nullish()
+            .describe("Facebook page profile link for the advertiser."),
+        })
+        .describe(
+          "Single SpyOwl ad creative captured in the trailing-7-day window. Surfaces named celebrity + ad copy + landing domain + Facebook post link as first-hand investigation evidence (E-E-A-T signal). All optional fields may be null independently — the client renders whatever is present.",
+        ),
+    )
+    .describe(
+      "Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field.",
+    ),
 });
 
 /**
@@ -636,6 +707,81 @@ export const GetReviewTranslationResponse = zod
         )
         .describe(
           'Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible \"also-available-in\" affordance. Fetch full translated content via GET \/reviews\/translations\/{locale}\/{slug}. Empty array when no translations exist.',
+        ),
+      recentAds: zod
+        .array(
+          zod
+            .object({
+              creativeId: zod
+                .string()
+                .describe(
+                  "SpyOwl-assigned ID; stable per ad creative and used as the row key.",
+                ),
+              offerName: zod.string().nullish(),
+              celebrityName: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Comma-separated list of named figures abused in the creative.",
+                ),
+              geo: zod
+                .string()
+                .nullish()
+                .describe(
+                  'ISO-3166-1 alpha-2 country code (e.g. \"ES\", \"IT\").',
+                ),
+              landLanguage: zod
+                .string()
+                .nullish()
+                .describe(
+                  'BCP-47-ish language code of the landing page (e.g. \"es\", \"it\").',
+                ),
+              isVideo: zod
+                .boolean()
+                .describe("True for video creatives, false for image\/static."),
+              firstSeenAt: zod
+                .string()
+                .nullish()
+                .describe(
+                  "ISO-8601 timestamp of first sighting on the platform.",
+                ),
+              spyowlCreatedAt: zod
+                .string()
+                .nullish()
+                .describe("ISO-8601 timestamp SpyOwl recorded the creative."),
+              mainText: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Ad body copy (already upstream-truncated to ~280 chars).",
+                ),
+              linkText: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering.",
+                ),
+              linkDomain: zod
+                .string()
+                .nullish()
+                .describe("Bare domain of the landing URL."),
+              postUrl: zod
+                .string()
+                .nullish()
+                .describe(
+                  'Facebook post permalink used by the \"View Facebook post\" CTA.',
+                ),
+              fpLink: zod
+                .string()
+                .nullish()
+                .describe("Facebook page profile link for the advertiser."),
+            })
+            .describe(
+              "Single SpyOwl ad creative captured in the trailing-7-day window. Surfaces named celebrity + ad copy + landing domain + Facebook post link as first-hand investigation evidence (E-E-A-T signal). All optional fields may be null independently — the client renders whatever is present.",
+            ),
+        )
+        .describe(
+          "Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field.",
         ),
     }),
     siblingTranslations: zod.array(

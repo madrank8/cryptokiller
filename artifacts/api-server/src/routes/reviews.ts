@@ -10,6 +10,7 @@ import {
   faqItemsTable,
   keyFindingsTable,
   geoTargetsTable,
+  reviewRecentAdsTable,
   blogPostsTable,
   reviewTranslationsTable,
 } from "@workspace/db";
@@ -115,12 +116,13 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     return;
   }
 
-  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, translations] = await Promise.all([
+  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, recentAds, translations] = await Promise.all([
     db.select().from(funnelStagesTable).where(eq(funnelStagesTable.reviewId, row.id)).orderBy(asc(funnelStagesTable.stageNumber)),
     db.select().from(redFlagsTable).where(eq(redFlagsTable.reviewId, row.id)).orderBy(asc(redFlagsTable.orderIndex)),
     db.select().from(faqItemsTable).where(eq(faqItemsTable.reviewId, row.id)).orderBy(asc(faqItemsTable.orderIndex)),
     db.select().from(keyFindingsTable).where(eq(keyFindingsTable.reviewId, row.id)).orderBy(asc(keyFindingsTable.orderIndex)),
     db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, row.id)).orderBy(asc(geoTargetsTable.orderIndex)),
+    db.select().from(reviewRecentAdsTable).where(eq(reviewRecentAdsTable.reviewId, row.id)).orderBy(asc(reviewRecentAdsTable.orderIndex)),
     // Slim translation metadata — used by ReviewPage to emit hreflang link
     // tags, the JSON-LD workTranslation array, and the "also-available-in"
     // affordance. Full translated content is fetched separately via
@@ -216,6 +218,21 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       region: g.region,
       countryCodes: g.countryCodes,
       orderIndex: g.orderIndex,
+    })),
+    recentAds: recentAds.map(a => ({
+      creativeId: a.creativeId,
+      offerName: a.offerName ?? null,
+      celebrityName: a.celebrityName ?? null,
+      geo: a.geo ?? null,
+      landLanguage: a.landLanguage ?? null,
+      isVideo: a.isVideo,
+      firstSeenAt: a.firstSeenAt?.toISOString() ?? null,
+      spyowlCreatedAt: a.spyowlCreatedAt?.toISOString() ?? null,
+      mainText: a.mainText ?? null,
+      linkText: a.linkText ?? null,
+      linkDomain: a.linkDomain ?? null,
+      postUrl: a.postUrl ?? null,
+      fpLink: a.fpLink ?? null,
     })),
     translations: translations.map(t => ({
       locale: t.locale,
@@ -336,12 +353,13 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     return;
   }
 
-  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, siblings] = await Promise.all([
+  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, recentAds, siblings] = await Promise.all([
     db.select().from(funnelStagesTable).where(eq(funnelStagesTable.reviewId, masterRow.id)).orderBy(asc(funnelStagesTable.stageNumber)),
     db.select().from(redFlagsTable).where(eq(redFlagsTable.reviewId, masterRow.id)).orderBy(asc(redFlagsTable.orderIndex)),
     db.select().from(faqItemsTable).where(eq(faqItemsTable.reviewId, masterRow.id)).orderBy(asc(faqItemsTable.orderIndex)),
     db.select().from(keyFindingsTable).where(eq(keyFindingsTable.reviewId, masterRow.id)).orderBy(asc(keyFindingsTable.orderIndex)),
     db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, masterRow.id)).orderBy(asc(geoTargetsTable.orderIndex)),
+    db.select().from(reviewRecentAdsTable).where(eq(reviewRecentAdsTable.reviewId, masterRow.id)).orderBy(asc(reviewRecentAdsTable.orderIndex)),
     db
       .select({
         locale: reviewTranslationsTable.locale,
@@ -424,6 +442,21 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
       region: g.region,
       countryCodes: g.countryCodes,
       orderIndex: g.orderIndex,
+    })),
+    recentAds: recentAds.map(a => ({
+      creativeId: a.creativeId,
+      offerName: a.offerName ?? null,
+      celebrityName: a.celebrityName ?? null,
+      geo: a.geo ?? null,
+      landLanguage: a.landLanguage ?? null,
+      isVideo: a.isVideo,
+      firstSeenAt: a.firstSeenAt?.toISOString() ?? null,
+      spyowlCreatedAt: a.spyowlCreatedAt?.toISOString() ?? null,
+      mainText: a.mainText ?? null,
+      linkText: a.linkText ?? null,
+      linkDomain: a.linkDomain ?? null,
+      postUrl: a.postUrl ?? null,
+      fpLink: a.fpLink ?? null,
     })),
     translations: siblings.map(t => ({
       locale: t.locale,

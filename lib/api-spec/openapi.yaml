@@ -594,6 +594,16 @@ components:
             no translations exist.
           items:
             $ref: "#/components/schemas/ReviewTranslationSummary"
+        recentAds:
+          type: array
+          description: >-
+            Up to 20 ad creatives scraped from SpyOwl in the last 7 days for
+            the brand under review. Metadata-only (SpyOwl exposes no image
+            URLs). Ordered newest-first by firstSeenAt. Empty array when no
+            ads were captured in the window or the legacy webhook predates
+            the recent_ads_sample field.
+          items:
+            $ref: "#/components/schemas/RecentAd"
       required:
         - id
         - slug
@@ -633,6 +643,69 @@ components:
         - expertiseDepth
         - frameAsScam
         - translations
+        - recentAds
+
+    RecentAd:
+      type: object
+      description: >-
+        Single SpyOwl ad creative captured in the trailing-7-day window.
+        Surfaces named celebrity + ad copy + landing domain + Facebook post
+        link as first-hand investigation evidence (E-E-A-T signal). All
+        optional fields may be null independently — the client renders
+        whatever is present.
+      properties:
+        creativeId:
+          type: string
+          description: SpyOwl-assigned ID; stable per ad creative and used as the row key.
+        offerName:
+          type: string
+          nullable: true
+        celebrityName:
+          type: string
+          nullable: true
+          description: Comma-separated list of named figures abused in the creative.
+        geo:
+          type: string
+          nullable: true
+          description: ISO-3166-1 alpha-2 country code (e.g. "ES", "IT").
+        landLanguage:
+          type: string
+          nullable: true
+          description: BCP-47-ish language code of the landing page (e.g. "es", "it").
+        isVideo:
+          type: boolean
+          description: True for video creatives, false for image/static.
+        firstSeenAt:
+          type: string
+          nullable: true
+          description: ISO-8601 timestamp of first sighting on the platform.
+        spyowlCreatedAt:
+          type: string
+          nullable: true
+          description: ISO-8601 timestamp SpyOwl recorded the creative.
+        mainText:
+          type: string
+          nullable: true
+          description: Ad body copy (already upstream-truncated to ~280 chars).
+        linkText:
+          type: string
+          nullable: true
+          description: Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering.
+        linkDomain:
+          type: string
+          nullable: true
+          description: Bare domain of the landing URL.
+        postUrl:
+          type: string
+          nullable: true
+          description: Facebook post permalink used by the "View Facebook post" CTA.
+        fpLink:
+          type: string
+          nullable: true
+          description: Facebook page profile link for the advertiser.
+      required:
+        - creativeId
+        - isVideo
 
     ReviewTranslationSummary:
       type: object

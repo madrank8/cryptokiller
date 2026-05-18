@@ -173,6 +173,37 @@ export interface ReviewTranslationSummary {
   updatedAt: string;
 }
 
+/**
+ * Single SpyOwl ad creative captured in the trailing-7-day window. Surfaces named celebrity + ad copy + landing domain + Facebook post link as first-hand investigation evidence (E-E-A-T signal). All optional fields may be null independently — the client renders whatever is present.
+ */
+export interface RecentAd {
+  /** SpyOwl-assigned ID; stable per ad creative and used as the row key. */
+  creativeId: string;
+  offerName?: string | null;
+  /** Comma-separated list of named figures abused in the creative. */
+  celebrityName?: string | null;
+  /** ISO-3166-1 alpha-2 country code (e.g. "ES", "IT"). */
+  geo?: string | null;
+  /** BCP-47-ish language code of the landing page (e.g. "es", "it"). */
+  landLanguage?: string | null;
+  /** True for video creatives, false for image/static. */
+  isVideo: boolean;
+  /** ISO-8601 timestamp of first sighting on the platform. */
+  firstSeenAt?: string | null;
+  /** ISO-8601 timestamp SpyOwl recorded the creative. */
+  spyowlCreatedAt?: string | null;
+  /** Ad body copy (already upstream-truncated to ~280 chars). */
+  mainText?: string | null;
+  /** Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering. */
+  linkText?: string | null;
+  /** Bare domain of the landing URL. */
+  linkDomain?: string | null;
+  /** Facebook post permalink used by the "View Facebook post" CTA. */
+  postUrl?: string | null;
+  /** Facebook page profile link for the advertiser. */
+  fpLink?: string | null;
+}
+
 export interface ReviewFull {
   id: number;
   slug: string;
@@ -234,6 +265,8 @@ export interface ReviewFull {
   itemReviewed?: ReviewItemReviewed | null;
   /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
   translations: ReviewTranslationSummary[];
+  /** Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field. */
+  recentAds: RecentAd[];
 }
 
 export type ReviewFullTranslatedRedFlagsItem = { [key: string]: unknown };

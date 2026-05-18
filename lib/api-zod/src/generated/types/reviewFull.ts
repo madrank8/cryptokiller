@@ -10,6 +10,7 @@ import type { FaqItem } from "./faqItem";
 import type { FunnelStage } from "./funnelStage";
 import type { GeoTarget } from "./geoTarget";
 import type { KeyFinding } from "./keyFinding";
+import type { RecentAd } from "./recentAd";
 import type { RedFlag } from "./redFlag";
 import type { ReviewFullThreatTier } from "./reviewFullThreatTier";
 import type { ReviewItemReviewed } from "./reviewItemReviewed";
@@ -78,4 +79,6 @@ export interface ReviewFull {
   itemReviewed?: ReviewItemReviewed | null;
   /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
   translations: ReviewTranslationSummary[];
+  /** Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field. */
+  recentAds: RecentAd[];
 }
