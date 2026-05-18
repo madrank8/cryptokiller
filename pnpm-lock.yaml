@@ -71,10 +71,38 @@ catalogs:
       version: 3.25.76
 
 overrides:
-  axios: '>=1.15.0'
-  lodash: '>=4.18.0'
-  path-to-regexp: '>=8.4.0'
-  picomatch: '>=4.0.4'
+  '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
+  '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-ia32': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-x64': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-linux-arm': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-linux-arm64': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-linux-ia32': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-sunos-x64': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-win32-ia32': '-'
+  '@expo/ngrok-bin>@expo/ngrok-bin-win32-x64': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-android-arm64': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-darwin-arm64': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-darwin-x64': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-freebsd-x64': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm-gnueabihf': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-gnu': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-musl': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-linux-x64-musl': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-win32-arm64-msvc': '-'
+  '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
+  axios: '>=1.15.1'
+  brace-expansion: '>=2.1.0'
+  fast-uri: '>=3.1.2'
+  follow-redirects: '>=1.16.0'
+  postcss: '>=8.5.14'
+  yaml: '>=2.9.0'
+  esbuild: 0.27.3
+  esbuild>@esbuild/aix-ppc64: '-'
+  esbuild>@esbuild/android-arm: '-'
+  esbuild>@esbuild/android-arm64: '-'
+  esbuild>@esbuild/android-x64: '-'
   esbuild>@esbuild/darwin-arm64: '-'
   esbuild>@esbuild/darwin-x64: '-'
   esbuild>@esbuild/freebsd-arm64: '-'
@@ -91,15 +119,11 @@ overrides:
   esbuild>@esbuild/netbsd-x64: '-'
   esbuild>@esbuild/openbsd-arm64: '-'
   esbuild>@esbuild/openbsd-x64: '-'
+  esbuild>@esbuild/openharmony-arm64: '-'
   esbuild>@esbuild/sunos-x64: '-'
   esbuild>@esbuild/win32-arm64: '-'
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
-  esbuild>@esbuild/aix-ppc64: '-'
-  esbuild>@esbuild/android-arm: '-'
-  esbuild>@esbuild/android-arm64: '-'
-  esbuild>@esbuild/android-x64: '-'
-  esbuild>@esbuild/openharmony-arm64: '-'
   lightningcss>lightningcss-android-arm64: '-'
   lightningcss>lightningcss-darwin-arm64: '-'
   lightningcss>lightningcss-darwin-x64: '-'
@@ -110,16 +134,9 @@ overrides:
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
   lightningcss>lightningcss-win32-x64-msvc: '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-android-arm64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-darwin-arm64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-darwin-x64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-freebsd-x64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm-gnueabihf': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-gnu': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-musl': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-win32-arm64-msvc': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-x64-musl': '-'
+  lodash: '>=4.18.0'
+  path-to-regexp: '>=8.4.0'
+  picomatch: '>=4.0.4'
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
   rollup>@rollup/rollup-darwin-arm64: '-'
@@ -144,18 +161,6 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-x64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-linux-arm64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-linux-arm': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-linux-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-sunos-x64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-win32-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-win32-x64': '-'
-  '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
-  esbuild: 0.27.3
 
 importers:
 
@@ -364,7 +369,7 @@ importers:
         version: 0.5.19(tailwindcss@4.2.1)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.1(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.2.1(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0))
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.90.21(react@19.1.0)
@@ -385,7 +390,7 @@ importers:
         version: 2.16.1
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0))
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
@@ -457,7 +462,7 @@ importers:
         version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       vite:
         specifier: 'catalog:'
-        version: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0)
       wouter:
         specifier: ^3.3.5
         version: 3.9.0(react@19.1.0)
@@ -559,7 +564,7 @@ importers:
         version: 0.0.6
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.2.1(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.2.1(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0))
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
@@ -571,7 +576,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: 'catalog:'
-        version: 5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0))
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
@@ -643,7 +648,7 @@ importers:
         version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       vite:
         specifier: 'catalog:'
-        version: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0)
       zod:
         specifier: 'catalog:'
         version: 3.25.76
@@ -1868,11 +1873,12 @@ packages:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
     engines: {node: '>=8.0.0'}
 
-  axios@1.15.0:
-    resolution: {integrity: sha512-wWyJDlAatxk30ZJer+GeCWS209sA42X+N5jU2jy6oHTp7ufw8uzUTVFBX9+wTfAlhiJXGS0Bq7X6efruWjuK9Q==}
+  axios@1.16.1:
+    resolution: {integrity: sha512-caYkukvroVPO8KrzuJEb50Hm07KwfBZPEC3VeFHTsqWHvKTsy54hjJz9BS/cdaypROE2rH6xvm9mHX4fgWkr3A==}
 
-  balanced-match@1.0.2:
-    resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
+  balanced-match@4.0.4:
+    resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
+    engines: {node: 18 || 20 || >=22}
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
@@ -1889,8 +1895,9 @@ packages:
     resolution: {integrity: sha512-oP5VkATKlNwcgvxi0vM0p/D3n2C3EReYVX+DNYs5TjZFn/oQt2j+4sVJtSMr18pdRr8wjTcBl6LoV+FUwzPmNA==}
     engines: {node: '>=18'}
 
-  brace-expansion@2.0.2:
-    resolution: {integrity: sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==}
+  brace-expansion@5.0.6:
+    resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
+    engines: {node: 18 || 20 || >=22}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -2346,8 +2353,8 @@ packages:
   fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
 
-  fast-uri@3.1.0:
-    resolution: {integrity: sha512-iPeeDKJSWf4IEOasVVrknXpaBV0IApz/gp7S2bb7Z4Lljbl2MGJRqInZiUrQwV16cpzw/D3S5j5Julj/gT52AA==}
+  fast-uri@3.1.2:
+    resolution: {integrity: sha512-rVjf7ArG3LTk+FS6Yw81V1DLuZl1bRbNrev6Tmd/9RaroeeRRJhAt7jg/6YFxbvAQXUCavSoZhPPj6oOx+5KjQ==}
 
   fastq@1.20.1:
     resolution: {integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==}
@@ -2381,8 +2388,8 @@ packages:
     resolution: {integrity: sha512-JGG8pvDi2C+JxidYdIwQDyS/CgcrIdh18cvgxcBge3wSHRQOrooMD3GlFBcmMJAN9M42SAZjDp5zv1dglJjwww==}
     engines: {node: '>=20'}
 
-  follow-redirects@1.15.11:
-    resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
+  follow-redirects@1.16.0:
+    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -2937,8 +2944,8 @@ packages:
     resolution: {integrity: sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==}
     engines: {node: '>=4'}
 
-  postcss@8.5.8:
-    resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
+  postcss@8.5.14:
+    resolution: {integrity: sha512-SoSL4+OSEtR99LHFZQiJLkT59C5B1amGO1NzTwj7TT1qCUgUO6hxOvzkOYxD+vMrXBM3XJIKzokoERdqQq/Zmg==}
     engines: {node: ^10 || ^12 || >=14}
 
   postgres-array@2.0.0:
@@ -3426,7 +3433,7 @@ packages:
       sugarss: ^5.0.0
       terser: ^5.16.0
       tsx: ^4.8.1
-      yaml: ^2.4.2
+      yaml: '>=2.9.0'
     peerDependenciesMeta:
       '@types/node':
         optional: true
@@ -3491,8 +3498,8 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
-  yaml@2.8.2:
-    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -4533,7 +4540,7 @@ snapshots:
     dependencies:
       '@scalar/helpers': 0.2.18
       pathe: 2.0.3
-      yaml: 2.8.2
+      yaml: 2.9.0
 
   '@scalar/openapi-parser@0.24.17':
     dependencies:
@@ -4546,7 +4553,7 @@ snapshots:
       ajv-formats: 3.0.1
       jsonpointer: 5.0.1
       leven: 4.1.0
-      yaml: 2.8.2
+      yaml: 2.9.0
 
   '@scalar/openapi-types@0.5.3':
     dependencies:
@@ -4652,12 +4659,12 @@ snapshots:
       postcss-selector-parser: 6.0.10
       tailwindcss: 4.2.1
 
-  '@tailwindcss/vite@4.2.1(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@tailwindcss/vite@4.2.1(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0))':
     dependencies:
       '@tailwindcss/node': 4.2.1
       '@tailwindcss/oxide': 4.2.1
       tailwindcss: 4.2.1
-      vite: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0)
 
   '@tanstack/query-core@5.90.20': {}
 
@@ -4790,7 +4797,7 @@ snapshots:
     dependencies:
       '@types/node': 25.3.5
 
-  '@vitejs/plugin-react@5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@vitejs/plugin-react@5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -4798,7 +4805,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -4828,7 +4835,7 @@ snapshots:
   ajv@8.18.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.0
+      fast-uri: 3.1.2
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -4846,15 +4853,17 @@ snapshots:
 
   atomic-sleep@1.0.0: {}
 
-  axios@1.15.0:
+  axios@1.16.1:
     dependencies:
-      follow-redirects: 1.15.11
+      follow-redirects: 1.16.0
       form-data: 4.0.5
+      https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
     transitivePeerDependencies:
       - debug
+      - supports-color
 
-  balanced-match@1.0.2: {}
+  balanced-match@4.0.4: {}
 
   base64-js@1.5.1: {}
 
@@ -4876,9 +4885,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  brace-expansion@2.0.2:
+  brace-expansion@5.0.6:
     dependencies:
-      balanced-match: 1.0.2
+      balanced-match: 4.0.4
 
   braces@3.0.3:
     dependencies:
@@ -5242,7 +5251,7 @@ snapshots:
 
   fast-safe-stringify@2.1.1: {}
 
-  fast-uri@3.1.0: {}
+  fast-uri@3.1.2: {}
 
   fastq@1.20.1:
     dependencies:
@@ -5281,7 +5290,7 @@ snapshots:
       locate-path: 8.0.0
       unicorn-magic: 0.3.0
 
-  follow-redirects@1.15.11: {}
+  follow-redirects@1.16.0: {}
 
   form-data@4.0.5:
     dependencies:
@@ -5646,7 +5655,7 @@ snapshots:
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.0.2
+      brace-expansion: 5.0.6
 
   minimist@1.2.8: {}
 
@@ -5851,7 +5860,7 @@ snapshots:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
 
-  postcss@8.5.8:
+  postcss@8.5.14:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
@@ -6058,7 +6067,7 @@ snapshots:
       is-plain-object: 5.0.0
       launder: 1.7.1
       parse-srcset: 1.0.2
-      postcss: 8.5.8
+      postcss: 8.5.14
 
   scheduler@0.26.0: {}
 
@@ -6204,7 +6213,7 @@ snapshots:
 
   twilio@5.13.1:
     dependencies:
-      axios: 1.15.0
+      axios: 1.16.1
       dayjs: 1.11.20
       https-proxy-agent: 5.0.1
       jsonwebtoken: 9.0.3
@@ -6236,7 +6245,7 @@ snapshots:
       markdown-it: 14.1.1
       minimatch: 9.0.9
       typescript: 5.9.3
-      yaml: 2.8.2
+      yaml: 2.9.0
 
   typescript@5.9.3: {}
 
@@ -6309,12 +6318,12 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2):
+  vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.3
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.8
+      postcss: 8.5.14
       rollup: 4.59.0
       tinyglobby: 0.2.15
     optionalDependencies:
@@ -6323,7 +6332,7 @@ snapshots:
       jiti: 2.6.1
       lightningcss: 1.31.1
       tsx: 4.21.0
-      yaml: 2.8.2
+      yaml: 2.9.0
 
   web-streams-polyfill@3.3.3: {}
 
@@ -6348,7 +6357,7 @@ snapshots:
 
   yallist@3.1.1: {}
 
-  yaml@2.8.2: {}
+  yaml@2.9.0: {}
 
   yocto-queue@1.2.2: {}
 
