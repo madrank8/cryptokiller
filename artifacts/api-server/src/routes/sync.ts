@@ -322,6 +322,98 @@ router.post("/sync/review", async (req, res): Promise<void> => {
       }
     }
 
+    // ─── review_translations (Phase 3 — multilingual) ───
+    // Vercel ships the full set of currently-published translations on every
+    // sync. Delete-then-insert keeps Replit in lockstep — translations that
+    // disappear from the payload (unpublished on the admin side) disappear
+    // here too.
+    //
+    // Locale is stored in BCP-47 canonical case ('pt-BR' not 'pt-br'); URL
+    // routing lowercases the segment and re-normalises before the lookup,
+    // so the value stored here is directly usable as the `hreflang` /
+    // `inLanguage` attribute when rendering.
+    //
+    // We do NOT verify a per-translation `full_article` hash in V1 — the
+    // master integrity check above is the contract boundary with Vercel.
+    // If translation drift becomes an operational issue, add an
+    // `expected_full_article_hash` field per translation entry.
+    const ALLOWED_TRANSLATION_LOCALES = new Set(["it", "es", "de", "fr", "pt-BR"]);
+    const translationUrls: string[] = [];
+    await client.query("DELETE FROM review_translations WHERE review_id = $1", [reviewId]);
+    if (Array.isArray(review.translations)) {
+      for (const t of review.translations) {
+        if (!t || typeof t !== "object") continue;
+        const locale = typeof t.locale === "string" ? t.locale.trim() : "";
+        const tSlug = typeof t.slug === "string" ? t.slug.trim() : "";
+        const status = typeof t.status === "string" ? t.status : "published";
+        // Skip drafts and anything outside the allowlist — Vercel SHOULD only
+        // send published translations in the allowed locale set, but we
+        // defence-in-depth here so a single bad row can't poison the table or
+        // surface a /xx/ URL we don't support.
+        if (!locale || !tSlug || status !== "published") continue;
+        if (!ALLOWED_TRANSLATION_LOCALES.has(locale)) continue;
+
+        await client.query(
+          `INSERT INTO review_translations (
+            review_id, locale, slug, status,
+            title, meta_description, headline, alternative_headline,
+            summary, verdict, how_it_works, full_article,
+            red_flags, faq, key_takeaways,
+            not_for_you, protection_steps, methodology, disclaimer, expertise_depth,
+            translation_method, translator_name, translator_credentials,
+            ai_model, ai_prompt_version,
+            reviewed_at, word_count, published_at, source_review_updated_at, updated_at
+          ) VALUES (
+            $1,$2,$3,$4,
+            $5,$6,$7,$8,
+            $9,$10,$11,$12,
+            $13,$14,$15,
+            $16,$17,$18,$19,$20,
+            $21,$22,$23,
+            $24,$25,
+            $26,$27,$28,$29,NOW()
+          )`,
+          [
+            reviewId,
+            locale,
+            tSlug,
+            status,
+            t.title ?? null,
+            t.meta_description ?? null,
+            t.headline ?? null,
+            t.alternative_headline ?? null,
+            t.summary ?? null,
+            t.verdict ?? null,
+            t.how_it_works ?? null,
+            typeof t.full_article === "string"
+              ? normalizeFullArticleForIntegrity(t.full_article)
+              : null,
+            t.red_flags ? JSON.stringify(t.red_flags) : null,
+            t.faq ? JSON.stringify(t.faq) : null,
+            t.key_takeaways ? JSON.stringify(t.key_takeaways) : null,
+            t.not_for_you ?? null,
+            t.protection_steps ?? null,
+            t.methodology ?? null,
+            t.disclaimer ?? null,
+            t.expertise_depth ?? null,
+            t.translation_method ?? null,
+            t.translator_name ?? null,
+            t.translator_credentials ?? null,
+            t.ai_model ?? null,
+            t.ai_prompt_version ?? null,
+            t.reviewed_at ?? null,
+            typeof t.word_count === "number" ? t.word_count : null,
+            t.published_at ?? null,
+            t.source_review_updated_at ?? null,
+          ]
+        );
+        // URL segment is lowercased ('pt-BR' → 'pt-br').
+        translationUrls.push(
+          `https://cryptokiller.org/${locale.toLowerCase()}/review/${tSlug}`
+        );
+      }
+    }
+
     const storedArticleResult = await client.query(
       `SELECT COALESCE(full_article, '') AS full_article FROM reviews WHERE id = $1`,
       [reviewId]
@@ -357,7 +449,10 @@ router.post("/sync/review", async (req, res): Promise<void> => {
 
     await client.query("COMMIT");
 
-    submitToIndexNow([`https://cryptokiller.org/review/${review.slug}`]).catch(() => {});
+    submitToIndexNow([
+      `https://cryptokiller.org/review/${review.slug}`,
+      ...translationUrls,
+    ]).catch(() => {});
 
     res.json({
       ok: true,

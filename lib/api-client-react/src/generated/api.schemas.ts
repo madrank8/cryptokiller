@@ -113,6 +113,29 @@ export interface ReviewSource {
   date?: string;
 }
 
+export type ReviewItemReviewedType =
+  (typeof ReviewItemReviewedType)[keyof typeof ReviewItemReviewedType];
+
+export const ReviewItemReviewedType = {
+  FinancialProduct: "FinancialProduct",
+  Service: "Service",
+  SoftwareApplication: "SoftwareApplication",
+  Organization: "Organization",
+} as const;
+
+/**
+ * Writer-emitted typed entity for schema.org Review.itemReviewed. Stored as item_reviewed in Postgres; consumed by SSR and client JSON-LD.
+
+ */
+export interface ReviewItemReviewed {
+  type: ReviewItemReviewedType;
+  name: string;
+  description?: string | null;
+  url?: string | null;
+  alternateName?: string[] | null;
+  sameAs?: string[] | null;
+}
+
 /**
  * Severity tier from classifyThreat() on the Vercel side (source of truth lib/threat-score.js). Drives the H1/title label and all declarative-scam language gating on the client. Null for reviews synced before migration 0003, in which case the client should fall back to deriving a tier from threatScore.
  */
@@ -128,14 +151,26 @@ export const ReviewFullThreatTier = {
   low: "low",
 } as const;
 
-/** Writer-emitted typed entity for JSON-LD Review.itemReviewed (sync from Vercel). */
-export interface ReviewItemReviewed {
-  type: "FinancialProduct" | "Service" | "SoftwareApplication" | "Organization";
-  name: string;
-  description: string | null;
-  url: string | null;
-  alternateName: string[] | null;
-  sameAs: string[] | null;
+/**
+ * Slim metadata describing a single published translation of a review. Returned in ReviewFull.translations[] so the master page can emit hreflang reciprocity, workTranslation @ids, and stale detection without round-tripping the full translated article.
+ */
+export interface ReviewTranslationSummary {
+  /** BCP-47 canonical-case locale (`it`, `es`, `de`, `fr`, `pt-BR`). */
+  locale: string;
+  /** Per-locale slug (may differ from the master slug). */
+  slug: string;
+  /** Always `published` in this list — drafts/unpublished are filtered server-side. */
+  status: string;
+  title?: string | null;
+  translatorName?: string | null;
+  /** One of `ai_full`, `ai_assisted`, `human_only`. Free-form for forward compatibility. */
+  translationMethod?: string | null;
+  /** ISO-8601 timestamp when the translation was first published. */
+  publishedAt?: string | null;
+  /** Snapshot of master.updatedAt at translation time. Compared against the live master updatedAt to detect staleness. */
+  sourceReviewUpdatedAt?: string | null;
+  /** ISO-8601 timestamp of last translation sync. */
+  updatedAt: string;
 }
 
 export interface ReviewFull {
@@ -195,8 +230,55 @@ export interface ReviewFull {
   threatBadge?: string | null;
   /** True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share/embed/copy strings must use hedged language when this is false. */
   frameAsScam: boolean;
-  /** When null, client JSON-LD falls back to a synthetic Service node from platformName + tier. */
+  /** When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender). */
   itemReviewed?: ReviewItemReviewed | null;
+  /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
+  translations: ReviewTranslationSummary[];
+}
+
+export type ReviewFullTranslatedRedFlagsItem = { [key: string]: unknown };
+
+export type ReviewFullTranslatedFaqItem = { [key: string]: unknown };
+
+/**
+ * Full translated review. Content fields are the locale-specific text; structural/identity fields (master*) are inherited from the English master so the translation page can render brand info, threat score, hero image, dates, etc. consistently.
+ */
+export interface ReviewFullTranslated {
+  /** BCP-47 canonical-case locale. */
+  locale: string;
+  /** Per-locale slug (the URL segment). */
+  slug: string;
+  status: string;
+  title?: string | null;
+  metaDescription?: string | null;
+  headline?: string | null;
+  alternativeHeadline?: string | null;
+  summary?: string | null;
+  verdict?: string | null;
+  howItWorks?: string | null;
+  fullArticle?: string | null;
+  /** Translator-provided red flags. Items may use either `{flag, detail}` or `{title, description}` keys — the client renders both shapes. */
+  redFlags?: ReviewFullTranslatedRedFlagsItem[] | null;
+  faq?: ReviewFullTranslatedFaqItem[] | null;
+  keyTakeaways?: string[] | null;
+  notForYou?: string | null;
+  protectionSteps?: string | null;
+  methodology?: string | null;
+  disclaimer?: string | null;
+  expertiseDepth?: string | null;
+  translationMethod?: string | null;
+  translatorName?: string | null;
+  translatorCredentials?: string | null;
+  aiModel?: string | null;
+  aiPromptVersion?: string | null;
+  reviewedAt?: string | null;
+  wordCount?: number | null;
+  publishedAt?: string | null;
+  sourceReviewUpdatedAt?: string | null;
+  updatedAt: string;
+  masterSlug: string;
+  master: ReviewFull;
+  siblingTranslations: ReviewTranslationSummary[];
 }
 
 export interface RelatedReview {

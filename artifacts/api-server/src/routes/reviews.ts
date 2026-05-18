@@ -11,6 +11,7 @@ import {
   keyFindingsTable,
   geoTargetsTable,
   blogPostsTable,
+  reviewTranslationsTable,
 } from "@workspace/db";
 import { logger } from "../lib/logger";
 
@@ -113,12 +114,36 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     return;
   }
 
-  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets] = await Promise.all([
+  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, translations] = await Promise.all([
     db.select().from(funnelStagesTable).where(eq(funnelStagesTable.reviewId, row.id)).orderBy(asc(funnelStagesTable.stageNumber)),
     db.select().from(redFlagsTable).where(eq(redFlagsTable.reviewId, row.id)).orderBy(asc(redFlagsTable.orderIndex)),
     db.select().from(faqItemsTable).where(eq(faqItemsTable.reviewId, row.id)).orderBy(asc(faqItemsTable.orderIndex)),
     db.select().from(keyFindingsTable).where(eq(keyFindingsTable.reviewId, row.id)).orderBy(asc(keyFindingsTable.orderIndex)),
     db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, row.id)).orderBy(asc(geoTargetsTable.orderIndex)),
+    // Slim translation metadata — used by ReviewPage to emit hreflang link
+    // tags, the JSON-LD workTranslation array, and the "also-available-in"
+    // affordance. Full translated content is fetched separately via
+    // GET /reviews/translations/:locale/:slug.
+    db
+      .select({
+        locale: reviewTranslationsTable.locale,
+        slug: reviewTranslationsTable.slug,
+        status: reviewTranslationsTable.status,
+        title: reviewTranslationsTable.title,
+        translatorName: reviewTranslationsTable.translatorName,
+        translationMethod: reviewTranslationsTable.translationMethod,
+        publishedAt: reviewTranslationsTable.publishedAt,
+        sourceReviewUpdatedAt: reviewTranslationsTable.sourceReviewUpdatedAt,
+        updatedAt: reviewTranslationsTable.updatedAt,
+      })
+      .from(reviewTranslationsTable)
+      .where(
+        and(
+          eq(reviewTranslationsTable.reviewId, row.id),
+          eq(reviewTranslationsTable.status, "published"),
+        ),
+      )
+      .orderBy(asc(reviewTranslationsTable.locale)),
   ]);
 
   const allCountryCodes = [...new Set(
@@ -191,6 +216,249 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       countryCodes: g.countryCodes,
       orderIndex: g.orderIndex,
     })),
+    translations: translations.map(t => ({
+      locale: t.locale,
+      slug: t.slug,
+      status: t.status,
+      title: t.title,
+      translatorName: t.translatorName,
+      translationMethod: t.translationMethod,
+      publishedAt: t.publishedAt?.toISOString() ?? null,
+      sourceReviewUpdatedAt: t.sourceReviewUpdatedAt?.toISOString() ?? null,
+      updatedAt: t.updatedAt.toISOString(),
+    })),
+  });
+});
+
+// ─── GET /reviews/translations/:locale/:slug ───
+// Returns the full translated review joined with the master's structural
+// fields (brand info, threat metadata, hero image, dates, schema enrichment).
+// Used by the locale-prefixed routes (/it/review/:slug etc) to render the
+// translation page. Locale param must be BCP-47 canonical case (`pt-BR`,
+// not `pt-br`) — the route handler that calls this normalises the URL
+// segment before forwarding.
+const TRANSLATION_LOCALES = new Set(["it", "es", "de", "fr", "pt-BR"]);
+
+router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void> => {
+  const localeParam = Array.isArray(req.params.locale) ? req.params.locale[0] : req.params.locale;
+  const slugParam = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  if (!TRANSLATION_LOCALES.has(localeParam)) {
+    res.status(404).json({ error: "Unsupported locale" });
+    return;
+  }
+
+  // Look up the translation by (locale, slug). We require status=published
+  // so unpublished rows that linger between syncs never surface a URL.
+  const [translationRow] = await db
+    .select()
+    .from(reviewTranslationsTable)
+    .where(
+      and(
+        eq(reviewTranslationsTable.locale, localeParam),
+        eq(reviewTranslationsTable.slug, slugParam),
+        eq(reviewTranslationsTable.status, "published"),
+      ),
+    )
+    .limit(1);
+
+  if (!translationRow) {
+    res.status(404).json({ error: "Translation not found" });
+    return;
+  }
+
+  // Master row + structural joins. We piggy-back on the same shape returned
+  // by GET /reviews/:slug so the React renderer can reuse one code path —
+  // the only delta is which text fields it pulls from the translation vs.
+  // the master.
+  const [masterRow] = await db
+    .select({
+      id: reviewsTable.id,
+      slug: reviewsTable.slug,
+      platformName: platformsTable.name,
+      threatScore: reviewsTable.threatScore,
+      verdict: reviewsTable.verdict,
+      status: reviewsTable.status,
+      summary: reviewsTable.summary,
+      heroDescription: reviewsTable.heroDescription,
+      warningCallout: reviewsTable.warningCallout,
+      investigationDate: reviewsTable.investigationDate,
+      methodologyText: reviewsTable.methodologyText,
+      disclaimerText: reviewsTable.disclaimerText,
+      wordCount: reviewsTable.wordCount,
+      readingMinutes: reviewsTable.readingMinutes,
+      author: reviewsTable.author,
+      authorPersonaId: reviewsTable.authorPersonaId,
+      metaDescription: reviewsTable.metaDescription,
+      heroImageUrl: reviewsTable.heroImageUrl,
+      heroImageAlt: reviewsTable.heroImageAlt,
+      contentImages: reviewsTable.contentImages,
+      visualMeta: reviewsTable.visualMeta,
+      protectionSteps: reviewsTable.protectionSteps,
+      sources: reviewsTable.sources,
+      notForYou: reviewsTable.notForYou,
+      expertiseDepth: reviewsTable.expertiseDepth,
+      threatTier: reviewsTable.threatTier,
+      threatLabel: reviewsTable.threatLabel,
+      threatBadge: reviewsTable.threatBadge,
+      frameAsScam: reviewsTable.frameAsScam,
+      itemReviewed: reviewsTable.itemReviewed,
+      adCreatives: reviewStatsTable.adCreatives,
+      countriesTargeted: reviewStatsTable.countriesTargeted,
+      daysActive: reviewStatsTable.daysActive,
+      celebritiesAbused: reviewStatsTable.celebritiesAbused,
+      weeklyVelocity: reviewStatsTable.weeklyVelocity,
+      firstDetected: reviewStatsTable.firstDetected,
+      lastActive: reviewStatsTable.lastActive,
+      celebrityNames: reviewStatsTable.celebrityNames,
+    })
+    .from(reviewsTable)
+    .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+    .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
+    .where(eq(reviewsTable.id, translationRow.reviewId));
+
+  if (!masterRow) {
+    // Orphan translation — master deleted. Should not happen under normal
+    // sync (translations are wiped when the master is re-synced), but defend
+    // against it.
+    res.status(404).json({ error: "Master review not found" });
+    return;
+  }
+
+  const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, siblings] = await Promise.all([
+    db.select().from(funnelStagesTable).where(eq(funnelStagesTable.reviewId, masterRow.id)).orderBy(asc(funnelStagesTable.stageNumber)),
+    db.select().from(redFlagsTable).where(eq(redFlagsTable.reviewId, masterRow.id)).orderBy(asc(redFlagsTable.orderIndex)),
+    db.select().from(faqItemsTable).where(eq(faqItemsTable.reviewId, masterRow.id)).orderBy(asc(faqItemsTable.orderIndex)),
+    db.select().from(keyFindingsTable).where(eq(keyFindingsTable.reviewId, masterRow.id)).orderBy(asc(keyFindingsTable.orderIndex)),
+    db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, masterRow.id)).orderBy(asc(geoTargetsTable.orderIndex)),
+    db
+      .select({
+        locale: reviewTranslationsTable.locale,
+        slug: reviewTranslationsTable.slug,
+        status: reviewTranslationsTable.status,
+        title: reviewTranslationsTable.title,
+        translatorName: reviewTranslationsTable.translatorName,
+        translationMethod: reviewTranslationsTable.translationMethod,
+        publishedAt: reviewTranslationsTable.publishedAt,
+        sourceReviewUpdatedAt: reviewTranslationsTable.sourceReviewUpdatedAt,
+        updatedAt: reviewTranslationsTable.updatedAt,
+      })
+      .from(reviewTranslationsTable)
+      .where(
+        and(
+          eq(reviewTranslationsTable.reviewId, masterRow.id),
+          eq(reviewTranslationsTable.status, "published"),
+        ),
+      )
+      .orderBy(asc(reviewTranslationsTable.locale)),
+  ]);
+
+  const allCountryCodes = [...new Set(
+    geoTargets.flatMap(g =>
+      g.countryCodes.split(",").map(c => c.trim().toUpperCase()).filter(Boolean)
+    )
+  )];
+
+  const masterShell = {
+    ...masterRow,
+    investigationDate: masterRow.investigationDate?.toISOString() ?? "",
+    metaDescription: masterRow.metaDescription ?? "",
+    authorPersonaId: masterRow.authorPersonaId ?? null,
+    heroImageUrl: masterRow.heroImageUrl ?? null,
+    heroImageAlt: masterRow.heroImageAlt ?? null,
+    contentImages: Array.isArray(masterRow.contentImages) ? masterRow.contentImages : [],
+    visualMeta: Array.isArray(masterRow.visualMeta) ? masterRow.visualMeta : [],
+    protectionSteps: masterRow.protectionSteps ?? "",
+    sources: Array.isArray(masterRow.sources) ? masterRow.sources : [],
+    notForYou: masterRow.notForYou ?? "",
+    expertiseDepth: masterRow.expertiseDepth ?? "",
+    threatTier: masterRow.threatTier ?? null,
+    threatLabel: masterRow.threatLabel ?? null,
+    threatBadge: masterRow.threatBadge ?? null,
+    frameAsScam: masterRow.frameAsScam ?? false,
+    itemReviewed: masterRow.itemReviewed ?? null,
+    adCreatives: masterRow.adCreatives ?? 0,
+    countriesTargeted: masterRow.countriesTargeted ?? 0,
+    daysActive: masterRow.daysActive ?? 0,
+    celebritiesAbused: masterRow.celebritiesAbused ?? 0,
+    weeklyVelocity: masterRow.weeklyVelocity ?? 0,
+    firstDetected: masterRow.firstDetected ?? "",
+    lastActive: masterRow.lastActive ?? "",
+    celebrityNames: masterRow.celebrityNames ?? [],
+    allCountryCodes,
+    funnelStages: funnelStages.map(s => ({
+      stageNumber: s.stageNumber,
+      title: s.title,
+      description: s.description,
+      statValue: s.statValue,
+      statLabel: s.statLabel,
+      bullets: s.bullets,
+    })),
+    redFlags: redFlags.map(f => ({
+      emoji: f.emoji,
+      title: f.title,
+      description: f.description,
+      orderIndex: f.orderIndex,
+    })),
+    faqItems: faqItems.map(f => ({
+      question: f.question,
+      answer: f.answer,
+      orderIndex: f.orderIndex,
+    })),
+    keyFindings: keyFindings.map(f => ({
+      content: f.content,
+      orderIndex: f.orderIndex,
+    })),
+    geoTargets: geoTargets.map(g => ({
+      region: g.region,
+      countryCodes: g.countryCodes,
+      orderIndex: g.orderIndex,
+    })),
+    translations: siblings.map(t => ({
+      locale: t.locale,
+      slug: t.slug,
+      status: t.status,
+      title: t.title,
+      translatorName: t.translatorName,
+      translationMethod: t.translationMethod,
+      publishedAt: t.publishedAt?.toISOString() ?? null,
+      sourceReviewUpdatedAt: t.sourceReviewUpdatedAt?.toISOString() ?? null,
+      updatedAt: t.updatedAt.toISOString(),
+    })),
+  };
+
+  res.json({
+    locale: translationRow.locale,
+    slug: translationRow.slug,
+    status: translationRow.status,
+    title: translationRow.title,
+    metaDescription: translationRow.metaDescription,
+    headline: translationRow.headline,
+    alternativeHeadline: translationRow.alternativeHeadline,
+    summary: translationRow.summary,
+    verdict: translationRow.verdict,
+    howItWorks: translationRow.howItWorks,
+    fullArticle: translationRow.fullArticle,
+    redFlags: translationRow.redFlags ?? null,
+    faq: translationRow.faq ?? null,
+    keyTakeaways: translationRow.keyTakeaways ?? null,
+    notForYou: translationRow.notForYou,
+    protectionSteps: translationRow.protectionSteps,
+    methodology: translationRow.methodology,
+    disclaimer: translationRow.disclaimer,
+    expertiseDepth: translationRow.expertiseDepth,
+    translationMethod: translationRow.translationMethod,
+    translatorName: translationRow.translatorName,
+    translatorCredentials: translationRow.translatorCredentials,
+    aiModel: translationRow.aiModel,
+    aiPromptVersion: translationRow.aiPromptVersion,
+    reviewedAt: translationRow.reviewedAt?.toISOString() ?? null,
+    wordCount: translationRow.wordCount,
+    publishedAt: translationRow.publishedAt?.toISOString() ?? null,
+    sourceReviewUpdatedAt: translationRow.sourceReviewUpdatedAt?.toISOString() ?? null,
+    updatedAt: translationRow.updatedAt.toISOString(),
+    masterSlug: masterRow.slug,
+    master: masterShell,
+    siblingTranslations: masterShell.translations,
   });
 });
 
@@ -283,7 +551,8 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
 
   // drizzle.execute() shape varies by driver — handle both.
   const topicRows = (
-    (topicRowsRaw as unknown as { rows?: unknown[] }).rows ?? (topicRowsRaw as unknown[])
+    (topicRowsRaw as unknown as { rows?: unknown[] }).rows ??
+    (topicRowsRaw as unknown as unknown[])
   ) as Array<{ slug: string; last_updated: string | Date | null }>;
 
   const latestReviewDate = latestDates[0][0]?.latest;

@@ -1,5 +1,6 @@
 export * from "./platforms";
 export * from "./reviews";
+export * from "./review_translations";
 export * from "./review_stats";
 export * from "./red_flags";
 export * from "./funnel_stages";

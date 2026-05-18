@@ -22,6 +22,7 @@ import type {
   RelatedReview,
   ReportResult,
   ReviewFull,
+  ReviewFullTranslated,
   ReviewSummary,
   ScamReportPayload,
   SyncResult,
@@ -352,6 +353,109 @@ export function useGetRelatedReviews<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetRelatedReviewsQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the full translated review content joined with structural fields from the master (brand info, threat metadata, hero image, etc). 404 if no published translation exists for (locale, slug). Locale must be the BCP-47 canonical form (e.g. `pt-BR`, not `pt-br`).
+ * @summary Get a translated review by locale + per-locale slug
+ */
+export const getGetReviewTranslationUrl = (locale: string, slug: string) => {
+  return `/api/reviews/translations/${locale}/${slug}`;
+};
+
+export const getReviewTranslation = async (
+  locale: string,
+  slug: string,
+  options?: RequestInit,
+): Promise<ReviewFullTranslated> => {
+  return customFetch<ReviewFullTranslated>(
+    getGetReviewTranslationUrl(locale, slug),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetReviewTranslationQueryKey = (
+  locale: string,
+  slug: string,
+) => {
+  return [`/api/reviews/translations/${locale}/${slug}`] as const;
+};
+
+export const getGetReviewTranslationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReviewTranslation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  locale: string,
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReviewTranslation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetReviewTranslationQueryKey(locale, slug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getReviewTranslation>>
+  > = ({ signal }) =>
+    getReviewTranslation(locale, slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(locale && slug),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReviewTranslation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetReviewTranslationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReviewTranslation>>
+>;
+export type GetReviewTranslationQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a translated review by locale + per-locale slug
+ */
+
+export function useGetReviewTranslation<
+  TData = Awaited<ReturnType<typeof getReviewTranslation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  locale: string,
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReviewTranslation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetReviewTranslationQueryOptions(
+    locale,
+    slug,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

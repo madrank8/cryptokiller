@@ -57,6 +57,12 @@ export const GetReviewResponse = zod.object({
   wordCount: zod.number(),
   readingMinutes: zod.number(),
   author: zod.string(),
+  authorPersonaId: zod
+    .string()
+    .nullish()
+    .describe(
+      'Writer persona ID (e.g. \"webb\", \"nair\", \"ortiz\"). Resolves to a WRITER_PERSONAS entry on the client to render the byline and JSON-LD Person node from the same source. Null on pre-migration rows; client falls back to the legacy author field or the corporate default.',
+    ),
   adCreatives: zod.number(),
   countriesTargeted: zod.number(),
   daysActive: zod.number(),
@@ -223,6 +229,75 @@ export const GetReviewResponse = zod.object({
     .describe(
       "True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share\/embed\/copy strings must use hedged language when this is false.",
     ),
+  itemReviewed: zod
+    .object({
+      type: zod.enum([
+        "FinancialProduct",
+        "Service",
+        "SoftwareApplication",
+        "Organization",
+      ]),
+      name: zod.string(),
+      description: zod.string().nullish(),
+      url: zod.string().nullish(),
+      alternateName: zod.array(zod.string()).nullish(),
+      sameAs: zod.array(zod.string()).nullish(),
+    })
+    .describe(
+      "Writer-emitted typed entity for schema.org Review.itemReviewed. Stored as item_reviewed in Postgres; consumed by SSR and client JSON-LD.\n",
+    )
+    .nullish()
+    .describe(
+      "When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender).",
+    ),
+  translations: zod
+    .array(
+      zod
+        .object({
+          locale: zod
+            .string()
+            .describe(
+              "BCP-47 canonical-case locale (`it`, `es`, `de`, `fr`, `pt-BR`).",
+            ),
+          slug: zod
+            .string()
+            .describe("Per-locale slug (may differ from the master slug)."),
+          status: zod
+            .string()
+            .describe(
+              "Always `published` in this list — drafts\/unpublished are filtered server-side.",
+            ),
+          title: zod.string().nullish(),
+          translatorName: zod.string().nullish(),
+          translationMethod: zod
+            .string()
+            .nullish()
+            .describe(
+              "One of `ai_full`, `ai_assisted`, `human_only`. Free-form for forward compatibility.",
+            ),
+          publishedAt: zod
+            .string()
+            .nullish()
+            .describe(
+              "ISO-8601 timestamp when the translation was first published.",
+            ),
+          sourceReviewUpdatedAt: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of master.updatedAt at translation time. Compared against the live master updatedAt to detect staleness.",
+            ),
+          updatedAt: zod
+            .string()
+            .describe("ISO-8601 timestamp of last translation sync."),
+        })
+        .describe(
+          "Slim metadata describing a single published translation of a review. Returned in ReviewFull.translations[] so the master page can emit hreflang reciprocity, workTranslation @ids, and stale detection without round-tripping the full translated article.",
+        ),
+    )
+    .describe(
+      'Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible \"also-available-in\" affordance. Fetch full translated content via GET \/reviews\/translations\/{locale}\/{slug}. Empty array when no translations exist.',
+    ),
 });
 
 /**
@@ -243,6 +318,364 @@ export const GetRelatedReviewsResponseItem = zod.object({
 export const GetRelatedReviewsResponse = zod.array(
   GetRelatedReviewsResponseItem,
 );
+
+/**
+ * Returns the full translated review content joined with structural fields from the master (brand info, threat metadata, hero image, etc). 404 if no published translation exists for (locale, slug). Locale must be the BCP-47 canonical form (e.g. `pt-BR`, not `pt-br`).
+ * @summary Get a translated review by locale + per-locale slug
+ */
+export const GetReviewTranslationParams = zod.object({
+  locale: zod.coerce
+    .string()
+    .describe("BCP-47 locale code (`it`, `es`, `de`, `fr`, `pt-BR`)."),
+  slug: zod.coerce
+    .string()
+    .describe("Per-locale slug for the translation (may differ from master)."),
+});
+
+export const GetReviewTranslationResponse = zod
+  .object({
+    locale: zod.string().describe("BCP-47 canonical-case locale."),
+    slug: zod.string().describe("Per-locale slug (the URL segment)."),
+    status: zod.string(),
+    title: zod.string().nullish(),
+    metaDescription: zod.string().nullish(),
+    headline: zod.string().nullish(),
+    alternativeHeadline: zod.string().nullish(),
+    summary: zod.string().nullish(),
+    verdict: zod.string().nullish(),
+    howItWorks: zod.string().nullish(),
+    fullArticle: zod.string().nullish(),
+    redFlags: zod
+      .array(zod.object({}).passthrough())
+      .nullish()
+      .describe(
+        "Translator-provided red flags. Items may use either `{flag, detail}` or `{title, description}` keys — the client renders both shapes.",
+      ),
+    faq: zod.array(zod.object({}).passthrough()).nullish(),
+    keyTakeaways: zod.array(zod.string()).nullish(),
+    notForYou: zod.string().nullish(),
+    protectionSteps: zod.string().nullish(),
+    methodology: zod.string().nullish(),
+    disclaimer: zod.string().nullish(),
+    expertiseDepth: zod.string().nullish(),
+    translationMethod: zod.string().nullish(),
+    translatorName: zod.string().nullish(),
+    translatorCredentials: zod.string().nullish(),
+    aiModel: zod.string().nullish(),
+    aiPromptVersion: zod.string().nullish(),
+    reviewedAt: zod.string().nullish(),
+    wordCount: zod.number().nullish(),
+    publishedAt: zod.string().nullish(),
+    sourceReviewUpdatedAt: zod.string().nullish(),
+    updatedAt: zod.string(),
+    masterSlug: zod.string(),
+    master: zod.object({
+      id: zod.number(),
+      slug: zod.string(),
+      platformName: zod.string(),
+      threatScore: zod.number(),
+      verdict: zod.string(),
+      status: zod.string(),
+      summary: zod.string(),
+      heroDescription: zod.string(),
+      warningCallout: zod.string(),
+      investigationDate: zod.string(),
+      methodologyText: zod.string(),
+      disclaimerText: zod.string(),
+      metaDescription: zod.string(),
+      wordCount: zod.number(),
+      readingMinutes: zod.number(),
+      author: zod.string(),
+      authorPersonaId: zod
+        .string()
+        .nullish()
+        .describe(
+          'Writer persona ID (e.g. \"webb\", \"nair\", \"ortiz\"). Resolves to a WRITER_PERSONAS entry on the client to render the byline and JSON-LD Person node from the same source. Null on pre-migration rows; client falls back to the legacy author field or the corporate default.',
+        ),
+      adCreatives: zod.number(),
+      countriesTargeted: zod.number(),
+      daysActive: zod.number(),
+      celebritiesAbused: zod.number(),
+      weeklyVelocity: zod.number(),
+      firstDetected: zod.string(),
+      lastActive: zod.string(),
+      funnelStages: zod.array(
+        zod.object({
+          stageNumber: zod.number(),
+          title: zod.string(),
+          description: zod.string(),
+          statValue: zod.string(),
+          statLabel: zod.string(),
+          bullets: zod.array(zod.string()),
+        }),
+      ),
+      redFlags: zod.array(
+        zod.object({
+          emoji: zod.string(),
+          title: zod.string(),
+          description: zod.string(),
+          orderIndex: zod.number(),
+        }),
+      ),
+      faqItems: zod.array(
+        zod.object({
+          question: zod.string(),
+          answer: zod.string(),
+          orderIndex: zod.number(),
+        }),
+      ),
+      keyFindings: zod.array(
+        zod.object({
+          content: zod.string(),
+          orderIndex: zod.number(),
+        }),
+      ),
+      geoTargets: zod.array(
+        zod.object({
+          region: zod.string(),
+          countryCodes: zod.string(),
+          orderIndex: zod.number(),
+        }),
+      ),
+      celebrityNames: zod.array(zod.string()),
+      allCountryCodes: zod.array(zod.string()),
+      heroImageUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          "Top-of-page hero image URL. Null when the polish pipeline has not produced one yet.",
+        ),
+      heroImageAlt: zod
+        .string()
+        .nullish()
+        .describe("Accessibility text for the hero image."),
+      contentImages: zod
+        .array(
+          zod
+            .object({
+              url: zod.string(),
+              alt: zod.string(),
+              credit: zod.string().nullish(),
+              creditUrl: zod.string().nullish(),
+              placement: zod
+                .string()
+                .nullish()
+                .describe(
+                  'Section anchor identifier (e.g. \"section-1\", \"section-2\")',
+                ),
+            })
+            .describe(
+              "Inline image placed between review sections. Populated by the admin polish pipeline (Imagen) and referenced from rich content sections on the review page.\n",
+            ),
+        )
+        .describe("Inline section images placed between content blocks."),
+      visualMeta: zod
+        .array(
+          zod
+            .object({
+              type: zod.enum(["IMAGE", "CHART", "DIAGRAM", "INFOGRAPHIC"]),
+              url: zod.string().nullish(),
+              altText: zod.string(),
+              description: zod.string(),
+              succeeded: zod.boolean(),
+              originalType: zod.string().optional(),
+              width: zod.number().nullish(),
+              height: zod.number().nullish(),
+            })
+            .describe(
+              "Polish-pipeline visual placeholder resolved to a chart, diagram, or infographic. Items where succeeded=false were never resolved by the pipeline and are skipped when rendering.\n",
+            ),
+        )
+        .describe(
+          "Chart\/diagram\/infographic metadata. Only succeeded=true entries are rendered.",
+        ),
+      protectionSteps: zod
+        .string()
+        .describe(
+          "Victim next-steps content. May be empty before the polish pipeline runs.",
+        ),
+      sources: zod
+        .array(
+          zod
+            .object({
+              title: zod.string(),
+              url: zod.string(),
+              type: zod
+                .string()
+                .optional()
+                .describe(
+                  "Free-form; in practice one of regulatory | news | investigation | research | primary | government | consumer_protection",
+                ),
+              accessed_date: zod.string().optional(),
+              authors: zod.array(zod.string()).optional(),
+              publisher: zod.string().optional(),
+              date: zod.string().optional(),
+            })
+            .describe(
+              "Typed citation entry shown in the review's Sources section and on the JSON-LD Review@graph citation[] property.\n",
+            ),
+        )
+        .describe(
+          "Typed citations shown in the Sources section and mirrored on the JSON-LD citation[].",
+        ),
+      notForYou: zod
+        .string()
+        .describe(
+          "'This review may not apply if...' qualifier surfaced as a safety-net aside.",
+        ),
+      expertiseDepth: zod
+        .string()
+        .describe(
+          "YMYL author expertise block demonstrating first-hand domain knowledge.",
+        ),
+      threatTier: zod
+        .union([
+          zod.literal("confirmed"),
+          zod.literal("high"),
+          zod.literal("elevated"),
+          zod.literal("watchlist"),
+          zod.literal("low"),
+          zod.literal(null),
+        ])
+        .nullish()
+        .describe(
+          "Severity tier from classifyThreat() on the Vercel side (source of truth lib\/threat-score.js). Drives the H1\/title label and all declarative-scam language gating on the client. Null for reviews synced before migration 0003, in which case the client should fall back to deriving a tier from threatScore.",
+        ),
+      threatLabel: zod
+        .string()
+        .nullish()
+        .describe(
+          'Human-readable tier label shown in the severity chip (\"Confirmed Scam\", \"Low Signal\", etc). Paired with threatBadge.',
+        ),
+      threatBadge: zod
+        .string()
+        .nullish()
+        .describe(
+          'Short uppercase badge text (\"SCAM\", \"CAUTION\", \"WATCHLIST\", \"LOW\").',
+        ),
+      frameAsScam: zod
+        .boolean()
+        .describe(
+          "True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share\/embed\/copy strings must use hedged language when this is false.",
+        ),
+      itemReviewed: zod
+        .object({
+          type: zod.enum([
+            "FinancialProduct",
+            "Service",
+            "SoftwareApplication",
+            "Organization",
+          ]),
+          name: zod.string(),
+          description: zod.string().nullish(),
+          url: zod.string().nullish(),
+          alternateName: zod.array(zod.string()).nullish(),
+          sameAs: zod.array(zod.string()).nullish(),
+        })
+        .describe(
+          "Writer-emitted typed entity for schema.org Review.itemReviewed. Stored as item_reviewed in Postgres; consumed by SSR and client JSON-LD.\n",
+        )
+        .nullish()
+        .describe(
+          "When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender).",
+        ),
+      translations: zod
+        .array(
+          zod
+            .object({
+              locale: zod
+                .string()
+                .describe(
+                  "BCP-47 canonical-case locale (`it`, `es`, `de`, `fr`, `pt-BR`).",
+                ),
+              slug: zod
+                .string()
+                .describe("Per-locale slug (may differ from the master slug)."),
+              status: zod
+                .string()
+                .describe(
+                  "Always `published` in this list — drafts\/unpublished are filtered server-side.",
+                ),
+              title: zod.string().nullish(),
+              translatorName: zod.string().nullish(),
+              translationMethod: zod
+                .string()
+                .nullish()
+                .describe(
+                  "One of `ai_full`, `ai_assisted`, `human_only`. Free-form for forward compatibility.",
+                ),
+              publishedAt: zod
+                .string()
+                .nullish()
+                .describe(
+                  "ISO-8601 timestamp when the translation was first published.",
+                ),
+              sourceReviewUpdatedAt: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Snapshot of master.updatedAt at translation time. Compared against the live master updatedAt to detect staleness.",
+                ),
+              updatedAt: zod
+                .string()
+                .describe("ISO-8601 timestamp of last translation sync."),
+            })
+            .describe(
+              "Slim metadata describing a single published translation of a review. Returned in ReviewFull.translations[] so the master page can emit hreflang reciprocity, workTranslation @ids, and stale detection without round-tripping the full translated article.",
+            ),
+        )
+        .describe(
+          'Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible \"also-available-in\" affordance. Fetch full translated content via GET \/reviews\/translations\/{locale}\/{slug}. Empty array when no translations exist.',
+        ),
+    }),
+    siblingTranslations: zod.array(
+      zod
+        .object({
+          locale: zod
+            .string()
+            .describe(
+              "BCP-47 canonical-case locale (`it`, `es`, `de`, `fr`, `pt-BR`).",
+            ),
+          slug: zod
+            .string()
+            .describe("Per-locale slug (may differ from the master slug)."),
+          status: zod
+            .string()
+            .describe(
+              "Always `published` in this list — drafts\/unpublished are filtered server-side.",
+            ),
+          title: zod.string().nullish(),
+          translatorName: zod.string().nullish(),
+          translationMethod: zod
+            .string()
+            .nullish()
+            .describe(
+              "One of `ai_full`, `ai_assisted`, `human_only`. Free-form for forward compatibility.",
+            ),
+          publishedAt: zod
+            .string()
+            .nullish()
+            .describe(
+              "ISO-8601 timestamp when the translation was first published.",
+            ),
+          sourceReviewUpdatedAt: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of master.updatedAt at translation time. Compared against the live master updatedAt to detect staleness.",
+            ),
+          updatedAt: zod
+            .string()
+            .describe("ISO-8601 timestamp of last translation sync."),
+        })
+        .describe(
+          "Slim metadata describing a single published translation of a review. Returned in ReviewFull.translations[] so the master page can emit hreflang reciprocity, workTranslation @ids, and stale detection without round-tripping the full translated article.",
+        ),
+    ),
+  })
+  .describe(
+    "Full translated review. Content fields are the locale-specific text; structural\/identity fields (master\*) are inherited from the English master so the translation page can render brand info, threat score, hero image, dates, etc. consistently.",
+  );
 
 /**
  * @summary Submit a scam report

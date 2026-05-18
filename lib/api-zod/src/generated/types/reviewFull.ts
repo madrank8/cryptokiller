@@ -12,7 +12,9 @@ import type { GeoTarget } from "./geoTarget";
 import type { KeyFinding } from "./keyFinding";
 import type { RedFlag } from "./redFlag";
 import type { ReviewFullThreatTier } from "./reviewFullThreatTier";
+import type { ReviewItemReviewed } from "./reviewItemReviewed";
 import type { ReviewSource } from "./reviewSource";
+import type { ReviewTranslationSummary } from "./reviewTranslationSummary";
 import type { VisualMeta } from "./visualMeta";
 
 export interface ReviewFull {
@@ -32,6 +34,8 @@ export interface ReviewFull {
   wordCount: number;
   readingMinutes: number;
   author: string;
+  /** Writer persona ID (e.g. "webb", "nair", "ortiz"). Resolves to a WRITER_PERSONAS entry on the client to render the byline and JSON-LD Person node from the same source. Null on pre-migration rows; client falls back to the legacy author field or the corporate default. */
+  authorPersonaId?: string | null;
   adCreatives: number;
   countriesTargeted: number;
   daysActive: number;
@@ -70,4 +74,8 @@ export interface ReviewFull {
   threatBadge?: string | null;
   /** True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share/embed/copy strings must use hedged language when this is false. */
   frameAsScam: boolean;
+  /** When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender). */
+  itemReviewed?: ReviewItemReviewed | null;
+  /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
+  translations: ReviewTranslationSummary[];
 }
