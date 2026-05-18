@@ -10,6 +10,7 @@ import {
   keyFindingsTable,
   funnelStagesTable,
   platformAggregatesTable,
+  reviewTranslationsTable,
 } from "@workspace/db";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
@@ -643,7 +644,73 @@ function datasetJsonAlignedWithReviewStats(
   return d;
 }
 
-async function renderReview(slug: string): Promise<RenderResult> {
+// Locale allowlist for translation rendering. Must stay in lockstep with
+// the sync handler (api-server/src/routes/sync.ts), the API endpoint
+// (api-server/src/routes/reviews.ts), and the SPA router (src/App.tsx +
+// src/pages/ReviewPage.tsx). Values are BCP-47 canonical case — the URL
+// matcher below lowercases the segment and normalises pt-br → pt-BR.
+const TRANSLATION_LOCALE_CANONICAL: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-br": "pt-BR",
+};
+
+async function renderReview(
+  slug: string,
+  opts?: { locale?: string },
+): Promise<RenderResult> {
+  // When `opts.locale` is set, `slug` is the **per-locale** translation
+  // slug (e.g. `quantum-ai-it`), NOT the master slug. We resolve the
+  // translation row first by (locale, per-locale slug); that gives us
+  // the master `review_id` which we then use to load the structural row
+  // below. Looking up the master by the URL slug here would be wrong on
+  // two axes:
+  //   (a) The per-locale slug usually doesn't exist as a master slug,
+  //       so the master fetch would 404 even though the translation
+  //       exists.
+  //   (b) If it accidentally did exist as a master slug (slug collision
+  //       across the two tables), we'd render the wrong review with
+  //       translated overlay on top — silent content corruption.
+  // The translation row is also captured here so the overlay block
+  // further down doesn't need to re-fetch it.
+  let translationRow:
+    | typeof reviewTranslationsTable.$inferSelect
+    | null = null;
+  let masterSlug = slug;
+  if (opts?.locale) {
+    const [tx] = await db
+      .select()
+      .from(reviewTranslationsTable)
+      .where(
+        and(
+          eq(reviewTranslationsTable.locale, opts.locale),
+          eq(reviewTranslationsTable.slug, slug),
+          eq(reviewTranslationsTable.status, "published"),
+        ),
+      )
+      .limit(1);
+    if (!tx) {
+      const urlLocale = opts.locale.toLowerCase();
+      return renderNotFound(`/${urlLocale}/review/${slug}`);
+    }
+    translationRow = tx;
+    const [masterRef] = await db
+      .select({ slug: reviewsTable.slug })
+      .from(reviewsTable)
+      .where(eq(reviewsTable.id, tx.reviewId))
+      .limit(1);
+    if (!masterRef) {
+      // Orphan translation — master deleted between syncs. Should be
+      // impossible under normal sync (translations are wiped when the
+      // master is re-synced) but defend against it.
+      const urlLocale = opts.locale.toLowerCase();
+      return renderNotFound(`/${urlLocale}/review/${slug}`);
+    }
+    masterSlug = masterRef.slug;
+  }
+
   // `row` and the child-table arrays are reassigned below to substituted
   // copies after stat-token replacement; declared `let` for that reason.
   // eslint-disable-next-line prefer-const
@@ -714,10 +781,15 @@ async function renderReview(slug: string): Promise<RenderResult> {
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
-    .where(eq(reviewsTable.slug, slug))
+    .where(eq(reviewsTable.slug, masterSlug))
     .limit(1);
 
-  if (!row || row.status !== "published") return renderNotFound(`/review/${slug}`);
+  if (!row || row.status !== "published") {
+    // 404 URL string differs per dispatch so logs stay accurate.
+    const urlLocale = opts?.locale?.toLowerCase();
+    const notFoundPath = urlLocale ? `/${urlLocale}/review/${slug}` : `/review/${slug}`;
+    return renderNotFound(notFoundPath);
+  }
 
   // ── Fetch all narrative child tables in parallel. Each is an ordered
   //    list keyed by review_id. Prior to this change none of these were
@@ -791,6 +863,70 @@ async function renderReview(slug: string): Promise<RenderResult> {
   let dedupedFunnelStages = [..._funnelStagesByNumber.entries()]
     .sort(([a], [b]) => a - b)
     .map(([, fs]) => fs);
+
+  // ── Translation overlay ============================================
+  // Apply translated text fields onto `row` + the child arrays. The
+  // translation row itself was already fetched at the top of this
+  // function (so we could resolve the master slug from review_id) — we
+  // just use it here. Overlay runs BEFORE stat-token substitution so
+  // `{{stat:KEY}}` tokens embedded in translated prose get substituted on
+  // the same pass as English. Master structural fields (threatScore,
+  // dates, hero image, stats, geo, persona, schema enrichment) are left
+  // untouched — only user-visible text swaps.
+  //
+  // hreflang link tags, canonical URL, <html lang>, and JSON-LD
+  // inLanguage/workTranslation/translationOfWork are NOT updated in this
+  // phase — they remain pointed at the EN master. Phase 5 adds the SEO
+  // localisation pass.
+  if (translationRow) {
+    row = {
+      ...row,
+      summary: translationRow.summary ?? row.summary,
+      verdict: translationRow.verdict ?? row.verdict,
+      // Translations don't carry a separate heroDescription column — the
+      // translated `summary` doubles as the hero subtitle. Mirrors the
+      // CSR mapping in src/pages/ReviewPage.tsx::buildTranslatedReview.
+      heroDescription: translationRow.summary ?? row.heroDescription,
+      metaDescription: translationRow.metaDescription ?? row.metaDescription,
+      methodologyText: translationRow.methodology ?? row.methodologyText,
+      disclaimerText: translationRow.disclaimer ?? row.disclaimerText,
+      protectionSteps: translationRow.protectionSteps ?? row.protectionSteps,
+      notForYou: translationRow.notForYou ?? row.notForYou,
+      expertiseDepth: translationRow.expertiseDepth ?? row.expertiseDepth,
+      fullArticle: translationRow.fullArticle ?? row.fullArticle,
+      alternativeHeadline: translationRow.alternativeHeadline ?? row.alternativeHeadline,
+    };
+
+    // Translator-supplied JSON arrays override master structured rows
+    // when populated. Items may use either {flag, detail} or
+    // {title, description} keys — the OpenAPI contract allows both.
+    if (Array.isArray(translationRow.redFlags) && translationRow.redFlags.length > 0) {
+      redFlags = translationRow.redFlags.map((r) => {
+        const item = r as Record<string, unknown>;
+        return {
+          emoji: typeof item.emoji === "string" ? item.emoji : "⚠️",
+          title: typeof item.title === "string"
+            ? item.title
+            : (typeof item.flag === "string" ? item.flag : ""),
+          description: typeof item.description === "string"
+            ? item.description
+            : (typeof item.detail === "string" ? item.detail : ""),
+        };
+      });
+    }
+    if (Array.isArray(translationRow.faq) && translationRow.faq.length > 0) {
+      faqItems = translationRow.faq.map((f) => {
+        const item = f as Record<string, unknown>;
+        return {
+          question: typeof item.question === "string" ? item.question : "",
+          answer: typeof item.answer === "string" ? item.answer : "",
+        };
+      });
+    }
+    if (Array.isArray(translationRow.keyTakeaways) && translationRow.keyTakeaways.length > 0) {
+      keyFindings = translationRow.keyTakeaways.map((s) => ({ content: String(s) }));
+    }
+  }
 
   // ── Stat-token substitution =========================================
   // Producer side (Vercel writer pipeline) is being migrated to emit
@@ -2505,6 +2641,21 @@ export async function renderPage(rawPath: string): Promise<RenderResult> {
 
   const reviewMatch = cleaned.match(/^\/review\/([^/]+)$/);
   if (reviewMatch) return renderReview(decodeURIComponent(reviewMatch[1]));
+
+  // Locale-prefixed review routes — /it/review/:slug, /pt-br/review/:slug,
+  // etc. The URL segment is lowercase; we normalise to BCP-47 canonical
+  // case before forwarding to renderReview so the DB lookup (which stores
+  // canonical case in review_translations.locale) succeeds. Unsupported
+  // locale segments don't match this regex and fall through to NotFound.
+  const localeReviewMatch = cleaned.match(/^\/(it|es|de|fr|pt-br)\/review\/([^/]+)$/);
+  if (localeReviewMatch) {
+    const urlLocale = localeReviewMatch[1];
+    const canonicalLocale = TRANSLATION_LOCALE_CANONICAL[urlLocale];
+    return renderReview(
+      decodeURIComponent(localeReviewMatch[2]),
+      { locale: canonicalLocale },
+    );
+  }
 
   const blogMatch = cleaned.match(/^\/blog\/([^/]+)$/);
   if (blogMatch) return renderBlogPost(decodeURIComponent(blogMatch[1]));

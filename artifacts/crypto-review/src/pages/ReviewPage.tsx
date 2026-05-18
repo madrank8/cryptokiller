@@ -1,7 +1,86 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
-import { useGetReview, useGetRelatedReviews } from "@workspace/api-client-react";
-import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull } from "@workspace/api-client-react";
+import { useGetReview, useGetRelatedReviews, useGetReviewTranslation } from "@workspace/api-client-react";
+import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated } from "@workspace/api-client-react";
+
+// URL locale segment → BCP-47 canonical case. URLs use lowercase by
+// convention (`/pt-br/...`) but the DB, the API, the `<html lang>`
+// attribute, and the `hreflang`/`inLanguage` JSON-LD all expect canonical
+// case (`pt-BR`). Centralised here so the routing layer and the
+// SSR (server/prerender.ts) stay in lockstep.
+const LOCALE_URL_TO_CANONICAL: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-br": "pt-BR",
+};
+
+// Build a ReviewFull-shaped object from a translation response. The
+// translation endpoint returns translated text fields + a `master` shell
+// carrying every structural/identity field; we spread master first, then
+// override text fields where the translation provides a non-null value.
+// `redFlags` / `faq` / `keyTakeaways` JSON arrays from the translation,
+// when populated, replace the master's structured rows so the renderer
+// shows localised content; when null/empty, the master arrays are used as
+// a fallback so the page never has gaps mid-translation.
+function buildTranslatedReview(t: ReviewFullTranslated): ReviewFull {
+  // The master shell on the translated response mirrors the ReviewFull
+  // shape returned by GET /reviews/:slug — see artifacts/api-server/src/
+  // routes/reviews.ts `masterShell` construction. We treat it as such.
+  const m = (t as unknown as { master: ReviewFull }).master;
+
+  const overlaidRedFlags: RedFlag[] = Array.isArray(t.redFlags) && t.redFlags.length > 0
+    ? t.redFlags.map((r, i) => {
+        const item = r as Record<string, unknown>;
+        return {
+          emoji: typeof item.emoji === "string" ? item.emoji : "⚠️",
+          title: typeof item.title === "string"
+            ? item.title
+            : (typeof item.flag === "string" ? item.flag : ""),
+          description: typeof item.description === "string"
+            ? item.description
+            : (typeof item.detail === "string" ? item.detail : ""),
+          orderIndex: i,
+        };
+      })
+    : m.redFlags;
+
+  const overlaidFaq: FaqItem[] = Array.isArray(t.faq) && t.faq.length > 0
+    ? t.faq.map((f, i) => {
+        const item = f as Record<string, unknown>;
+        return {
+          question: typeof item.question === "string" ? item.question : "",
+          answer: typeof item.answer === "string" ? item.answer : "",
+          orderIndex: i,
+        };
+      })
+    : m.faqItems;
+
+  const overlaidKeyFindings: KeyFinding[] = Array.isArray(t.keyTakeaways) && t.keyTakeaways.length > 0
+    ? t.keyTakeaways.map((s, i) => ({ content: s, orderIndex: i }))
+    : m.keyFindings;
+
+  return {
+    ...m,
+    // Text fields — fall back to master when translation column is null
+    // (e.g. methodology/disclaimer often inherit from EN by editorial
+    // policy). The translation's `summary` doubles as the hero subtitle
+    // since translations don't carry a separate heroDescription field.
+    summary: t.summary ?? m.summary,
+    verdict: t.verdict ?? m.verdict,
+    heroDescription: t.summary ?? m.heroDescription,
+    metaDescription: t.metaDescription ?? m.metaDescription,
+    methodologyText: t.methodology ?? m.methodologyText,
+    disclaimerText: t.disclaimer ?? m.disclaimerText,
+    protectionSteps: t.protectionSteps ?? m.protectionSteps,
+    notForYou: t.notForYou ?? m.notForYou,
+    expertiseDepth: t.expertiseDepth ?? m.expertiseDepth,
+    redFlags: overlaidRedFlags,
+    faqItems: overlaidFaq,
+    keyFindings: overlaidKeyFindings,
+  };
+}
 import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   Shield, AlertTriangle, Flag, X, CheckCircle,
@@ -528,8 +607,31 @@ function NotFoundPage({ slug }: { slug: string }) {
   );
 }
 
-function ReviewContent({ slug }: { slug: string }) {
-  const { data: rawReview, isLoading, error } = useGetReview(slug);
+function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
+  // Dual data path: master review (no locale) vs translation overlay (locale
+  // present). Only one query is enabled at a time so we don't double-fetch.
+  // The translation hook hits GET /reviews/translations/:locale/:slug which
+  // returns the translated content + a full master shell in one response —
+  // we merge them into a ReviewFull-shaped object via buildTranslatedReview
+  // so the rest of this component renders identically regardless of source.
+  // React Query v5 types insist on `queryKey` in options, but orval-generated
+  // hooks compute and merge their own queryKey downstream — we only want to
+  // toggle `enabled`. A direct cast satisfies the strict type without
+  // perturbing the hook's return-type inference.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const masterQuery = useGetReview(slug, { query: { enabled: !locale } as any });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const translationQuery = useGetReviewTranslation(locale ?? "it", slug, { query: { enabled: !!locale } as any });
+
+  const rawReview = useMemo<ReviewFull | undefined>(() => {
+    if (locale) {
+      return translationQuery.data ? buildTranslatedReview(translationQuery.data) : undefined;
+    }
+    return masterQuery.data;
+  }, [locale, masterQuery.data, translationQuery.data]);
+
+  const isLoading = locale ? translationQuery.isLoading : masterQuery.isLoading;
+  const error = locale ? translationQuery.error : masterQuery.error;
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Replace `{{stat:KEY}}` tokens in prose with live values from
@@ -1449,7 +1551,32 @@ function ReviewContent({ slug }: { slug: string }) {
 }
 
 export default function ReviewPage() {
-  const params = useParams<{ slug?: string }>();
+  // Both routes (/review/:slug and /:locale/review/:slug) land here. The
+  // locale param is only present on the second route; when absent we render
+  // the EN master path. When present we validate against the allowlist and
+  // 404 unknown locales rather than silently rendering them — bad locale
+  // URLs should never be indexable.
+  const params = useParams<{ slug?: string; locale?: string }>();
   const slug = params.slug ?? "quantum-ai";
+  const urlLocale = params.locale?.toLowerCase();
+
+  if (urlLocale) {
+    const canonicalLocale = LOCALE_URL_TO_CANONICAL[urlLocale];
+    if (!canonicalLocale) {
+      // Unsupported locale segment — render the same in-page 404 used for
+      // missing review slugs.
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="text-center">
+            <AlertOctagon className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-white mb-2">Page Not Found</h1>
+            <p className="text-slate-400">Unsupported locale "{urlLocale}".</p>
+          </div>
+        </div>
+      );
+    }
+    return <ReviewContent slug={slug} locale={canonicalLocale} />;
+  }
+
   return <ReviewContent slug={slug} />;
 }

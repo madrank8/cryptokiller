@@ -27,6 +27,15 @@ function Router() {
       <Route path="/" component={() => <HomePage />} />
       <Route path="/investigations" component={() => <InvestigationsPage />} />
       <Route path="/review/:slug" component={() => <ReviewPage />} />
+      {/*
+        Locale-prefixed review routes. URL segment is lowercase
+        (`/pt-br/review/...`) but the DB and BCP-47 canonical form for the
+        Portuguese (Brazil) locale is `pt-BR` — the component normalises
+        the URL segment to canonical case before fetching. Unsupported
+        locales are caught by validation inside ReviewPage and fall
+        through to the NotFound render.
+      */}
+      <Route path="/:locale/review/:slug" component={() => <ReviewPage />} />
       <Route path="/blog" component={() => <BlogPage />} />
       <Route path="/blog/:slug" component={() => <BlogPostPage />} />
       <Route path="/report" component={() => <ReportPage />} />

@@ -324,6 +324,16 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     return;
   }
 
+  // Enforce master publication state. A published translation row whose
+  // master has been unpublished (status='draft' or anything ≠ 'published')
+  // must NOT leak via the translation URL — SSR's renderReview already
+  // 404s this case, so the API must match to avoid CSR/SSR divergence
+  // and silent exposure of unpublished review content.
+  if (masterRow.status !== "published") {
+    res.status(404).json({ error: "Master review not published" });
+    return;
+  }
+
   const [funnelStages, redFlags, faqItems, keyFindings, geoTargets, siblings] = await Promise.all([
     db.select().from(funnelStagesTable).where(eq(funnelStagesTable.reviewId, masterRow.id)).orderBy(asc(funnelStagesTable.stageNumber)),
     db.select().from(redFlagsTable).where(eq(redFlagsTable.reviewId, masterRow.id)).orderBy(asc(redFlagsTable.orderIndex)),
