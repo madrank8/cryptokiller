@@ -132,7 +132,7 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 | GET | `/api/reviews/:slug` | Full review data (all joins in one response) |
 | POST | `/api/reports` | Submit a scam report (no auth required) |
 | POST | `/api/sync/review` | Webhook: upsert a single review from Vercel CMS |
-| GET | `/api/sitemap.xml` | Dynamic sitemap with all static pages + published review slugs |
+| GET | `/api/sitemap.xml` | Dynamic sitemap with all static pages + published review slugs (also served at `/sitemap.xml` via 301 redirect from the crypto-review web server) |
 | POST | `/api/sync/supabase` | Bulk sync: pulls all brands + published reviews from Supabase |
 
 ### Data Pipeline

@@ -117,6 +117,15 @@ const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", true);
 
+// Convention: search engines and humans look for /sitemap.xml at the
+// site root. The canonical location is /api/sitemap.xml (built
+// dynamically from the DB, including all locale alternates). 301 here
+// preserves a single canonical URL while making the conventional path
+// work. Registered before static + SSR so neither intercepts it.
+app.get("/sitemap.xml", (_req: Request, res: Response) => {
+  res.redirect(301, "/api/sitemap.xml");
+});
+
 app.use(
   express.static(PUBLIC_DIR, {
     index: false,
