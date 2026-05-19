@@ -7,7 +7,6 @@ export * from "./funnel_stages";
 export * from "./faq_items";
 export * from "./key_findings";
 export * from "./geo_targets";
-export * from "./review_recent_ads";
 export * from "./scam_reports";
 export * from "./blog_posts";
 export * from "./platform_aggregates";

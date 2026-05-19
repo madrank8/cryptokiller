@@ -1314,8 +1314,9 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         </div>
 
         {/* RECENT ADS — first-hand investigation evidence (E-E-A-T).
-            Silently absent when the trailing-7d sample is empty or the
-            payload predates recent_ads_sample. */}
+            Live-derived per request from Supabase creatives matched by
+            first-token of normalized_offer (see getRecentAdsForBrand).
+            Silently absent when there are no matching scraped creatives. */}
         <RecentAdsGrid ads={review.recentAds ?? []} />
 
 
