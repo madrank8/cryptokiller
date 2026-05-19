@@ -129,7 +129,7 @@ function toRecentAd(c: CreativeRow, text: CreativeTextRow | undefined): RecentAd
 }
 
 /**
- * Live-derive up to 4 recent SpyOwl ad creatives for a brand, by querying the
+ * Live-derive up to 4 recent CryptoKiller ad creatives for a brand, by querying the
  * Supabase `creatives` table (joined with `creatives_with_text`) keyed off the
  * first token of `normalized_offer` (case-insensitive) against `brandName`.
  *

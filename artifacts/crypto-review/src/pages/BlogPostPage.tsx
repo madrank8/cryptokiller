@@ -273,9 +273,9 @@ export default function BlogPostPage() {
       ...(aboutNodes.length ? { about: aboutNodes } : {}),
       ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
       ...(citationNodes.length ? { citation: citationNodes } : {}),
-      // Tie the Article to its evidence base (SpyOwl Dataset) when present.
+      // Tie the Article to its evidence base (CryptoKiller Dataset) when present.
       // Use the same @id suffix buildDataset emits; do not drift.
-      ...(datasetNode ? { isBasedOn: { "@id": `${pageUrl}#spyowl-dataset` } } : {}),
+      ...(datasetNode ? { isBasedOn: { "@id": `${pageUrl}#cryptokiller-dataset` } } : {}),
       speakable: buildSpeakable(post.speakableSelectors),
     };
     graph.push(articleSchema);

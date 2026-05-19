@@ -298,9 +298,9 @@ function ThreatGauge({ score }: { score: number }) {
 }
 
 // ─── RecentAdsGrid ─────────────────────────────────────────────────────
-// Renders up to 4 SpyOwl ad creatives (live-derived in the API server from
+// Renders up to 4 CryptoKiller ad creatives (live-derived in the API server from
 // Supabase `creatives` by brand-name match) as a responsive grid of
-// metadata-only cards. SpyOwl exposes no image URLs, so the card visual
+// metadata-only cards. CryptoKiller exposes no image URLs, so the card visual
 // anchor is the offer name + named celebrities + ad copy + landing link
 // (a stronger E-E-A-T signal than a thumbnail). Section hides entirely
 // when the array is empty so brands with no scraped ads don't show a
@@ -332,7 +332,7 @@ function truncate(text: string, n: number): string {
 }
 
 // Protocol allowlist for any URL we render into an <a href>. Upstream data
-// is third-party-sourced (SpyOwl → Supabase → us); a malicious or malformed
+// is third-party-sourced (CryptoKiller → Supabase → us); a malicious or malformed
 // payload that smuggles a javascript: URL would otherwise turn the
 // "View archived ad" CTA into a click-to-execute vector. Returns null
 // for anything that isn't a valid http(s) URL.

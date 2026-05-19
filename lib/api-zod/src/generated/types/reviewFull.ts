@@ -83,6 +83,6 @@ export interface ReviewFull {
   itemReviewed?: ReviewItemReviewed | null;
   /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
   translations: ReviewTranslationSummary[];
-  /** Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
+  /** Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
   recentAds: RecentAd[];
 }

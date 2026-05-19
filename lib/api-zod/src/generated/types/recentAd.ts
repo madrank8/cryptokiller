@@ -7,7 +7,7 @@
  */
 
 /**
- * Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.
+ * Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.
  */
 export interface RecentAd {
   /** Supabase creative UUID; stable per ad creative and used as the row key. */
@@ -24,7 +24,7 @@ export interface RecentAd {
   isVideo: boolean;
   /** ISO-8601 timestamp of the most recent sighting in scraping. */
   lastSeenAt: string;
-  /** Number of times this creative has been observed by SpyOwl scrapers. */
+  /** Number of times this creative has been observed by CryptoKiller scrapers. */
   scrapeCount: number;
   /** Landing URL the creative drives to. */
   linkUrl?: string | null;

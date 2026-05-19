@@ -174,7 +174,7 @@ export interface ReviewTranslationSummary {
 }
 
 /**
- * Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.
+ * Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.
  */
 export interface RecentAd {
   /** Supabase creative UUID; stable per ad creative and used as the row key. */
@@ -191,7 +191,7 @@ export interface RecentAd {
   isVideo: boolean;
   /** ISO-8601 timestamp of the most recent sighting in scraping. */
   lastSeenAt: string;
-  /** Number of times this creative has been observed by SpyOwl scrapers. */
+  /** Number of times this creative has been observed by CryptoKiller scrapers. */
   scrapeCount: number;
   /** Landing URL the creative drives to. */
   linkUrl?: string | null;
@@ -266,7 +266,7 @@ export interface ReviewFull {
   itemReviewed?: ReviewItemReviewed | null;
   /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
   translations: ReviewTranslationSummary[];
-  /** Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
+  /** Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
   recentAds: RecentAd[];
 }
 

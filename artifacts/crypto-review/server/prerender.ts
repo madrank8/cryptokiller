@@ -646,13 +646,13 @@ function datasetJsonAlignedWithReviewStats(
   if (!dataset || typeof dataset !== "object") return dataset;
   const d = { ...(dataset as Record<string, unknown>) };
   const name = params.platformName.trim() || "this platform";
-  d.name = `SpyOwl ${name} Scam Intelligence Dataset`;
+  d.name = `CryptoKiller ${name} Scam Intelligence Dataset`;
   const ads = Number(params.adCreatives ?? 0) || 0;
   const countries = Number(params.countriesTargeted ?? 0) || 0;
   const days = Number(params.daysActive ?? 0) || 0;
   if (ads > 0 || countries > 0 || days > 0) {
     d.description =
-      `SpyOwl surveillance dataset for ${name}: ${ads} ad creatives across ${countries} countries over ${days} days.`;
+      `CryptoKiller surveillance dataset for ${name}: ${ads} ad creatives across ${countries} countries over ${days} days.`;
   }
   const start = toDatasetIsoDay(params.firstDetected);
   const end = toDatasetIsoDay(params.lastActive);
@@ -905,7 +905,7 @@ async function renderReview(
       .where(eq(funnelStagesTable.reviewId, row.id))
       .orderBy(asc(funnelStagesTable.stageNumber)),
     // recentAds — live-derived from Supabase by brand name match. Up to 4
-    // SpyOwl ad creatives in the trailing 7d (all-time fallback if empty).
+    // CryptoKiller ad creatives in the trailing 7d (all-time fallback if empty).
     // Rendered SSR so the evidence text (named celebrities, ad copy in
     // original language, landing URL) is in the HTML Google and AI
     // Overviews crawl. Empty array → section omitted.
@@ -1889,7 +1889,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     // when datasetNode actually rendered, so we never ship a dangling
     // isBasedOn pointing at a node the @graph doesn't contain.
     if (datasetNode) {
-      reviewNode.isBasedOn = { "@id": `${canonical}#spyowl-dataset` };
+      reviewNode.isBasedOn = { "@id": `${canonical}#cryptokiller-dataset` };
     }
     reviewNode.speakable = speakableSpec;
 
@@ -2181,10 +2181,10 @@ ${sourcesHtml}
     ...(aboutNodes.length ? { about: aboutNodes } : {}),
     ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
     ...(citationNodes.length ? { citation: citationNodes } : {}),
-    // Tie the Article to its evidence base (SpyOwl Dataset) when present.
+    // Tie the Article to its evidence base (CryptoKiller Dataset) when present.
     // Use the same @id suffix as buildDataset emits; do not drift — the
     // isBasedOn edge becomes dangling otherwise.
-    ...(datasetNode ? { isBasedOn: { "@id": `${canonical}#spyowl-dataset` } } : {}),
+    ...(datasetNode ? { isBasedOn: { "@id": `${canonical}#cryptokiller-dataset` } } : {}),
     speakable: buildSpeakable(row.speakableSelectors),
   };
 
@@ -2351,7 +2351,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           heading: "Our investigation approach",
           paragraphs: [
             "Every threat score is built from evidence that is either publicly observable (paid ads, landing pages, domain registration records, regulator bulletins) or directly submitted by victims under our reporting process. We do not include unverifiable rumours, unattributed forum posts, or competitor-sourced claims in any published investigation.",
-            "When we cite a regulator, we link to the specific bulletin — not a general warning page. When we quote an ad creative, we show the screenshot. When we cite a statistic about geographic reach or campaign duration, the number comes from our SpyOwl ad-surveillance platform, which scans paid advertising in 84+ countries continuously.",
+            "When we cite a regulator, we link to the specific bulletin — not a general warning page. When we quote an ad creative, we show the screenshot. When we cite a statistic about geographic reach or campaign duration, the number comes from our CryptoKiller ad-surveillance platform, which scans paid advertising in 84+ countries continuously.",
             "We publish under a model we call \"evidence-first, pay-to-remove-never\". If a brand disputes our findings, the only path to a correction is new evidence — which we will evaluate and publish a correction or full retraction for, if warranted. No brand has ever paid to have a review altered or removed, and no brand ever will.",
           ],
         },
@@ -2380,7 +2380,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "How do you decide which brands to investigate?",
           answer:
-            "Our SpyOwl ad-surveillance platform continuously scans paid advertising in 84+ countries. When a brand exceeds our threshold signals (ad volume, celebrity impersonation, jurisdictional targeting pattern, consumer-harm complaints), it enters our investigation queue. We also investigate brands reported to us directly through our reporting form.",
+            "Our CryptoKiller ad-surveillance platform continuously scans paid advertising in 84+ countries. When a brand exceeds our threshold signals (ad volume, celebrity impersonation, jurisdictional targeting pattern, consumer-harm complaints), it enters our investigation queue. We also investigate brands reported to us directly through our reporting form.",
         },
         {
           question: "Are your threat scores objective?",
@@ -2395,7 +2395,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "Can I submit a scam for investigation?",
           answer:
-            "Yes. Use the reporting form at /report. Reports are confidential — your identity is never shared publicly. We cross-reference submissions with our SpyOwl intelligence and open investigations when the evidence threshold is met.",
+            "Yes. Use the reporting form at /report. Reports are confidential — your identity is never shared publicly. We cross-reference submissions with our CryptoKiller intelligence and open investigations when the evidence threshold is met.",
         },
       ],
     }),
@@ -2427,7 +2427,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Where the evidence comes from",
           paragraphs: [
-            "The ad-creative evidence comes from SpyOwl, our proprietary ad-surveillance platform. SpyOwl continuously scans paid advertising on major ad networks in 84+ countries, capturing creative assets, landing-page destinations, and geographic targeting. SpyOwl data is collected from publicly visible advertising — we do not access private ad dashboards and we do not pay for data we are not entitled to see.",
+            "The ad-creative evidence comes from CryptoKiller, our proprietary ad-surveillance platform. CryptoKiller continuously scans paid advertising on major ad networks in 84+ countries, capturing creative assets, landing-page destinations, and geographic targeting. CryptoKiller data is collected from publicly visible advertising — we do not access private ad dashboards and we do not pay for data we are not entitled to see.",
             "Regulatory evidence comes directly from regulator bulletin pages. When we cite a regulator warning, we link to the specific bulletin. We do not cite \"the regulator said\" without linking the exact source.",
             "Funnel evidence is collected by our analysts through manual inspection of landing pages, deposit flows, and withdrawal processes — without depositing real funds. When real-money interaction is required to establish a finding (for example, documenting a withdrawal-block), we note that explicitly and limit our claims to what can be established without participation.",
             "Victim reports submitted through our /report form are cross-referenced with ad-surveillance data. We only incorporate a submitted claim into a published investigation when it is independently corroborated by at least one other evidence source.",
@@ -2444,7 +2444,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Editorial process",
           paragraphs: [
-            "Every investigation moves through five stages: automated detection (SpyOwl flags the brand), evidence collection (analyst gathers ad creatives, funnel screenshots, domain records, regulator bulletins), analysis and scoring (evidence is weighed against the six-category framework), human editorial review (a second analyst independently verifies the evidence and scoring), and publication (the investigation is published with a named byline).",
+            "Every investigation moves through five stages: automated detection (CryptoKiller flags the brand), evidence collection (analyst gathers ad creatives, funnel screenshots, domain records, regulator bulletins), analysis and scoring (evidence is weighed against the six-category framework), human editorial review (a second analyst independently verifies the evidence and scoring), and publication (the investigation is published with a named byline).",
             "Investigations are revisited when new evidence emerges — a new regulator warning, a domain change, a payment-processor update, or a victim report. When an update changes the threat score by more than 10 points, we republish with a change-log entry.",
             "No investigation is ever published without passing human editorial review. No investigation is ever unpublished without a documented reason. The full edit history of every published investigation is available on request.",
           ],
@@ -2476,7 +2476,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "How do you handle a brand that changes its domain or rebrands?",
           answer:
-            "We track brand identity through advertising creative, funnel infrastructure, and payment processing — not just domain names. When a known scam operation rebrands or moves to a new domain, we typically detect the continuation through SpyOwl ad-creative similarity and publish a new investigation with a cross-reference to the previous entity.",
+            "We track brand identity through advertising creative, funnel infrastructure, and payment processing — not just domain names. When a known scam operation rebrands or moves to a new domain, we typically detect the continuation through CryptoKiller ad-creative similarity and publish a new investigation with a cross-reference to the previous entity.",
         },
         {
           question: "Are your investigations peer-reviewed?",
@@ -2608,7 +2608,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn future victims, and build evidence for authorities.",
       h1: "Report a Crypto Scam",
       intro:
-        "Submit a confidential report to the CryptoKiller research team. Your identity is never shared publicly — we do not publish reporter names, email addresses, or any identifying details unless you explicitly request otherwise. Reports are cross-referenced with our SpyOwl ad-surveillance intelligence and feed directly into published investigations that warn future victims. This page explains what happens after you submit, what we do with the information, and what we cannot do.",
+        "Submit a confidential report to the CryptoKiller research team. Your identity is never shared publicly — we do not publish reporter names, email addresses, or any identifying details unless you explicitly request otherwise. Reports are cross-referenced with our CryptoKiller ad-surveillance intelligence and feed directly into published investigations that warn future victims. This page explains what happens after you submit, what we do with the information, and what we cannot do.",
       sections: [
         {
           heading: "What to include in a report",

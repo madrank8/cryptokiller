@@ -352,7 +352,7 @@ export const GetReviewResponse = zod.object({
           scrapeCount: zod
             .number()
             .describe(
-              "Number of times this creative has been observed by SpyOwl scrapers.",
+              "Number of times this creative has been observed by CryptoKiller scrapers.",
             ),
           linkUrl: zod
             .string()
@@ -370,11 +370,11 @@ export const GetReviewResponse = zod.object({
             .describe("Ad body copy (typically truncated by upstream)."),
         })
         .describe(
-          "Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
+          "Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
         ),
     )
     .describe(
-      "Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist.",
+      "Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist.",
     ),
 });
 
@@ -769,7 +769,7 @@ export const GetReviewTranslationResponse = zod
               scrapeCount: zod
                 .number()
                 .describe(
-                  "Number of times this creative has been observed by SpyOwl scrapers.",
+                  "Number of times this creative has been observed by CryptoKiller scrapers.",
                 ),
               linkUrl: zod
                 .string()
@@ -787,11 +787,11 @@ export const GetReviewTranslationResponse = zod
                 .describe("Ad body copy (typically truncated by upstream)."),
             })
             .describe(
-              "Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
+              "Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
             ),
         )
         .describe(
-          "Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist.",
+          "Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist.",
         ),
     }),
     siblingTranslations: zod.array(

@@ -1,0 +1,82 @@
+The product has been rebranded: we no longer use the name "SpyOwl" anywhere
+public-facing. The internal ad-surveillance system is now called "CryptoKiller".
+SpyOwl was a vendor name that should never have appeared on the live site.
+
+Vercel side is fully cleaned and resynced — your /api/reviews/[slug] response
+no longer contains the word "SpyOwl" for any of the 15 published reviews.
+Confirm yourself:
+
+    curl -sS https://cryptokiller.org/api/reviews/senvix | grep -ic spyowl
+    # Should print 0
+
+But these public surfaces still reference "SpyOwl" and need rewriting:
+
+╔═══ A. STATIC PAGE PROSE (hardcoded in your templates) ══════════════════╗
+
+  /methodology page (~6 mentions):
+  - "we typically detect the continuation through SpyOwl ad-creative similarity"
+  - "The ad-creative evidence comes from SpyOwl, our proprietary ad-surveillance platform. SpyOwl continuously scans..."
+  - "SpyOwl data is collected from publicly visible advertising"
+  - "automated detection (SpyOwl flags the brand)"
+
+  /about page (~5 mentions):
+  - FAQ answer: "Our SpyOwl ad-surveillance platform continuously scans paid advertising in 84+ countries..."
+  - "We cross-reference submissions with our SpyOwl intelligence"
+  - Same content also appears as visible page prose (not just JSON-LD)
+
+  Replace "SpyOwl" → "CryptoKiller" everywhere in these two page templates.
+  Where the phrasing was "Our SpyOwl ad-surveillance platform" or similar,
+  keep the same shape: "Our CryptoKiller ad-surveillance platform". The system
+  name is now "CryptoKiller" (one word). The brand/company is still
+  "Crypto Killer" (two words) — don't conflate them.
+
+╔═══ B. JS BUNDLE — hardcoded #spyowl-dataset fragment ════════════════════╗
+
+  Your JS bundle (currently /assets/index-BXPvAc57.js) still contains two
+  references to "#spyowl-dataset":
+
+    Dataset...{"@id":`${i}#spyowl-dataset`}
+    isBasedOn:{"@id":`${S}#spyowl-dataset`}
+
+  These appear to be in your blog schema builder (the review-side schema is
+  shipped from Vercel and is already correct). Find the source file
+  (probably src/lib/blogSchemaEnrichment.ts, src/lib/schemaBuilder.ts, or
+  similar) and replace the literal string "#spyowl-dataset" with
+  "#cryptokiller-dataset" — both occurrences.
+
+╔═══ C. STALE PRERENDERED HTML for /review/[slug] pages ═══════════════════╗
+
+  The SSR'd HTML for each review still contains the old @id fragment and
+  old dataset name (snapshot from before the Vercel rebrand):
+
+    "@id":"https://cryptokiller.org/review/senvix#spyowl-dataset"
+    "name":"SpyOwl Senvix Scam Intelligence Dataset"
+
+  Your component code reads the current data from your DB on hydration, so
+  the page renders correctly in a real browser — but crawlers and AI bots
+  that don't run JS see the stale prerender. Trigger a rebuild/regenerate
+  of the prerendered HTML for all 15 published reviews.
+
+  If you have a "revalidate" endpoint per route or a "rebuild all reviews"
+  task, run it. Otherwise a full deploy will refresh the prerender pass.
+
+VERIFICATION (run after deploy):
+
+  # A + C combined: should print 0 for every URL
+  for url in https://cryptokiller.org/ \
+             https://cryptokiller.org/methodology \
+             https://cryptokiller.org/about \
+             https://cryptokiller.org/review/senvix \
+             https://cryptokiller.org/review/whatsapp-ai ; do
+    echo -n "$url : "
+    curl -sS "$url?nocache=$(date +%s)" | grep -ic 'spyowl' 
+  done
+
+  # B: should print 0
+  curl -sS "$(curl -sS https://cryptokiller.org/ | grep -oE '/assets/index-[^"]+\.js' | head -1)" -w "\n" --output - \
+    | grep -ic 'spyowl'
+
+REPORT BACK:
+  1. Files you changed (paths)
+  2. The verification output (all lines must show 0)
+  3. Confirm prerendered HTML was regenerated

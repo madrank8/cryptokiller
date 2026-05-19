@@ -853,7 +853,7 @@ export function buildDataset(
   input: unknown,
   /**
    * Canonical review URL used to emit a stable `@id` in the form
-   * `${pageUrl}#spyowl-dataset`. This `@id` is the edge target for the
+   * `${pageUrl}#cryptokiller-dataset`. This `@id` is the edge target for the
    * Article's `isBasedOn` reference, so the suffix MUST stay in sync with
    * the one emitted by the caller (see prerender.ts / BlogPostPage.tsx).
    * Omit when unknown — the Dataset still emits, just without `@id`, and
@@ -910,7 +910,7 @@ export function buildDataset(
 
   return {
     "@type": "Dataset",
-    ...(pageUrl ? { "@id": `${pageUrl}#spyowl-dataset` } : {}),
+    ...(pageUrl ? { "@id": `${pageUrl}#cryptokiller-dataset` } : {}),
     name: d.name,
     description: d.description,
     ...(normalizedDatasetUrl ? { url: normalizedDatasetUrl } : {}),
@@ -923,7 +923,7 @@ export function buildDataset(
     ...(variableMeasured ? { variableMeasured } : {}),
     ...(spatialPlaces.length ? { spatialCoverage: spatialPlaces } : {}),
     ...(distribution ? { distribution } : {}),
-    // Creator: pass through upstream attribution (e.g. the SpyOwl research
+    // Creator: pass through upstream attribution (e.g. the CryptoKiller research
     // feed) when provided; fall back to CryptoKiller. Publisher always
     // resolves to CryptoKiller regardless — the Dataset is published by us.
     creator: d.creator ?? { "@id": `${BASE}/#organization` },
