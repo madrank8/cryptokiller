@@ -809,6 +809,8 @@ async function renderReview(
       // expertise-depth sections without extra round-trips.
       heroImageUrl: reviewsTable.heroImageUrl,
       heroImageAlt: reviewsTable.heroImageAlt,
+      heroImageCredit: reviewsTable.heroImageCredit,
+      headline: reviewsTable.headline,
       contentImages: reviewsTable.contentImages,
       visualMeta: reviewsTable.visualMeta,
       protectionSteps: reviewsTable.protectionSteps,
@@ -1342,7 +1344,7 @@ async function renderReview(
   // HTML stays clean for legacy reviews that haven't been re-synced yet.
 
   const heroImageHtml = row.heroImageUrl
-    ? `<figure class="review-hero"><img src="${esc(row.heroImageUrl)}" alt="${esc(row.heroImageAlt || platformName + ' scam investigation')}" loading="eager" fetchpriority="high" width="1200" height="630" /></figure>`
+    ? `<figure class="review-hero"><img src="${esc(row.heroImageUrl)}" alt="${esc(row.heroImageAlt || platformName + ' scam investigation')}" loading="eager" fetchpriority="high" width="1200" height="630" />${row.heroImageCredit ? `<figcaption class="review-hero-credit" style="font-size:12px;font-style:italic;color:#64748b;margin-top:6px">Credit: ${esc(row.heroImageCredit)}</figcaption>` : ""}</figure>`
     : "";
 
   const contentImages = Array.isArray(row.contentImages) ? row.contentImages : [];
@@ -1598,7 +1600,7 @@ ${recentAdsHtml}
       `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
-<h1>${esc(platformName)} ${headlineLabel}${scoreSuffix}</h1>
+<h1>${esc(row.headline || `${platformName} ${headlineLabel}${scoreSuffix}`)}</h1>
 ${translationDisclosureHtml}
 ${heroImageHtml}
 <p><strong>Verdict:</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>

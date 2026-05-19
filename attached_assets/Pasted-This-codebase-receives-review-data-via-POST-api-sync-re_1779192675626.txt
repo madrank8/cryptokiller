@@ -1,0 +1,81 @@
+This codebase receives review data via POST /api/sync/review from our Vercel
+admin app. The payload now includes two new fields that you are silently
+dropping. Currently:
+
+  curl -sS https://cryptokiller.org/api/reviews/senvix | jq 'keys | length'
+  46
+
+The keys array does not contain `headline` or `heroImageCredit` even though
+we just resynced all 15 published reviews and the upstream payload definitely
+includes them.
+
+For confirmation, you can sample a recent sync request body. The shape we send is
+a snake_case JSON object that now includes (among other fields):
+
+  {
+    "title": "Senvix Review: 50/100 Threat Score [2026]",
+    "headline": "Senvix Review: 7 Red Flags Exposed by SpyOwl Intelligence",
+    ...
+    "hero_image_url": "https://...",
+    "hero_image_alt": "...",
+    "hero_image_credit": "Crypto Killer / SpyOwl",
+    ...
+  }
+
+`title` and `hero_image_url` you already store. `headline` and
+`hero_image_credit` are new and currently lost.
+
+TASK: end-to-end add support for these two fields.
+
+A. STORAGE
+   1. Add columns/fields to your reviews table for:
+        - headline (text, nullable)
+        - hero_image_credit (text, nullable)
+      If you're on a typed schema (Drizzle/Prisma), update the schema file.
+      If raw SQL: write the migration and run it.
+
+B. SYNC HANDLER
+   2. In your POST /api/sync/review handler, accept these two new fields from
+      the request body and persist them on the review row. Snake_case in,
+      whatever your storage uses internally for output.
+
+C. PUBLIC API
+   3. In the GET /api/reviews/[slug] handler, include the new fields in the
+      response. Use camelCase to match the existing convention (the response
+      already has `heroImageUrl`, `heroImageAlt`, so use `headline` and
+      `heroImageCredit`).
+
+D. RENDER
+   4. On the review page template:
+      - `headline` is the visible H1. If `headline` is non-empty, render it
+        as the H1 at the top of the review. If empty/null, fall back to the
+        existing `title` field (which contains the SEO title). They are
+        intentionally distinct: `title` is for <title>/SEO, `headline` is
+        for the visible page heading.
+      - `heroImageCredit` is an attribution string. Render it as small
+        muted text directly below the hero image (e.g. "Credit:
+        {heroImageCredit}"). Only render if non-empty. CSS treatment:
+        small italicized caption style, low contrast.
+
+VERIFICATION (run after deploy):
+
+  curl -sS https://cryptokiller.org/api/reviews/senvix | jq '.headline, .heroImageCredit'
+
+Both should print non-empty strings. Then load https://cryptokiller.org/review/senvix
+in a browser:
+  - Page H1 should read "Senvix Review: 7 Red Flags Exposed by SpyOwl Intelligence"
+    (not the SEO title with "50/100 Threat Score [2026]")
+  - Hero image should have an attribution line beneath it
+
+Report back:
+  - Files changed (paths)
+  - Diff of each
+  - The verification curl output
+  - A screenshot or text confirmation of the H1 and image credit on /review/senvix
+
+Once all 15 published reviews are resynced from Vercel (already done — you'll
+receive new sync calls automatically next time the admin user clicks publish,
+or you can ask the admin to manually trigger /api/admin/reviews/[id]/sync),
+the new fields will be populated for all of them. Until then, only NEW syncs
+will carry the fields, but adding the storage now means future syncs land
+correctly.

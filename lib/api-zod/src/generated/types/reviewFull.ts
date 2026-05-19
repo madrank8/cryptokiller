@@ -55,6 +55,10 @@ export interface ReviewFull {
   heroImageUrl?: string | null;
   /** Accessibility text for the hero image. */
   heroImageAlt?: string | null;
+  /** Attribution string rendered as a small caption below the hero image. Null when no credit was supplied. */
+  heroImageCredit?: string | null;
+  /** Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty. */
+  headline?: string | null;
   /** Inline section images placed between content blocks. */
   contentImages: ContentImage[];
   /** Chart/diagram/infographic metadata. Only succeeded=true entries are rendered. */

@@ -1169,7 +1169,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         {/* HERO */}
         <div className="mb-10">
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white">{review.platformName}</h1>
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white">{review.headline || review.platformName}</h1>
             <Badge className="bg-red-600 text-white text-sm px-3 py-1.5 uppercase tracking-widest border-0 flex items-center gap-1.5 shrink-0">
               <ShieldAlert className="h-4 w-4" />
               CONFIRMED SCAM
@@ -1190,6 +1190,11 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
                 fetchPriority="high"
                 className="w-full h-auto"
               />
+              {review.heroImageCredit && (
+                <figcaption className="px-4 py-2 text-xs italic text-slate-500">
+                  Credit: {review.heroImageCredit}
+                </figcaption>
+              )}
             </figure>
           )}
 

@@ -527,6 +527,14 @@ components:
           type: string
           nullable: true
           description: Accessibility text for the hero image.
+        heroImageCredit:
+          type: string
+          nullable: true
+          description: Attribution string rendered as a small caption below the hero image. Null when no credit was supplied.
+        headline:
+          type: string
+          nullable: true
+          description: Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty.
         contentImages:
           type: array
           items:

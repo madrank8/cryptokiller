@@ -120,6 +120,18 @@ export const GetReviewResponse = zod.object({
     .string()
     .nullish()
     .describe("Accessibility text for the hero image."),
+  heroImageCredit: zod
+    .string()
+    .nullish()
+    .describe(
+      "Attribution string rendered as a small caption below the hero image. Null when no credit was supplied.",
+    ),
+  headline: zod
+    .string()
+    .nullish()
+    .describe(
+      "Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null\/empty.",
+    ),
   contentImages: zod
     .array(
       zod
@@ -525,6 +537,18 @@ export const GetReviewTranslationResponse = zod
         .string()
         .nullish()
         .describe("Accessibility text for the hero image."),
+      heroImageCredit: zod
+        .string()
+        .nullish()
+        .describe(
+          "Attribution string rendered as a small caption below the hero image. Null when no credit was supplied.",
+        ),
+      headline: zod
+        .string()
+        .nullish()
+        .describe(
+          "Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null\/empty.",
+        ),
       contentImages: zod
         .array(
           zod

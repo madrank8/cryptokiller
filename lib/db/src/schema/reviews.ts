@@ -136,6 +136,8 @@ export const reviewsTable = pgTable("reviews", {
   // this migration these were dropped silently by the sync webhook.
   heroImageUrl: text("hero_image_url"),
   heroImageAlt: text("hero_image_alt"),
+  heroImageCredit: text("hero_image_credit"),
+  headline: text("headline"),
   contentImages: jsonb("content_images").$type<ContentImage[]>().notNull().default([]),
   visualMeta: jsonb("visual_meta").$type<VisualMeta[]>().notNull().default([]),
   protectionSteps: text("protection_steps").notNull().default(""),
