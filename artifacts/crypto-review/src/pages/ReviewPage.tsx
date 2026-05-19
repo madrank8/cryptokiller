@@ -1561,17 +1561,6 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
             {/* WHAT TO DO */}
             <section>
               <SectionTitle icon={<CheckCircle className="h-6 w-6" />}>What To Do If You've Been Scammed</SectionTitle>
-              {/* PROTECTION STEPS — narrative next-steps content from the
-                  polish pipeline. When populated, precedes the generic action
-                  grid below with victim-specific guidance (time-sensitive
-                  chargeback windows, locale-specific reporting bodies, etc.). */}
-              {review.protectionSteps && (
-                <div className="mb-6 space-y-4">
-                  {review.protectionSteps.split("\n\n").map((para: string, i: number) => (
-                    <p key={i} className="text-slate-300 text-sm leading-relaxed">{para}</p>
-                  ))}
-                </div>
-              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { icon: <FileText className="h-5 w-5 text-blue-400" />, title: "Report to the FBI IC3", sub: "ic3.gov", bg: "bg-blue-500/10", border: "border-blue-900/30" },
@@ -1592,6 +1581,26 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
                 ))}
               </div>
             </section>
+
+            {/* PROTECTION STEPS — dedicated section with narrative next-steps
+                content from the polish pipeline (victim-specific guidance:
+                chargeback windows, locale-specific reporting bodies, etc.).
+                Mirrors the SSR section in server/prerender.ts so hydration
+                produces an identical tree. Skipped when null/empty. */}
+            {review.protectionSteps && (
+              <section aria-labelledby="protection-heading">
+                <SectionTitle icon={<CheckCircle className="h-6 w-6" />}>
+                  <span id="protection-heading">If you've been targeted by {review.platformName}</span>
+                </SectionTitle>
+                {review.protectionSteps
+                  .split(/\n+/)
+                  .map((p: string) => p.trim())
+                  .filter(Boolean)
+                  .map((para: string, i: number) => (
+                    <p key={i} className="text-slate-300 text-sm leading-relaxed mb-4">{para}</p>
+                  ))}
+              </section>
+            )}
 
             {/* FAQ */}
             {review.faqItems.length > 0 && (
