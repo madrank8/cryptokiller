@@ -10,13 +10,13 @@ import {
   faqItemsTable,
   keyFindingsTable,
   geoTargetsTable,
-  reviewRecentAdsTable,
   blogPostsTable,
   reviewTranslationsTable,
 } from "@workspace/db";
 import { LOCALE_HREFLANG as SITEMAP_LOCALE_HREFLANG } from "@workspace/i18n";
 import { logger } from "../lib/logger";
 import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
+import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
 
 const router: IRouter = Router();
 
@@ -123,7 +123,9 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     db.select().from(faqItemsTable).where(eq(faqItemsTable.reviewId, row.id)).orderBy(asc(faqItemsTable.orderIndex)),
     db.select().from(keyFindingsTable).where(eq(keyFindingsTable.reviewId, row.id)).orderBy(asc(keyFindingsTable.orderIndex)),
     db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, row.id)).orderBy(asc(geoTargetsTable.orderIndex)),
-    db.select().from(reviewRecentAdsTable).where(eq(reviewRecentAdsTable.reviewId, row.id)).orderBy(asc(reviewRecentAdsTable.orderIndex)),
+    // recentAds — live-derived from Supabase by brand name match. 5-min cache,
+    // 7d window with all-time fallback, LIMIT 4. See supabase-recent-ads.ts.
+    getRecentAdsForBrand(row.platformName),
     // Slim translation metadata — used by ReviewPage to emit hreflang link
     // tags, the JSON-LD workTranslation array, and the "also-available-in"
     // affordance. Full translated content is fetched separately via
@@ -221,21 +223,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       countryCodes: g.countryCodes,
       orderIndex: g.orderIndex,
     })),
-    recentAds: recentAds.map(a => ({
-      creativeId: a.creativeId,
-      offerName: a.offerName ?? null,
-      celebrityName: a.celebrityName ?? null,
-      geo: a.geo ?? null,
-      landLanguage: a.landLanguage ?? null,
-      isVideo: a.isVideo,
-      firstSeenAt: a.firstSeenAt?.toISOString() ?? null,
-      spyowlCreatedAt: a.spyowlCreatedAt?.toISOString() ?? null,
-      mainText: a.mainText ?? null,
-      linkText: a.linkText ?? null,
-      linkDomain: a.linkDomain ?? null,
-      postUrl: a.postUrl ?? null,
-      fpLink: a.fpLink ?? null,
-    })),
+    recentAds,
     translations: translations.map(t => ({
       locale: t.locale,
       slug: t.slug,
@@ -361,7 +349,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     db.select().from(faqItemsTable).where(eq(faqItemsTable.reviewId, masterRow.id)).orderBy(asc(faqItemsTable.orderIndex)),
     db.select().from(keyFindingsTable).where(eq(keyFindingsTable.reviewId, masterRow.id)).orderBy(asc(keyFindingsTable.orderIndex)),
     db.select().from(geoTargetsTable).where(eq(geoTargetsTable.reviewId, masterRow.id)).orderBy(asc(geoTargetsTable.orderIndex)),
-    db.select().from(reviewRecentAdsTable).where(eq(reviewRecentAdsTable.reviewId, masterRow.id)).orderBy(asc(reviewRecentAdsTable.orderIndex)),
+    getRecentAdsForBrand(masterRow.platformName),
     db
       .select({
         locale: reviewTranslationsTable.locale,
@@ -446,21 +434,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
       countryCodes: g.countryCodes,
       orderIndex: g.orderIndex,
     })),
-    recentAds: recentAds.map(a => ({
-      creativeId: a.creativeId,
-      offerName: a.offerName ?? null,
-      celebrityName: a.celebrityName ?? null,
-      geo: a.geo ?? null,
-      landLanguage: a.landLanguage ?? null,
-      isVideo: a.isVideo,
-      firstSeenAt: a.firstSeenAt?.toISOString() ?? null,
-      spyowlCreatedAt: a.spyowlCreatedAt?.toISOString() ?? null,
-      mainText: a.mainText ?? null,
-      linkText: a.linkText ?? null,
-      linkDomain: a.linkDomain ?? null,
-      postUrl: a.postUrl ?? null,
-      fpLink: a.fpLink ?? null,
-    })),
+    recentAds,
     translations: siblings.map(t => ({
       locale: t.locale,
       slug: t.slug,

@@ -7,32 +7,29 @@
  */
 
 /**
- * Single SpyOwl ad creative captured in the trailing-7-day window. Surfaces named celebrity + ad copy + landing domain + Facebook post link as first-hand investigation evidence (E-E-A-T signal). All optional fields may be null independently — the client renders whatever is present.
+ * Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.
  */
 export interface RecentAd {
-  /** SpyOwl-assigned ID; stable per ad creative and used as the row key. */
-  creativeId: string;
-  offerName?: string | null;
+  /** Supabase creative UUID; stable per ad creative and used as the row key. */
+  id: string;
+  /** Normalized offer name from Supabase (e.g. "Senvix", "Senvix Cristiano Ronaldo"). */
+  offer: string;
   /** Comma-separated list of named figures abused in the creative. */
-  celebrityName?: string | null;
-  /** ISO-3166-1 alpha-2 country code (e.g. "ES", "IT"). */
-  geo?: string | null;
+  celebrity?: string | null;
+  /** ISO-3166-1 alpha-2 country code (e.g. "ES", "IT", "CZ"). */
+  geo: string;
   /** BCP-47-ish language code of the landing page (e.g. "es", "it"). */
-  landLanguage?: string | null;
+  language?: string | null;
   /** True for video creatives, false for image/static. */
   isVideo: boolean;
-  /** ISO-8601 timestamp of first sighting on the platform. */
-  firstSeenAt?: string | null;
-  /** ISO-8601 timestamp SpyOwl recorded the creative. */
-  spyowlCreatedAt?: string | null;
-  /** Ad body copy (already upstream-truncated to ~280 chars). */
-  mainText?: string | null;
-  /** Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering. */
-  linkText?: string | null;
-  /** Bare domain of the landing URL. */
-  linkDomain?: string | null;
-  /** Facebook post permalink used by the "View Facebook post" CTA. */
+  /** ISO-8601 timestamp of the most recent sighting in scraping. */
+  lastSeenAt: string;
+  /** Number of times this creative has been observed by SpyOwl scrapers. */
+  scrapeCount: number;
+  /** Landing URL the creative drives to. */
+  linkUrl?: string | null;
+  /** Facebook post permalink used by the "View archived ad" CTA. */
   postUrl?: string | null;
-  /** Facebook page profile link for the advertiser. */
-  fpLink?: string | null;
+  /** Ad body copy (typically truncated by upstream). */
+  adCopy?: string | null;
 }

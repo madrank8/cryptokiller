@@ -1,0 +1,252 @@
+# Replit Handoff — Wire `recentAds` Live from Supabase
+
+**Context**
+- Production: `cryptokiller.org/review/:slug` (Replit). Admin: Vercel.
+- The "Ads scraped this week" / `recentAds` 4-card section is empty on `cryptokiller.org/review/senvix`.
+- Previous theory: Vercel's `/api/sync/review` sender wasn't pushing `recent_ads_sample[]`.
+- **Verified theory is wrong.** The `reviews` table in Supabase has **no** `recent_ads_sample`, `recent_ads`, `recentAds`, or similar column. Vercel cannot paint a field that doesn't exist. The right fix is to derive `recentAds` live in Replit from the `creatives` table — data is already there, fresh, and abundant.
+
+## Verified Supabase Facts (Project `rqyfuioazbdixflqngcs`)
+
+For brand `senvix`:
+- `scam_brands.slug = 'senvix'`, `normalized_name = 'Senvix'`
+- `scam_brands.total_creatives = 1134`, `velocity_7d = 21`, `last_synced_at = 2026-05-19 00:01 UTC`
+- Creatives matching first-token of `normalized_offer` (case-insensitive) in last 7 days: **1,310** rows. Plenty for 4 cards.
+- Sample matching `normalized_offer` values: `Senvix`, `SENVIX`, `Senvix Cristiano Ronaldo`, `Senvix Robert Benton`, `Projekt Senvix Andrej Babiš, Elon Musk`, `Senvix AI Ίλον Μασκ, Μπιλ Γκέιτς`.
+
+## Backend Spec — `/api/reviews/:slug`
+
+Stop returning `recentAds: []`. Derive it live from `creatives` joined to `creatives_with_text`. Match by **first token of `normalized_offer`** against `scam_brands.normalized_name` (case-insensitive). Do **not** use `LIKE '%brand%'` — it pulls in unrelated brands ("CalvenRidge SenvixTrust", "Krysenvoxen" = 197 false positives).
+
+### Query
+
+```sql
+-- $1 = scam_brands.normalized_name for the slug (e.g. 'Senvix')
+SELECT
+  c.id,
+  c.normalized_offer       AS offer,
+  NULLIF(c.celebrity_name, '') AS celebrity,
+  c.geo,
+  c.land_language          AS language,
+  c.is_video,
+  c.last_seen_at,
+  c.scrape_count,
+  cw.link_url,
+  cw.post_url,
+  NULLIF(cw.main_text, '') AS ad_copy
+FROM creatives c
+LEFT JOIN creatives_with_text cw ON cw.id = c.id
+WHERE LOWER(SPLIT_PART(c.normalized_offer, ' ', 1)) = LOWER($1)
+  AND c.last_seen_at >= NOW() - INTERVAL '7 days'
+ORDER BY c.last_seen_at DESC, c.scrape_count DESC NULLS LAST
+LIMIT 4;
+```
+
+If 0 rows in the last 7 days, fall back to the same query without the date filter (still `LIMIT 4`). Only return `[]` if the brand has truly zero matching creatives.
+
+### Response shape (camelCase, matches existing `recentAds` field name)
+
+```ts
+recentAds: Array<{
+  id: string;
+  offer: string;
+  celebrity: string | null;
+  geo: string;            // ISO-2, e.g. "CZ", "ES", "JP", "PL"
+  language: string | null;
+  isVideo: boolean;
+  lastSeenAt: string;     // ISO timestamp
+  scrapeCount: number;
+  linkUrl: string | null;
+  postUrl: string | null;
+  adCopy: string | null;
+}>
+```
+
+### Caching
+
+5-minute TTL on the join. Sync runs nightly, so anything tighter is wasted compute. Key on `slug`.
+
+## Frontend Spec — "Ads Scraped This Week" Section
+
+Lives under the Ad Velocity block on `/review/:slug`. Shows up to 4 cards in a responsive grid (1 col mobile, 2 col tablet, 4 col desktop). If `recentAds` is empty, hide the section entirely — do not show "no ads found" copy on a published review (it undermines the threat score).
+
+### Card data → display mapping
+
+| Display element     | Source                                        | Fallback                  |
+| ------------------- | --------------------------------------------- | ------------------------- |
+| Header label        | `isVideo ? "Video Ad" : "Image Ad"`           | "Ad Creative"             |
+| Geo badge           | `geo` flag emoji + ISO-2                      | "🌐 Global"                |
+| Celebrity tag       | `celebrity`                                   | hide if null              |
+| Offer title         | `offer` (truncate to 60 chars)                | "Senvix campaign"         |
+| Ad copy snippet     | `adCopy` (truncate to 140 chars)              | hide if null              |
+| Last seen           | "Seen `{relative time}`" from `lastSeenAt`    | "Recently active"         |
+| Scrape count badge  | `Scraped ${scrapeCount}×`, only if `≥ 5`      | hide                      |
+| External link       | `linkUrl || postUrl`                          | hide button if both null  |
+| Language code       | `language` shown as muted text                | hide if null              |
+
+Link button should be `rel="nofollow ugc noopener"` and `target="_blank"`. Never let an outbound to a scam landing page leak PageRank or open in the same tab.
+
+### React / TSX reference (Tailwind)
+
+Adapt class names to the actual design system; this is shape only.
+
+```tsx
+// components/RecentAdsSection.tsx
+import { formatDistanceToNow } from "date-fns";
+
+type RecentAd = {
+  id: string;
+  offer: string;
+  celebrity: string | null;
+  geo: string;
+  language: string | null;
+  isVideo: boolean;
+  lastSeenAt: string;
+  scrapeCount: number;
+  linkUrl: string | null;
+  postUrl: string | null;
+  adCopy: string | null;
+};
+
+const FLAG: Record<string, string> = {
+  CZ: "🇨🇿", ES: "🇪🇸", JP: "🇯🇵", PL: "🇵🇱", DE: "🇩🇪",
+  FR: "🇫🇷", IT: "🇮🇹", PT: "🇵🇹", BR: "🇧🇷", MX: "🇲🇽",
+  US: "🇺🇸", GB: "🇬🇧", GR: "🇬🇷", RO: "🇷🇴", HU: "🇭🇺",
+  SK: "🇸🇰", BG: "🇧🇬",
+};
+
+export function RecentAdsSection({
+  ads,
+  brandName,
+  velocity7d,
+}: {
+  ads: RecentAd[];
+  brandName: string;
+  velocity7d: number;
+}) {
+  if (!ads || ads.length === 0) return null;
+
+  return (
+    <section
+      aria-labelledby="recent-ads-heading"
+      className="my-12 rounded-2xl border border-red-900/40 bg-zinc-950/60 p-6"
+    >
+      <header className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <h2
+            id="recent-ads-heading"
+            className="text-xl font-semibold text-zinc-100"
+          >
+            Ads scraped this week
+          </h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            SpyOwl detected {velocity7d} new {brandName} creatives in the last
+            7 days. Four representative samples below.
+          </p>
+        </div>
+        <span className="hidden rounded-full bg-red-950/60 px-3 py-1 text-xs font-medium text-red-300 sm:inline">
+          Live · updates daily
+        </span>
+      </header>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {ads.map((ad) => (
+          <AdCard key={ad.id} ad={ad} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AdCard({ ad }: { ad: RecentAd }) {
+  const target = ad.linkUrl || ad.postUrl;
+  const flag = FLAG[ad.geo] ?? "🌐";
+  const seen = formatDistanceToNow(new Date(ad.lastSeenAt), {
+    addSuffix: true,
+  });
+
+  return (
+    <article className="group flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-red-700/60">
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <span className="rounded-md bg-zinc-800 px-2 py-0.5 font-medium uppercase tracking-wide text-zinc-300">
+          {ad.isVideo ? "Video Ad" : "Image Ad"}
+        </span>
+        <span className="text-zinc-400" aria-label={`Geo: ${ad.geo}`}>
+          {flag} {ad.geo}
+        </span>
+      </div>
+
+      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-100">
+        {ad.offer}
+      </h3>
+
+      {ad.celebrity && (
+        <p className="mt-1 text-xs text-amber-300/90">
+          Impersonates {ad.celebrity}
+        </p>
+      )}
+
+      {ad.adCopy && (
+        <p className="mt-2 line-clamp-3 text-xs text-zinc-400">
+          "{ad.adCopy}"
+        </p>
+      )}
+
+      <div className="mt-auto pt-3">
+        <div className="flex items-center justify-between text-[11px] text-zinc-500">
+          <span>Seen {seen}</span>
+          {ad.scrapeCount >= 5 && <span>Scraped {ad.scrapeCount}×</span>}
+        </div>
+
+        {target && (
+          <a
+            href={target}
+            rel="nofollow ugc noopener"
+            target="_blank"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-red-400 hover:text-red-300"
+          >
+            View archived ad →
+          </a>
+        )}
+
+        {ad.language && (
+          <span className="ml-2 text-[10px] uppercase text-zinc-600">
+            {ad.language}
+          </span>
+        )}
+      </div>
+    </article>
+  );
+}
+```
+
+### Mount point
+
+In the review page template, after the existing Ad Velocity block:
+
+```tsx
+<RecentAdsSection
+  ads={review.recentAds}
+  brandName={review.platformName}
+  velocity7d={review.weeklyVelocity}
+/>
+```
+
+## Acceptance Criteria
+
+1. `curl -s https://cryptokiller.org/api/reviews/senvix | jq '.recentAds | length'` returns **4** (or up to 4, but never 0 for senvix given current data).
+2. `curl -s https://cryptokiller.org/api/reviews/senvix | jq '.recentAds[0]'` returns an object with all 11 fields in the shape above, camelCase.
+3. Visiting `https://cryptokiller.org/review/senvix` shows the "Ads scraped this week" section with 4 cards under Ad Velocity.
+4. Cards link out with `rel="nofollow ugc noopener" target="_blank"` — no PageRank leak.
+5. Section auto-hides on reviews where `recentAds.length === 0` (no "no ads" placeholder copy).
+6. Same code works for every other published review (no senvix-specific hardcoding) — the join is keyed off `scam_brands.normalized_name`.
+
+## Out of Scope
+
+- No Supabase schema migration. No new column on `reviews`.
+- No Vercel sender change. The Vercel admin webhook stays as-is.
+- No static round-trip paint script. Data is live.
+
+## Why This Path
+
+Validated against Supabase: 1,134 senvix creatives exist, 21 added in the last 7 days, last_seen yesterday. The data is already there. The previous architecture (Vercel pushes a snapshot of recent ads into `reviews.recent_ads_sample` on every sync) would have required (a) adding the column, (b) updating Vercel's sender, (c) triggering a re-sync, and (d) keeping it fresh on every new creative. Live derivation skips all four.

@@ -9,7 +9,6 @@ import {
   faqItemsTable,
   keyFindingsTable,
   funnelStagesTable,
-  reviewRecentAdsTable,
   platformAggregatesTable,
   reviewTranslationsTable,
 } from "@workspace/db";
@@ -51,6 +50,7 @@ import {
   type PlatformAggregatesForTokens,
 } from "../src/lib/platformStatTokens.js";
 import { sanitizeRichHtml } from "./html-sanitizer.js";
+import { getRecentAdsForBrand } from "./supabase-recent-ads.js";
 
 // Fetch the combined platform-aggregate snapshot used to substitute
 // {{platform_stat:KEY}} tokens on blog renders. Vercel-synced fields come
@@ -901,27 +901,12 @@ async function renderReview(
       .from(funnelStagesTable)
       .where(eq(funnelStagesTable.reviewId, row.id))
       .orderBy(asc(funnelStagesTable.stageNumber)),
-    // recent_ads_sample — up to 20 SpyOwl ad creatives captured in the
-    // trailing 7d. Rendered SSR so the evidence text (named celebrities,
-    // ad copy in original language, landing domain) is in the HTML Google
-    // and AI Overviews crawl. Empty array on legacy/no-activity reviews
-    // short-circuits to no section.
-    db
-      .select({
-        creativeId: reviewRecentAdsTable.creativeId,
-        celebrityName: reviewRecentAdsTable.celebrityName,
-        geo: reviewRecentAdsTable.geo,
-        landLanguage: reviewRecentAdsTable.landLanguage,
-        isVideo: reviewRecentAdsTable.isVideo,
-        firstSeenAt: reviewRecentAdsTable.firstSeenAt,
-        mainText: reviewRecentAdsTable.mainText,
-        linkText: reviewRecentAdsTable.linkText,
-        linkDomain: reviewRecentAdsTable.linkDomain,
-        postUrl: reviewRecentAdsTable.postUrl,
-      })
-      .from(reviewRecentAdsTable)
-      .where(eq(reviewRecentAdsTable.reviewId, row.id))
-      .orderBy(asc(reviewRecentAdsTable.orderIndex)),
+    // recentAds — live-derived from Supabase by brand name match. Up to 4
+    // SpyOwl ad creatives in the trailing 7d (all-time fallback if empty).
+    // Rendered SSR so the evidence text (named celebrities, ad copy in
+    // original language, landing URL) is in the HTML Google and AI
+    // Overviews crawl. Empty array → section omitted.
+    getRecentAdsForBrand(row.platformName),
   ]);
 
   // ── Defensive funnel_stages dedup ─────────────────────────────────────
@@ -1269,20 +1254,19 @@ async function renderReview(
     : "";
 
   // ── Recent ads grid (SSR mirror of <RecentAdsGrid> in ReviewPage.tsx) ──
-  // Filter the same cookie-consent boilerplate as the client, render the same
-  // metadata fields. Section omitted when no ads were captured in the window.
-  const COOKIE_BOILERPLATE_RE = /^(cookies from other companies|we use cookies|this (site|page) uses cookies|privacy and cookies|cookie (notice|policy|preferences))/i;
-  const isCookieBoilerplate = (t: string | null): boolean =>
-    !!t && COOKIE_BOILERPLATE_RE.test(t.trim());
+  // Consumes the new live-derived RecentAd shape from supabase-recent-ads.ts.
+  // Section omitted entirely when no ads matched the brand.
   const geoFlagSsr = (geo: string | null): string => {
     if (!geo || geo.length !== 2) return "";
     const code = geo.toUpperCase();
     if (!/^[A-Z]{2}$/.test(code)) return "";
     return String.fromCodePoint(0x1f1e6 + code.charCodeAt(0) - 65, 0x1f1e6 + code.charCodeAt(1) - 65);
   };
-  const daysAgoSsr = (iso: Date | null): string => {
+  const daysAgoSsr = (iso: string | null): string => {
     if (!iso) return "";
-    const days = Math.floor((Date.now() - iso.getTime()) / 86400000);
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return "";
+    const days = Math.floor((Date.now() - t) / 86400000);
     if (days <= 0) return "today";
     if (days === 1) return "1d ago";
     return `${days}d ago`;
@@ -1291,7 +1275,7 @@ async function renderReview(
     txt.length <= n ? txt : txt.slice(0, n).replace(/\s+\S*$/, "") + "…";
   // Same protocol allowlist as the CSR component (safeHttpUrl in ReviewPage.tsx).
   // Defends against a malicious upstream payload smuggling a javascript: URL into
-  // the "View Facebook post" CTA. Returns null when the href isn't safe http(s).
+  // any outbound CTA. Returns null when the href isn't safe http(s).
   const safeHttpUrlSsr = (raw: string | null): string | null => {
     if (!raw) return null;
     try {
@@ -1308,25 +1292,22 @@ async function renderReview(
         const cards = recentAds
           .map((ad) => {
             const flag = geoFlagSsr(ad.geo);
-            const fullText = (ad.mainText ?? "").trim();
+            const fullText = (ad.adCopy ?? "").trim();
             const cardText = fullText ? truncateSsr(fullText, 120) : "";
-            const showLinkText =
-              !isCookieBoilerplate(ad.linkText) && (ad.linkText ?? "").trim().length > 0;
-            const dateIso = ad.firstSeenAt ? ad.firstSeenAt.toISOString() : "";
             const parts: string[] = [];
             const meta: string[] = [];
             if (ad.geo) meta.push(`<span class="ra-geo"><span aria-hidden="true">${flag}</span> <strong>${esc(ad.geo)}</strong></span>`);
             meta.push(`<span class="ra-badge">${ad.isVideo ? "Video" : "Image"}</span>`);
-            if (ad.landLanguage) meta.push(`<span class="ra-badge ra-lang">${esc(ad.landLanguage)}</span>`);
-            if (dateIso) meta.push(`<time datetime="${esc(dateIso)}" class="ra-date">${esc(daysAgoSsr(ad.firstSeenAt))}</time>`);
+            if (ad.language) meta.push(`<span class="ra-badge ra-lang">${esc(ad.language)}</span>`);
+            meta.push(`<time datetime="${esc(ad.lastSeenAt)}" class="ra-date">${esc(daysAgoSsr(ad.lastSeenAt))}</time>`);
             parts.push(`<div class="ra-meta">${meta.join("")}</div>`);
-            if (ad.celebrityName) parts.push(`<div class="ra-celeb"><span aria-hidden="true">🎭 </span>${esc(ad.celebrityName)}</div>`);
+            parts.push(`<h3 class="ra-offer">${esc(truncateSsr(ad.offer, 60))}</h3>`);
+            if (ad.celebrity) parts.push(`<div class="ra-celeb"><span aria-hidden="true">🎭 </span>${esc(ad.celebrity)}</div>`);
             if (cardText) parts.push(`<p class="ra-copy" title="${esc(fullText)}">&ldquo;${esc(cardText)}&rdquo;</p>`);
-            if (showLinkText) parts.push(`<p class="ra-link-text">${esc(ad.linkText ?? "")}</p>`);
             const foot: string[] = [];
-            if (ad.linkDomain) foot.push(`<div class="ra-domain"><span aria-hidden="true">🔗 </span><code>${esc(ad.linkDomain)}</code></div>`);
-            const safePostUrl = safeHttpUrlSsr(ad.postUrl);
-            if (safePostUrl) foot.push(`<a href="${esc(safePostUrl)}" target="_blank" rel="nofollow noopener" class="ra-cta">View Facebook post <span aria-hidden="true">↗</span></a>`);
+            if (ad.scrapeCount >= 5) foot.push(`<span class="ra-scrapes">Scraped ${ad.scrapeCount}×</span>`);
+            const target = safeHttpUrlSsr(ad.linkUrl) ?? safeHttpUrlSsr(ad.postUrl);
+            if (target) foot.push(`<a href="${esc(target)}" target="_blank" rel="nofollow ugc noopener" class="ra-cta">View archived ad <span aria-hidden="true">→</span></a>`);
             if (foot.length) parts.push(`<div class="ra-foot">${foot.join("")}</div>`);
             return `<article class="recent-ad">${parts.join("")}</article>`;
           })

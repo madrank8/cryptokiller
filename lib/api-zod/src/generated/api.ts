@@ -302,13 +302,17 @@ export const GetReviewResponse = zod.object({
     .array(
       zod
         .object({
-          creativeId: zod
+          id: zod
             .string()
             .describe(
-              "SpyOwl-assigned ID; stable per ad creative and used as the row key.",
+              "Supabase creative UUID; stable per ad creative and used as the row key.",
             ),
-          offerName: zod.string().nullish(),
-          celebrityName: zod
+          offer: zod
+            .string()
+            .describe(
+              'Normalized offer name from Supabase (e.g. \"Senvix\", \"Senvix Cristiano Ronaldo\").',
+            ),
+          celebrity: zod
             .string()
             .nullish()
             .describe(
@@ -316,9 +320,10 @@ export const GetReviewResponse = zod.object({
             ),
           geo: zod
             .string()
-            .nullish()
-            .describe('ISO-3166-1 alpha-2 country code (e.g. \"ES\", \"IT\").'),
-          landLanguage: zod
+            .describe(
+              'ISO-3166-1 alpha-2 country code (e.g. \"ES\", \"IT\", \"CZ\").',
+            ),
+          language: zod
             .string()
             .nullish()
             .describe(
@@ -327,47 +332,37 @@ export const GetReviewResponse = zod.object({
           isVideo: zod
             .boolean()
             .describe("True for video creatives, false for image\/static."),
-          firstSeenAt: zod
+          lastSeenAt: zod
             .string()
-            .nullish()
-            .describe("ISO-8601 timestamp of first sighting on the platform."),
-          spyowlCreatedAt: zod
-            .string()
-            .nullish()
-            .describe("ISO-8601 timestamp SpyOwl recorded the creative."),
-          mainText: zod
-            .string()
-            .nullish()
             .describe(
-              "Ad body copy (already upstream-truncated to ~280 chars).",
+              "ISO-8601 timestamp of the most recent sighting in scraping.",
             ),
-          linkText: zod
-            .string()
-            .nullish()
+          scrapeCount: zod
+            .number()
             .describe(
-              "Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering.",
+              "Number of times this creative has been observed by SpyOwl scrapers.",
             ),
-          linkDomain: zod
+          linkUrl: zod
             .string()
             .nullish()
-            .describe("Bare domain of the landing URL."),
+            .describe("Landing URL the creative drives to."),
           postUrl: zod
             .string()
             .nullish()
             .describe(
-              'Facebook post permalink used by the \"View Facebook post\" CTA.',
+              'Facebook post permalink used by the \"View archived ad\" CTA.',
             ),
-          fpLink: zod
+          adCopy: zod
             .string()
             .nullish()
-            .describe("Facebook page profile link for the advertiser."),
+            .describe("Ad body copy (typically truncated by upstream)."),
         })
         .describe(
-          "Single SpyOwl ad creative captured in the trailing-7-day window. Surfaces named celebrity + ad copy + landing domain + Facebook post link as first-hand investigation evidence (E-E-A-T signal). All optional fields may be null independently — the client renders whatever is present.",
+          "Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
         ),
     )
     .describe(
-      "Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field.",
+      "Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist.",
     ),
 });
 
@@ -712,13 +707,17 @@ export const GetReviewTranslationResponse = zod
         .array(
           zod
             .object({
-              creativeId: zod
+              id: zod
                 .string()
                 .describe(
-                  "SpyOwl-assigned ID; stable per ad creative and used as the row key.",
+                  "Supabase creative UUID; stable per ad creative and used as the row key.",
                 ),
-              offerName: zod.string().nullish(),
-              celebrityName: zod
+              offer: zod
+                .string()
+                .describe(
+                  'Normalized offer name from Supabase (e.g. \"Senvix\", \"Senvix Cristiano Ronaldo\").',
+                ),
+              celebrity: zod
                 .string()
                 .nullish()
                 .describe(
@@ -726,11 +725,10 @@ export const GetReviewTranslationResponse = zod
                 ),
               geo: zod
                 .string()
-                .nullish()
                 .describe(
-                  'ISO-3166-1 alpha-2 country code (e.g. \"ES\", \"IT\").',
+                  'ISO-3166-1 alpha-2 country code (e.g. \"ES\", \"IT\", \"CZ\").',
                 ),
-              landLanguage: zod
+              language: zod
                 .string()
                 .nullish()
                 .describe(
@@ -739,49 +737,37 @@ export const GetReviewTranslationResponse = zod
               isVideo: zod
                 .boolean()
                 .describe("True for video creatives, false for image\/static."),
-              firstSeenAt: zod
+              lastSeenAt: zod
                 .string()
-                .nullish()
                 .describe(
-                  "ISO-8601 timestamp of first sighting on the platform.",
+                  "ISO-8601 timestamp of the most recent sighting in scraping.",
                 ),
-              spyowlCreatedAt: zod
-                .string()
-                .nullish()
-                .describe("ISO-8601 timestamp SpyOwl recorded the creative."),
-              mainText: zod
-                .string()
-                .nullish()
+              scrapeCount: zod
+                .number()
                 .describe(
-                  "Ad body copy (already upstream-truncated to ~280 chars).",
+                  "Number of times this creative has been observed by SpyOwl scrapers.",
                 ),
-              linkText: zod
+              linkUrl: zod
                 .string()
                 .nullish()
-                .describe(
-                  "Landing CTA text. May contain cookie-consent boilerplate that the client filters out before rendering.",
-                ),
-              linkDomain: zod
-                .string()
-                .nullish()
-                .describe("Bare domain of the landing URL."),
+                .describe("Landing URL the creative drives to."),
               postUrl: zod
                 .string()
                 .nullish()
                 .describe(
-                  'Facebook post permalink used by the \"View Facebook post\" CTA.',
+                  'Facebook post permalink used by the \"View archived ad\" CTA.',
                 ),
-              fpLink: zod
+              adCopy: zod
                 .string()
                 .nullish()
-                .describe("Facebook page profile link for the advertiser."),
+                .describe("Ad body copy (typically truncated by upstream)."),
             })
             .describe(
-              "Single SpyOwl ad creative captured in the trailing-7-day window. Surfaces named celebrity + ad copy + landing domain + Facebook post link as first-hand investigation evidence (E-E-A-T signal). All optional fields may be null independently — the client renders whatever is present.",
+              "Single SpyOwl ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
             ),
         )
         .describe(
-          "Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field.",
+          "Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist.",
         ),
     }),
     siblingTranslations: zod.array(

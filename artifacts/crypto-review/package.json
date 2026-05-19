@@ -14,6 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
     "@workspace/db": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "drizzle-orm": "catalog:",

@@ -298,18 +298,13 @@ function ThreatGauge({ score }: { score: number }) {
 }
 
 // ─── RecentAdsGrid ─────────────────────────────────────────────────────
-// Renders up to 20 SpyOwl ad creatives captured in the trailing 7d as a
-// responsive grid of metadata-only cards. SpyOwl exposes no image URLs,
-// so the card visual anchor is the original-language ad copy + named
-// celebrities + landing domain + Facebook post link (a stronger E-E-A-T
-// signal than a thumbnail). Section hides entirely when the array is
-// empty so legacy/no-activity reviews don't show a placeholder.
-const COOKIE_BOILERPLATE_RE = /^(cookies from other companies|we use cookies|this (site|page) uses cookies|privacy and cookies|cookie (notice|policy|preferences))/i;
-
-function isCookieBoilerplate(text: string | null | undefined): boolean {
-  if (!text) return false;
-  return COOKIE_BOILERPLATE_RE.test(text.trim());
-}
+// Renders up to 4 SpyOwl ad creatives (live-derived in the API server from
+// Supabase `creatives` by brand-name match) as a responsive grid of
+// metadata-only cards. SpyOwl exposes no image URLs, so the card visual
+// anchor is the offer name + named celebrities + ad copy + landing link
+// (a stronger E-E-A-T signal than a thumbnail). Section hides entirely
+// when the array is empty so brands with no scraped ads don't show a
+// placeholder.
 
 // ISO-3166-1 alpha-2 → Unicode regional-indicator flag emoji. Returns ""
 // for anything that isn't a 2-letter A-Z code.
@@ -337,9 +332,9 @@ function truncate(text: string, n: number): string {
 }
 
 // Protocol allowlist for any URL we render into an <a href>. Upstream data
-// is third-party-sourced (SpyOwl → Vercel → us); a malicious or malformed
+// is third-party-sourced (SpyOwl → Supabase → us); a malicious or malformed
 // payload that smuggles a javascript: URL would otherwise turn the
-// "View Facebook post" CTA into a click-to-execute vector. Returns null
+// "View archived ad" CTA into a click-to-execute vector. Returns null
 // for anything that isn't a valid http(s) URL.
 function safeHttpUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -368,16 +363,15 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
           {countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""} · last 7 days
         </p>
       </header>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {ads.map((ad) => {
           const flag = geoFlag(ad.geo);
-          const fullText = (ad.mainText ?? "").trim();
-          const cardText = fullText ? truncate(fullText, 120) : "";
-          const showLinkText = !isCookieBoilerplate(ad.linkText) && (ad.linkText ?? "").trim().length > 0;
-          const safePostUrl = safeHttpUrl(ad.postUrl);
+          const fullText = (ad.adCopy ?? "").trim();
+          const cardText = fullText ? truncate(fullText, 140) : "";
+          const target = safeHttpUrl(ad.linkUrl) ?? safeHttpUrl(ad.postUrl);
           return (
             <article
-              key={ad.creativeId}
+              key={ad.id}
               className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-slate-700 transition-colors flex flex-col gap-3"
             >
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
@@ -390,51 +384,46 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
                 <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wide">
                   {ad.isVideo ? "Video" : "Image"}
                 </span>
-                {ad.landLanguage && (
+                {ad.language && (
                   <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase tracking-wide">
-                    {ad.landLanguage}
+                    {ad.language}
                   </span>
                 )}
-                {ad.firstSeenAt && (
-                  <time dateTime={ad.firstSeenAt} className="ml-auto text-slate-500">
-                    {relativeDaysAgo(ad.firstSeenAt)}
-                  </time>
-                )}
+                <time dateTime={ad.lastSeenAt} className="ml-auto text-slate-500">
+                  {relativeDaysAgo(ad.lastSeenAt)}
+                </time>
               </div>
-              {ad.celebrityName && (
-                <div className="text-sm font-semibold text-amber-300">
-                  <span aria-hidden="true">🎭 </span>{ad.celebrityName}
+              <h3 className="text-sm font-semibold text-white leading-snug line-clamp-2">
+                {truncate(ad.offer, 60)}
+              </h3>
+              {ad.celebrity && (
+                <div className="text-xs font-semibold text-amber-300">
+                  <span aria-hidden="true">🎭 </span>{ad.celebrity}
                 </div>
               )}
               {cardText && (
                 <p
-                  className="text-xs text-slate-300 leading-relaxed italic"
+                  className="text-xs text-slate-300 leading-relaxed italic line-clamp-3"
                   title={fullText}
                 >
                   &ldquo;{cardText}&rdquo;
                 </p>
               )}
-              {showLinkText && (
-                <p className="text-[11px] text-slate-400 line-clamp-2">
-                  {ad.linkText}
-                </p>
-              )}
-              <div className="mt-auto pt-2 border-t border-slate-800/70 flex flex-col gap-1 text-xs">
-                {ad.linkDomain && (
-                  <div className="text-slate-400">
-                    <span aria-hidden="true">🔗 </span>
-                    <span className="font-mono text-slate-300">{ad.linkDomain}</span>
-                  </div>
-                )}
-                {safePostUrl && (
+              <div className="mt-auto pt-2 border-t border-slate-800/70 flex items-center justify-between gap-2 text-xs">
+                {target ? (
                   <a
-                    href={safePostUrl}
+                    href={target}
                     target="_blank"
-                    rel="nofollow noopener"
+                    rel="nofollow ugc noopener"
                     className="text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1"
                   >
-                    View Facebook post <span aria-hidden="true">↗</span>
+                    View archived ad <span aria-hidden="true">→</span>
                   </a>
+                ) : <span />}
+                {ad.scrapeCount >= 5 && (
+                  <span className="text-slate-500 text-[10px] uppercase tracking-wide">
+                    Scraped {ad.scrapeCount}×
+                  </span>
                 )}
               </div>
             </article>

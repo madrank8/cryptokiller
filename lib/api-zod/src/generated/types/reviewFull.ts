@@ -79,6 +79,6 @@ export interface ReviewFull {
   itemReviewed?: ReviewItemReviewed | null;
   /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
   translations: ReviewTranslationSummary[];
-  /** Up to 20 ad creatives scraped from SpyOwl in the last 7 days for the brand under review. Metadata-only (SpyOwl exposes no image URLs). Ordered newest-first by firstSeenAt. Empty array when no ads were captured in the window or the legacy webhook predates the recent_ads_sample field. */
+  /** Up to 4 SpyOwl ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
   recentAds: RecentAd[];
 }

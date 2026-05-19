@@ -252,6 +252,9 @@ importers:
 
   artifacts/crypto-review:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.101.1
+        version: 2.101.1
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
