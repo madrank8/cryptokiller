@@ -1,8 +1,46 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useParams, Link } from "wouter";
-import { useGetReview, useGetRelatedReviews } from "@workspace/api-client-react";
+import { useParams, useLocation, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useGetRelatedReviews } from "@workspace/api-client-react";
 import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+
+// Locales the FR/ES URL prefixes route to. Kept in sync with
+// SUPPORTED_LOCALES in artifacts/crypto-review/server/prerender.ts
+// (SSR) and the matching set in artifacts/api-server/src/routes/reviews.ts
+// (API). The router in App.tsx adds the corresponding wouter routes.
+const REVIEW_LOCALES = ["fr", "es"] as const;
+type ReviewLocale = "en" | typeof REVIEW_LOCALES[number];
+
+function detectLocaleFromPath(path: string): ReviewLocale {
+  const m = path.match(/^\/([a-z]{2})(\/|$)/i);
+  if (!m) return "en";
+  const candidate = m[1].toLowerCase();
+  return (REVIEW_LOCALES as readonly string[]).includes(candidate)
+    ? (candidate as ReviewLocale)
+    : "en";
+}
+
+// Locale-aware variant of useGetReview. Adds `?locale=fr|es` to the
+// API URL so the api-server overlays the matching `review_translations`
+// row onto the response. Returns the same ReviewFull shape as the
+// generated hook — translation rows just substitute the prose fields
+// in place. The queryKey includes the locale so EN and FR caches don't
+// collide.
+function useLocalizedReview(slug: string, locale: ReviewLocale) {
+  return useQuery<ReviewFull>({
+    queryKey: ["/api/reviews/", slug, locale] as const,
+    enabled: !!slug,
+    queryFn: async ({ signal }) => {
+      const qs = locale === "en" ? "" : `?locale=${locale}`;
+      const res = await fetch(`/api/reviews/${slug}${qs}`, { signal });
+      if (!res.ok) {
+        throw new Error(`Review fetch failed: ${res.status}`);
+      }
+      return res.json() as Promise<ReviewFull>;
+    },
+  });
+}
 import {
   Shield, AlertTriangle, Flag, X, CheckCircle,
   Calendar, Eye, User, ExternalLink,
@@ -529,7 +567,16 @@ function NotFoundPage({ slug }: { slug: string }) {
 }
 
 function ReviewContent({ slug }: { slug: string }) {
-  const { data: rawReview, isLoading, error } = useGetReview(slug);
+  // Detect the locale from the current URL path. Wouter's useLocation
+  // returns the path; we strip an optional `/fr/` or `/es/` prefix.
+  // EN routes (no prefix) keep using the same shape as before.
+  const [currentLocation] = useLocation();
+  const locale = detectLocaleFromPath(currentLocation);
+  // Locale-aware data fetch. When locale === "en" the URL is identical
+  // to the legacy useGetReview path, so behavior on existing EN routes
+  // is unchanged. For FR/ES the API server overlays the matching
+  // review_translations row server-side.
+  const { data: rawReview, isLoading, error } = useLocalizedReview(slug, locale);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Replace `{{stat:KEY}}` tokens in prose with live values from
@@ -568,7 +615,14 @@ function ReviewContent({ slug }: { slug: string }) {
   const jsonLd = useMemo(() => {
     if (!review) return undefined;
 
-    const pageUrl = `https://cryptokiller.org/review/${slug}`;
+    // Page URL must match the SSR canonical (`server/prerender.ts`)
+    // so the React-replaced JSON-LD nodes don't drift from the SSR
+    // emission. EN canonical stays unprefixed; non-EN locales get
+    // `/<locale>/review/<slug>`.
+    const pageUrl =
+      locale === "en"
+        ? `https://cryptokiller.org/review/${slug}`
+        : `https://cryptokiller.org/${locale}/review/${slug}`;
 
     const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
     const orgRefId = orgRef();
@@ -622,7 +676,7 @@ function ReviewContent({ slug }: { slug: string }) {
         description: desc,
         isPartOf: { "@id": "https://cryptokiller.org/#website" },
         mainEntity: { "@id": `${pageUrl}#review` },
-        inLanguage: "en",
+        inLanguage: locale,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
       },
@@ -638,7 +692,7 @@ function ReviewContent({ slug }: { slug: string }) {
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
-        inLanguage: "en",
+        inLanguage: locale,
         itemReviewed: itemRef,
         reviewRating: {
           "@type": "Rating",
@@ -662,7 +716,7 @@ function ReviewContent({ slug }: { slug: string }) {
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
         isPartOf: { "@id": "https://cryptokiller.org/#website" },
         about: itemRef,
-        inLanguage: "en",
+        inLanguage: locale,
         wordCount: review.wordCount || undefined,
         timeRequired: review.readingMinutes ? `PT${review.readingMinutes}M` : undefined,
       },
@@ -677,7 +731,7 @@ function ReviewContent({ slug }: { slug: string }) {
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: `https://cryptokiller.org/review/${slug}`,
-        inLanguage: "en",
+        inLanguage: locale,
       },
     ];
 
@@ -745,7 +799,7 @@ function ReviewContent({ slug }: { slug: string }) {
       "@context": "https://schema.org",
       "@graph": graph,
     };
-  }, [review, slug]);
+  }, [review, slug, locale]);
 
   const seoTitle = review
     ? (`${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`.length <= 60

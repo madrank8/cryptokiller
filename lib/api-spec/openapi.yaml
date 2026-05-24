@@ -55,6 +55,19 @@ paths:
           required: true
           schema:
             type: string
+        - name: locale
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag. When set to a value other than `en`, the
+            response is overlaid with the matching `review_translations`
+            row. Returns 404 when the translation is missing or not
+            published. Currently supported: `en`, `fr`, `es`. Defaults
+            to `en` (master row passthrough).
+          schema:
+            type: string
+            enum: [en, fr, es]
+            default: en
       responses:
         "200":
           description: Full review
@@ -63,7 +76,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReviewFull"
         "404":
-          description: Review not found
+          description: Review not found, or translation missing for the requested locale
           content:
             application/json:
               schema:

@@ -2,6 +2,7 @@ import { eq, and, desc, sql, asc, count } from "drizzle-orm";
 import {
   db,
   reviewsTable,
+  reviewTranslationsTable,
   blogPostsTable,
   platformsTable,
   reviewStatsTable,
@@ -154,6 +155,322 @@ function resolveItemReviewedType(entityType: unknown): string {
   return "Thing";
 }
 
+// ── Locale plumbing ─────────────────────────────────────────────────────
+// The SSR router strips an optional `/<locale>/...` prefix from the
+// request URL and passes the resolved locale through to every renderer.
+// English is the master; non-English content lives in
+// `review_translations` keyed by (slug, locale).
+//
+// SUPPORTED_LOCALES is the source of truth — adding a new locale here +
+// inserting the corresponding STRINGS entry below + populating the
+// upstream Supabase `review_translations` rows is the complete fan-out
+// for a new language. The router accepts only locales in this list;
+// anything else falls through to renderNotFound (no silent rewrite).
+export type Locale = "en" | "fr" | "es";
+export const SUPPORTED_LOCALES: Locale[] = ["en", "fr", "es"];
+
+function isLocale(s: string | undefined): s is Locale {
+  return s != null && (SUPPORTED_LOCALES as string[]).includes(s);
+}
+
+// Localized chrome strings. Keep keys narrow — only what the SSR
+// actually renders. Anything appearing in client-side React (button
+// labels, modal copy, etc.) is handled separately on the CSR side and
+// is not duplicated here. When upstream supplies localized prose
+// (full_article, summary, verdict, …) we use that directly; STRINGS
+// only covers the chrome-and-scaffolding text the renderer itself
+// emits.
+interface ChromeStrings {
+  // Site header / footer / nav
+  homeLabel: string;
+  investigationsLabel: string;
+  blogLabel: string;
+  methodologyLabel: string;
+  recoveryLabel: string;
+  reportLabel: string;
+  aboutLabel: string;
+  privacyLabel: string;
+  termsLabel: string;
+  editorialCorrectionsLabel: string;
+  footerOperator: string; // "CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore)."
+  // Review chrome — legacy structured-template branch
+  breadcrumbLabel: string;
+  verdictLabel: string;
+  warningLabel: string;
+  investigationSummaryHeading: string;
+  atAGlanceHeading: string;
+  keyFindingsHeading: string;
+  redFlagsHeading: string;
+  funnelHeadingPrefix: string; // "How the {brand} scam funnel works"
+  funnelHeadingSuffix: string;
+  celebsHeading: string;
+  celebsLead: string; // "The {brand} campaign fabricates endorsements from {n} public figures, including:"
+  visualsHeading: string;
+  protectionHeadingPrefix: string; // "If you've been targeted by {brand}"
+  notForYouHeading: string;
+  expertiseHeading: string;
+  sourcesHeading: string;
+  methodologyHeadingPrefix: string; // "How we investigated {brand}"
+  faqHeading: string;
+  disclaimerHeading: string;
+  investigationByLabel: string; // "Investigation by:"
+  publishedLabel: string; // "Published"
+  minuteReadLabel: string; // "minute read"
+  wordsLabel: string; // "words"
+  backToInvestigations: string;
+  howWeScoreScams: string;
+  reportRelatedScam: string;
+  stageLabel: string; // "Stage"
+  // 404
+  notFoundTitle: string;
+  notFoundDescription: string;
+  notFoundHeading: string;
+  notFoundBody: string;
+  backToHome: string;
+  browseInvestigations: string;
+  readTheBlog: string;
+  // Investigations list
+  investigationsListTitle: string; // "Crypto Scam Investigations — Page {n} | CryptoKiller"
+  investigationsListTitlePage1: string;
+  investigationsListDescription: string;
+  investigationsListShowingPage: string; // "Showing page {n} of {m}."
+  investigationsListPublishedSuffix: string; // "published investigations."
+  prevLabel: string;
+  nextLabel: string;
+  // Static-page generic
+  faqSectionHeading: string;
+  // Threat-score labels
+  threatScoreScoreSuffix: (n: number) => string; // " — Threat Score 33/100" with locale-aware separator
+  scamReviewLabel: string;
+  investigationLabel: string;
+}
+
+const STRINGS: Record<Locale, ChromeStrings> = {
+  en: {
+    homeLabel: "Home",
+    investigationsLabel: "Investigations",
+    blogLabel: "Blog",
+    methodologyLabel: "Methodology",
+    recoveryLabel: "Recovery",
+    reportLabel: "Report a Scam",
+    aboutLabel: "About",
+    privacyLabel: "Privacy",
+    termsLabel: "Terms",
+    editorialCorrectionsLabel: "Editorial corrections",
+    footerOperator: "CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore).",
+    breadcrumbLabel: "Breadcrumb",
+    verdictLabel: "Verdict:",
+    warningLabel: "Warning:",
+    investigationSummaryHeading: "Investigation summary",
+    atAGlanceHeading: "Investigation at a glance",
+    keyFindingsHeading: "Key findings",
+    redFlagsHeading: "Red flags we identified",
+    funnelHeadingPrefix: "How the ",
+    funnelHeadingSuffix: " scam funnel works",
+    celebsHeading: "Celebrities impersonated",
+    celebsLead: "The {brand} campaign fabricates endorsements from {n} public figures, including:",
+    visualsHeading: "Evidence visuals",
+    protectionHeadingPrefix: "If you've been targeted by ",
+    notForYouHeading: "When this review may not apply",
+    expertiseHeading: "Why trust this investigation",
+    sourcesHeading: "Sources & references",
+    methodologyHeadingPrefix: "How we investigated ",
+    faqHeading: "Frequently asked questions",
+    disclaimerHeading: "Editorial notes & disclaimer",
+    investigationByLabel: "Investigation by:",
+    publishedLabel: "Published",
+    minuteReadLabel: "minute read",
+    wordsLabel: "words",
+    backToInvestigations: "Back to all investigations",
+    howWeScoreScams: "How we score scams",
+    reportRelatedScam: "Report a related scam",
+    stageLabel: "Stage",
+    notFoundTitle: "Page Not Found — CryptoKiller",
+    notFoundDescription:
+      "The page you are looking for does not exist. Browse CryptoKiller's crypto scam investigations or report a scam.",
+    notFoundHeading: "404 — Page Not Found",
+    notFoundBody: "The page you're looking for doesn't exist or has moved.",
+    backToHome: "Back to home",
+    browseInvestigations: "Browse investigations",
+    readTheBlog: "Read the blog",
+    investigationsListTitle: "Crypto Scam Investigations — Page {n} | CryptoKiller",
+    investigationsListTitlePage1: "Crypto Scam Investigations — 1,000+ Platforms | CryptoKiller",
+    investigationsListDescription:
+      "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
+    investigationsListShowingPage: "Showing page {n} of {m}.",
+    investigationsListPublishedSuffix: "published investigations.",
+    prevLabel: "Previous",
+    nextLabel: "Next",
+    faqSectionHeading: "Frequently Asked Questions",
+    threatScoreScoreSuffix: (n) => ` — Threat Score ${n}/100`,
+    scamReviewLabel: "Scam Review",
+    investigationLabel: "Investigation",
+  },
+  fr: {
+    homeLabel: "Accueil",
+    investigationsLabel: "Enquêtes",
+    blogLabel: "Blog",
+    methodologyLabel: "Méthodologie",
+    recoveryLabel: "Récupération",
+    reportLabel: "Signaler une arnaque",
+    aboutLabel: "À propos",
+    privacyLabel: "Confidentialité",
+    termsLabel: "Conditions",
+    editorialCorrectionsLabel: "Corrections éditoriales",
+    footerOperator: "CryptoKiller est édité par DEX Algo Technologies Pte Ltd. (Singapour).",
+    breadcrumbLabel: "Fil d'Ariane",
+    verdictLabel: "Verdict :",
+    warningLabel: "Avertissement :",
+    investigationSummaryHeading: "Résumé de l'enquête",
+    atAGlanceHeading: "L'enquête en un coup d'œil",
+    keyFindingsHeading: "Constats clés",
+    redFlagsHeading: "Signaux d'alerte identifiés",
+    funnelHeadingPrefix: "Comment fonctionne l'arnaque ",
+    funnelHeadingSuffix: "",
+    celebsHeading: "Célébrités usurpées",
+    celebsLead:
+      "La campagne {brand} fabrique des recommandations de la part de {n} personnalités publiques, dont :",
+    visualsHeading: "Éléments visuels",
+    protectionHeadingPrefix: "Si vous avez été ciblé par ",
+    notForYouHeading: "Quand cette analyse peut ne pas s'appliquer",
+    expertiseHeading: "Pourquoi faire confiance à cette enquête",
+    sourcesHeading: "Sources et références",
+    methodologyHeadingPrefix: "Comment nous avons enquêté sur ",
+    faqHeading: "Questions fréquentes",
+    disclaimerHeading: "Notes éditoriales et avertissement",
+    investigationByLabel: "Enquête par :",
+    publishedLabel: "Publié le",
+    minuteReadLabel: "minutes de lecture",
+    wordsLabel: "mots",
+    backToInvestigations: "Retour à toutes les enquêtes",
+    howWeScoreScams: "Comment nous évaluons les arnaques",
+    reportRelatedScam: "Signaler une arnaque liée",
+    stageLabel: "Étape",
+    notFoundTitle: "Page introuvable — CryptoKiller",
+    notFoundDescription:
+      "La page que vous recherchez n'existe pas. Parcourez les enquêtes d'arnaques crypto de CryptoKiller ou signalez une arnaque.",
+    notFoundHeading: "404 — Page introuvable",
+    notFoundBody: "La page que vous cherchez n'existe pas ou a été déplacée.",
+    backToHome: "Retour à l'accueil",
+    browseInvestigations: "Parcourir les enquêtes",
+    readTheBlog: "Lire le blog",
+    investigationsListTitle: "Enquêtes sur les arnaques crypto — Page {n} | CryptoKiller",
+    investigationsListTitlePage1: "Enquêtes sur les arnaques crypto — 1 000+ plateformes | CryptoKiller",
+    investigationsListDescription:
+      "Parcourez toutes les enquêtes actives sur les arnaques crypto. Filtrez par niveau de menace, triez par score et explorez 1 000+ plateformes surveillées.",
+    investigationsListShowingPage: "Affichage de la page {n} sur {m}.",
+    investigationsListPublishedSuffix: "enquêtes publiées.",
+    prevLabel: "Précédent",
+    nextLabel: "Suivant",
+    faqSectionHeading: "Questions fréquentes",
+    threatScoreScoreSuffix: (n) => ` — Score de menace ${n}/100`,
+    scamReviewLabel: "Examen d'arnaque",
+    investigationLabel: "Enquête",
+  },
+  es: {
+    homeLabel: "Inicio",
+    investigationsLabel: "Investigaciones",
+    blogLabel: "Blog",
+    methodologyLabel: "Metodología",
+    recoveryLabel: "Recuperación",
+    reportLabel: "Reportar una estafa",
+    aboutLabel: "Acerca de",
+    privacyLabel: "Privacidad",
+    termsLabel: "Términos",
+    editorialCorrectionsLabel: "Correcciones editoriales",
+    footerOperator: "CryptoKiller es operado por DEX Algo Technologies Pte Ltd. (Singapur).",
+    breadcrumbLabel: "Ruta de navegación",
+    verdictLabel: "Veredicto:",
+    warningLabel: "Advertencia:",
+    investigationSummaryHeading: "Resumen de la investigación",
+    atAGlanceHeading: "La investigación de un vistazo",
+    keyFindingsHeading: "Hallazgos clave",
+    redFlagsHeading: "Señales de alerta identificadas",
+    funnelHeadingPrefix: "Cómo funciona la estafa de ",
+    funnelHeadingSuffix: "",
+    celebsHeading: "Celebridades suplantadas",
+    celebsLead:
+      "La campaña {brand} fabrica respaldos de {n} figuras públicas, entre ellas:",
+    visualsHeading: "Evidencia visual",
+    protectionHeadingPrefix: "Si has sido objetivo de ",
+    notForYouHeading: "Cuándo esta reseña podría no aplicarte",
+    expertiseHeading: "Por qué confiar en esta investigación",
+    sourcesHeading: "Fuentes y referencias",
+    methodologyHeadingPrefix: "Cómo investigamos ",
+    faqHeading: "Preguntas frecuentes",
+    disclaimerHeading: "Notas editoriales y aviso",
+    investigationByLabel: "Investigación por:",
+    publishedLabel: "Publicado el",
+    minuteReadLabel: "minutos de lectura",
+    wordsLabel: "palabras",
+    backToInvestigations: "Volver a todas las investigaciones",
+    howWeScoreScams: "Cómo puntuamos las estafas",
+    reportRelatedScam: "Reportar una estafa relacionada",
+    stageLabel: "Etapa",
+    notFoundTitle: "Página no encontrada — CryptoKiller",
+    notFoundDescription:
+      "La página que buscas no existe. Explora las investigaciones de estafas crypto de CryptoKiller o reporta una estafa.",
+    notFoundHeading: "404 — Página no encontrada",
+    notFoundBody: "La página que buscas no existe o ha sido movida.",
+    backToHome: "Volver al inicio",
+    browseInvestigations: "Explorar investigaciones",
+    readTheBlog: "Leer el blog",
+    investigationsListTitle: "Investigaciones de estafas crypto — Página {n} | CryptoKiller",
+    investigationsListTitlePage1: "Investigaciones de estafas crypto — 1.000+ plataformas | CryptoKiller",
+    investigationsListDescription:
+      "Explora todas las investigaciones activas de estafas crypto. Filtra por nivel de amenaza, ordena por puntaje y consulta 1.000+ plataformas rastreadas.",
+    investigationsListShowingPage: "Mostrando página {n} de {m}.",
+    investigationsListPublishedSuffix: "investigaciones publicadas.",
+    prevLabel: "Anterior",
+    nextLabel: "Siguiente",
+    faqSectionHeading: "Preguntas frecuentes",
+    threatScoreScoreSuffix: (n) => ` — Puntaje de amenaza ${n}/100`,
+    scamReviewLabel: "Reseña de estafa",
+    investigationLabel: "Investigación",
+  },
+};
+
+/**
+ * Prefix a site-internal path with the locale segment when not English.
+ * EN canonical URLs stay un-prefixed (preserves backwards compatibility
+ * with every existing inbound link, sitemap entry, and external citation).
+ */
+function localizePath(path: string, locale: Locale): string {
+  if (locale === "en") return path;
+  if (path === "/") return `/${locale}/`;
+  return `/${locale}${path}`;
+}
+
+/**
+ * Build the hreflang sibling list for a given EN-form path, restricted
+ * to a known set of available locales. Emitted by server/index.ts into
+ * `<link rel="alternate">` siblings.
+ *
+ * - `en` and `x-default` always point at the un-prefixed EN URL.
+ * - Each entry in `availableLocales` (excluding "en") gets a sibling.
+ *
+ * Limit the sibling set to locales that actually have published
+ * content: emitting a hreflang link to a 404 is a strong
+ * negative-quality signal in Google Search Console.
+ */
+function buildAlternatesForPath(
+  enPath: string,
+  availableLocales: Locale[] = SUPPORTED_LOCALES,
+): { hreflang: string; href: string }[] {
+  const enHref = `${BASE}${enPath === "/" ? "/" : enPath.replace(/\/+$/, "")}`;
+  const alts: { hreflang: string; href: string }[] = [
+    { hreflang: "en", href: enHref },
+    { hreflang: "x-default", href: enHref },
+  ];
+  for (const loc of availableLocales) {
+    if (loc === "en") continue;
+    const locPath = localizePath(enPath, loc);
+    const href = `${BASE}${locPath === "/" ? "/" : locPath.replace(/\/+$/, "")}`;
+    alts.push({ hreflang: loc, href });
+  }
+  return alts;
+}
+
 export interface RenderResult {
   status: number;
   title: string;
@@ -170,6 +487,16 @@ export interface RenderResult {
   // Must mirror what usePageMeta sets client-side after hydration so
   // crawlers that don't execute JS see the same value as those that do.
   author?: string;
+  // BCP-47 page language. Drives `<html lang="..">` in the template
+  // applyMeta hook (server/index.ts). Defaults to `en` when omitted so
+  // existing renderers stay unchanged. JSON-LD `inLanguage` also reads
+  // this value via the renderer-local `lang` variable.
+  locale?: Locale;
+  // hreflang siblings emitted as <link rel="alternate"> in <head>. The
+  // server applyMeta hook serialises them into the head injection slot
+  // alongside the canonical link. Pages that don't set this stay
+  // EN-only (no alternates emitted).
+  alternates?: { hreflang: string; href: string }[];
   bodyHtml: string;
   jsonLd?: Record<string, unknown>;
   lastModified?: string;
@@ -246,12 +573,16 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
   return { ref, node };
 }
 
-function siteHeaderHtml(): string {
-  return `<header role="banner"><nav aria-label="Primary"><a href="/">CryptoKiller</a> · <a href="/investigations">Investigations</a> · <a href="/blog">Blog</a> · <a href="/methodology">Methodology</a> · <a href="/recovery">Recovery</a> · <a href="/report">Report a Scam</a> · <a href="/about">About</a></nav></header>`;
+function siteHeaderHtml(locale: Locale = "en"): string {
+  const s = STRINGS[locale];
+  const p = (path: string) => localizePath(path, locale);
+  return `<header role="banner"><nav aria-label="Primary"><a href="${p("/")}">CryptoKiller</a> · <a href="${p("/investigations")}">${esc(s.investigationsLabel)}</a> · <a href="${p("/blog")}">${esc(s.blogLabel)}</a> · <a href="${p("/methodology")}">${esc(s.methodologyLabel)}</a> · <a href="${p("/recovery")}">${esc(s.recoveryLabel)}</a> · <a href="${p("/report")}">${esc(s.reportLabel)}</a> · <a href="${p("/about")}">${esc(s.aboutLabel)}</a></nav></header>`;
 }
 
-function siteFooterHtml(): string {
-  return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:corrections@cryptokiller.org">Editorial corrections</a></p></footer>`;
+function siteFooterHtml(locale: Locale = "en"): string {
+  const s = STRINGS[locale];
+  const p = (path: string) => localizePath(path, locale);
+  return `<footer role="contentinfo"><p>${esc(s.footerOperator)} <a href="${p("/privacy")}">${esc(s.privacyLabel)}</a> · <a href="${p("/terms")}">${esc(s.termsLabel)}</a> · <a href="mailto:corrections@cryptokiller.org">${esc(s.editorialCorrectionsLabel)}</a></p></footer>`;
 }
 
 interface StaticSection {
@@ -651,7 +982,12 @@ function datasetJsonAlignedWithReviewStats(
   return d;
 }
 
-async function renderReview(slug: string): Promise<RenderResult> {
+async function renderReview(slug: string, locale: Locale = "en"): Promise<RenderResult> {
+  // `chrome` is the localized chrome-strings catalog — kept under a
+  // distinct name from `s` to avoid shadowing the `.map((s) => …)`
+  // loop variables used a little further down for sources, faq items,
+  // etc.
+  const chrome = STRINGS[locale];
   // `row` and the child-table arrays are reassigned below to substituted
   // copies after stat-token replacement; declared `let` for that reason.
   // eslint-disable-next-line prefer-const
@@ -725,7 +1061,133 @@ async function renderReview(slug: string): Promise<RenderResult> {
     .where(eq(reviewsTable.slug, slug))
     .limit(1);
 
-  if (!row || row.status !== "published") return renderNotFound(`/review/${slug}`);
+  if (!row || row.status !== "published") {
+    return renderNotFound(`${localizePath(`/review/${slug}`, locale)}`, locale);
+  }
+
+  // ── Translation overlay (locale !== "en") ──
+  // When the request is for a non-English locale, load the matching
+  // review_translations row and overlay its prose fields onto the
+  // (already-loaded) master row. Structural fields — threat score, tier,
+  // hero image, stats, persona, schema enrichment, dates — stay on the
+  // master. If no translation exists OR the translation isn't
+  // `published`, return 404 with localized chrome: we don't want to
+  // silently serve English content under an `/fr/` URL.
+  let translatorName: string | null = null;
+  // Localized child-table content captured here so it can replace the
+  // EN child arrays loaded a few lines below. red_flags on the
+  // translation use the upstream Supabase shape ({flag, detail}); we
+  // transform to the local-table shape ({emoji, title, description}).
+  let localizedRedFlags: Array<{ emoji: string; title: string; description: string }> | null = null;
+  let localizedFaq: Array<{ question: string; answer: string }> | null = null;
+  if (locale !== "en") {
+    const [trow] = await db
+      .select({
+        status: reviewTranslationsTable.status,
+        title: reviewTranslationsTable.title,
+        metaDescription: reviewTranslationsTable.metaDescription,
+        headline: reviewTranslationsTable.headline,
+        alternativeHeadline: reviewTranslationsTable.alternativeHeadline,
+        summary: reviewTranslationsTable.summary,
+        verdict: reviewTranslationsTable.verdict,
+        fullArticle: reviewTranslationsTable.fullArticle,
+        notForYou: reviewTranslationsTable.notForYou,
+        protectionSteps: reviewTranslationsTable.protectionSteps,
+        methodology: reviewTranslationsTable.methodology,
+        disclaimer: reviewTranslationsTable.disclaimer,
+        expertiseDepth: reviewTranslationsTable.expertiseDepth,
+        redFlags: reviewTranslationsTable.redFlags,
+        faq: reviewTranslationsTable.faq,
+        keyTakeaways: reviewTranslationsTable.keyTakeaways,
+        translatorName: reviewTranslationsTable.translatorName,
+        publishedAt: reviewTranslationsTable.publishedAt,
+        wordCount: reviewTranslationsTable.wordCount,
+      })
+      .from(reviewTranslationsTable)
+      .where(
+        and(
+          eq(reviewTranslationsTable.slug, slug),
+          eq(reviewTranslationsTable.locale, locale),
+        ),
+      )
+      .limit(1);
+
+    if (!trow || trow.status !== "published") {
+      return renderNotFound(`${localizePath(`/review/${slug}`, locale)}`, locale);
+    }
+
+    // Overlay every prose field. Fall back to master value when the
+    // translation column is empty — translation rows might be partially
+    // filled and we'd rather show some EN scaffolding than blank space.
+    // `summary` on review_translations corresponds to the
+    // hero_description on the master review (upstream prose role), while
+    // key_takeaways feeds the master's summary column (the bullet list).
+    const tk = Array.isArray(trow.keyTakeaways) ? (trow.keyTakeaways as unknown[]) : [];
+    row = {
+      ...row,
+      // SEO surface
+      metaDescription: trow.metaDescription?.trim() ? trow.metaDescription : row.metaDescription,
+      alternativeHeadline: trow.alternativeHeadline?.trim()
+        ? trow.alternativeHeadline
+        : (trow.title?.trim() ? trow.title : row.alternativeHeadline),
+      // Editorial prose
+      summary: tk.length > 0 ? tk.map((x) => String(x)).join("\n") : (trow.summary || row.summary),
+      heroDescription: trow.summary?.trim() ? trow.summary : row.heroDescription,
+      verdict: trow.verdict?.trim() ? trow.verdict : row.verdict,
+      methodologyText: trow.methodology?.trim() ? trow.methodology : row.methodologyText,
+      disclaimerText: trow.disclaimer?.trim() ? trow.disclaimer : row.disclaimerText,
+      protectionSteps: trow.protectionSteps?.trim() ? trow.protectionSteps : row.protectionSteps,
+      notForYou: trow.notForYou?.trim() ? trow.notForYou : row.notForYou,
+      expertiseDepth: trow.expertiseDepth?.trim() ? trow.expertiseDepth : row.expertiseDepth,
+      fullArticle: trow.fullArticle?.trim() ? trow.fullArticle : row.fullArticle,
+      // Stats / structure unchanged. wordCount/readingMinutes come from
+      // the translation when present so the byline "N-minute read"
+      // reflects the FR word count, not the EN.
+      wordCount: trow.wordCount && trow.wordCount > 0 ? trow.wordCount : row.wordCount,
+      readingMinutes:
+        trow.wordCount && trow.wordCount > 0
+          ? Math.max(1, Math.ceil(trow.wordCount / 230))
+          : row.readingMinutes,
+    } as typeof row;
+
+    translatorName = trow.translatorName?.trim() || null;
+
+    // Localized red_flags arrive from upstream as { flag, detail } —
+    // same shape the supabase-sync transform uses when populating the
+    // local red_flags child table for the master EN review. Apply the
+    // same split here so the SSR can iterate them with the existing
+    // {emoji,title,description} loop.
+    if (Array.isArray(trow.redFlags)) {
+      localizedRedFlags = (trow.redFlags as unknown[]).map((rfRaw) => {
+        const rf = rfRaw as { flag?: string; detail?: string; emoji?: string; title?: string; description?: string };
+        if (rf.title || rf.description || rf.emoji) {
+          return {
+            emoji: rf.emoji || "🚩",
+            title: rf.title || "",
+            description: rf.description || "",
+          };
+        }
+        const flagStr = typeof rf.flag === "string" ? rf.flag : "";
+        const detail = typeof rf.detail === "string" ? rf.detail : "";
+        const parts = flagStr.split(" ");
+        const emoji = parts[0] || "🚩";
+        const title = parts.slice(1).join(" ") || flagStr;
+        return { emoji, title, description: detail };
+      });
+    }
+
+    // Localized FAQ already arrives in {question, answer} shape — pass
+    // through with a defensive String() coercion.
+    if (Array.isArray(trow.faq)) {
+      localizedFaq = (trow.faq as unknown[]).map((fRaw) => {
+        const f = fRaw as { question?: unknown; answer?: unknown };
+        return {
+          question: String(f.question ?? ""),
+          answer: String(f.answer ?? ""),
+        };
+      });
+    }
+  }
 
   // ── Fetch all narrative child tables in parallel. Each is an ordered
   //    list keyed by review_id. Prior to this change none of these were
@@ -799,6 +1261,19 @@ async function renderReview(slug: string): Promise<RenderResult> {
   let dedupedFunnelStages = [..._funnelStagesByNumber.entries()]
     .sort(([a], [b]) => a - b)
     .map(([, fs]) => fs);
+
+  // Localized overlay for child arrays (locale !== "en"). When the
+  // translation row carried localized red_flags / faq lists, swap them
+  // in before stat-token substitution so token substitution applies to
+  // the FR/ES prose. Empty arrays mean the translator omitted the
+  // section — in that case we keep the EN child rows as a fallback to
+  // avoid blanking a section that exists on the master.
+  if (localizedRedFlags && localizedRedFlags.length > 0) {
+    redFlags = localizedRedFlags;
+  }
+  if (localizedFaq && localizedFaq.length > 0) {
+    faqItems = localizedFaq;
+  }
 
   // ── Stat-token substitution =========================================
   // Producer side (Vercel writer pipeline) is being migrated to emit
@@ -897,6 +1372,12 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // entry, fall back to undefined when the id is missing or unknown.
   const reviewPersona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
 
+  // Locale-aware headline labels used by the title-builder and the
+  // legacy structured-template branch. tier.frameAsScam still drives
+  // "Scam Review" vs. "Investigation"; the STRINGS catalog supplies
+  // the localized text.
+  const localizedHeadlineLabel = tier.frameAsScam ? chrome.scamReviewLabel : chrome.investigationLabel;
+
   // <title> — tier-aware. Only include the score when it's non-zero;
   // shipping "Threat Score 0/100" on a review that lost its score during
   // sync is worse than omitting it. Score > 0 is the floor; below that
@@ -911,31 +1392,25 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // base + " | CryptoKiller" suffix fit ≤70 chars, append the suffix;
   // otherwise drop the suffix and let the base run alone. Truncation
   // (when needed) snaps to last whitespace before char 55.
-  const scoreSuffix = row.threatScore && row.threatScore > 0 ? ` — Threat Score ${row.threatScore}/100` : "";
+  const scoreSuffix = row.threatScore && row.threatScore > 0 ? chrome.threatScoreScoreSuffix(row.threatScore) : "";
   const REVIEW_BRAND_SUFFIX = " | CryptoKiller";
+  // ENGLISH-only dangling-connector list. For non-EN locales we keep
+  // the simpler last-word-boundary cut and rely on translator-authored
+  // alternative_headline being short enough not to need cleanup.
   function pickReviewTitleBase(): string {
     const altHeadline = String(row.alternativeHeadline || "").trim();
     if (altHeadline) {
-      // Try the full alternative headline first — it's the writer's
-      // prose-edited 1-line summary and almost always fits within 55-70 chars.
       if (altHeadline.length <= 55) return altHeadline;
-      // Too long — truncate at last word boundary before char 55. Strip
-      // any trailing connector punctuation (commas, em-dashes) so the title
-      // doesn't end mid-clause. NEVER append an ellipsis on a SEO title;
-      // ellipsis tells Google the text was machine-cut and looks broken.
       const candidate = altHeadline.slice(0, 55);
       const lastSpace = candidate.lastIndexOf(" ");
       const cut = lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate;
-      // Avoid SEO titles ending with dangling connectors ("... and", "... of").
-      return cut
-        .replace(/[\s—\-:,]+$/, "")
-        .replace(/\b(and|or|of|to|for|the|a|an)\s*$/i, "")
-        .trim();
+      let trimmed = cut.replace(/[\s—\-:,]+$/, "");
+      if (locale === "en") {
+        trimmed = trimmed.replace(/\b(and|or|of|to|for|the|a|an)\s*$/i, "");
+      }
+      return trimmed.trim();
     }
-    // No alternative headline available — fall back to the canonical
-    // "PlatformName Investigation — Threat Score N/100" form which is
-    // already short and adds no risk of mid-word truncation.
-    return `${platformName} ${headlineLabel}${scoreSuffix}`;
+    return `${platformName} ${localizedHeadlineLabel}${scoreSuffix}`;
   }
   const reviewTitleBase = pickReviewTitleBase();
   const title = reviewTitleBase.length + REVIEW_BRAND_SUFFIX.length <= 70
@@ -945,7 +1420,29 @@ async function renderReview(slug: string): Promise<RenderResult> {
     row.metaDescription || row.heroDescription || row.summary || `${platformName} crypto scam investigation. Threat score ${row.threatScore}/100. Evidence, red flags, ad surveillance, and verdict from the CryptoKiller research team.`,
     160,
   );
-  const canonical = `${BASE}/review/${slug}`;
+  const canonical = `${BASE}${localizePath(`/review/${slug}`, locale)}`;
+
+  // Discover which locales actually have a published translation for
+  // this slug. Cheap one-shot query — the table has a unique
+  // (slug, locale) index so the planner uses it. EN is always
+  // available (the master row). hreflang siblings are restricted to
+  // this set so we never emit a link to a 404.
+  const publishedTranslations = await db
+    .select({ locale: reviewTranslationsTable.locale })
+    .from(reviewTranslationsTable)
+    .where(
+      and(
+        eq(reviewTranslationsTable.slug, slug),
+        eq(reviewTranslationsTable.status, "published"),
+      ),
+    );
+  const availableLocales: Locale[] = ["en"];
+  for (const r of publishedTranslations) {
+    if (isLocale(r.locale) && !availableLocales.includes(r.locale)) {
+      availableLocales.push(r.locale);
+    }
+  }
+  const alternates = buildAlternatesForPath(`/review/${slug}`, availableLocales);
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = row.investigationDate ? new Date(row.investigationDate).toISOString() : undefined;
   const dateModified = row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined;
@@ -975,13 +1472,13 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // ── Build the new long-form sections ──
 
   const keyFindingsHtml = keyFindings.length
-    ? `<section aria-labelledby="findings-heading"><h2 id="findings-heading">Key findings</h2><ul>${keyFindings
+    ? `<section aria-labelledby="findings-heading"><h2 id="findings-heading">${esc(chrome.keyFindingsHeading)}</h2><ul>${keyFindings
         .map((k) => `<li>${esc(clean(k.content))}</li>`)
         .join("")}</ul></section>`
     : "";
 
   const redFlagsHtml = redFlags.length
-    ? `<section aria-labelledby="red-flags-heading"><h2 id="red-flags-heading">Red flags we identified</h2>${redFlags
+    ? `<section aria-labelledby="red-flags-heading"><h2 id="red-flags-heading">${esc(chrome.redFlagsHeading)}</h2>${redFlags
         .map(
           (rf) =>
             `<article class="red-flag"><h3>${esc(rf.emoji || "🚩")} ${esc(rf.title)}</h3>${paragraphize(rf.description)}</article>`,
@@ -990,7 +1487,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
     : "";
 
   const funnelStagesHtml = dedupedFunnelStages.length
-    ? `<section aria-labelledby="funnel-heading"><h2 id="funnel-heading">How the ${esc(platformName)} scam funnel works</h2>${dedupedFunnelStages
+    ? `<section aria-labelledby="funnel-heading"><h2 id="funnel-heading">${esc(chrome.funnelHeadingPrefix)}${esc(platformName)}${esc(chrome.funnelHeadingSuffix)}</h2>${dedupedFunnelStages
         .map((fs) => {
           const bullets =
             Array.isArray(fs.bullets) && fs.bullets.length
@@ -1000,21 +1497,23 @@ async function renderReview(slug: string): Promise<RenderResult> {
             fs.statValue || fs.statLabel
               ? `<p><strong>${esc(fs.statValue || "")}</strong>${fs.statValue && fs.statLabel ? " — " : ""}${esc(fs.statLabel || "")}</p>`
               : "";
-          return `<article class="funnel-stage"><h3>Stage ${fs.stageNumber}: ${esc(fs.title)}</h3>${fs.description ? paragraphize(fs.description) : ""}${stat}${bullets}</article>`;
+          return `<article class="funnel-stage"><h3>${esc(chrome.stageLabel)} ${fs.stageNumber}: ${esc(fs.title)}</h3>${fs.description ? paragraphize(fs.description) : ""}${stat}${bullets}</article>`;
         })
         .join("")}</section>`
     : "";
 
   const celebrityNames = Array.isArray(row.celebrityNames) ? row.celebrityNames.filter(Boolean) : [];
   const celebritiesHtml = celebrityNames.length
-    ? `<section aria-labelledby="celebs-heading"><h2 id="celebs-heading">Celebrities impersonated</h2><p>The ${esc(platformName)} campaign fabricates endorsements from ${celebrityNames.length} public figures, including:</p><ul>${celebrityNames
+    ? `<section aria-labelledby="celebs-heading"><h2 id="celebs-heading">${esc(chrome.celebsHeading)}</h2><p>${esc(
+        chrome.celebsLead.replace("{brand}", platformName).replace("{n}", String(celebrityNames.length)),
+      )}</p><ul>${celebrityNames
         .slice(0, 30)
         .map((n) => `<li>${esc(String(n))}</li>`)
         .join("")}</ul></section>`
     : "";
 
   const faqHtml = faqItems.length
-    ? `<section aria-labelledby="faq-heading"><h2 id="faq-heading">Frequently asked questions</h2>${faqItems
+    ? `<section aria-labelledby="faq-heading"><h2 id="faq-heading">${esc(chrome.faqHeading)}</h2>${faqItems
         .map(
           (f) =>
             `<div class="faq-item"><h3>${esc(f.question)}</h3>${paragraphize(f.answer)}</div>`,
@@ -1050,7 +1549,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
     ? row.visualMeta.filter((v) => v && v.succeeded && v.url && v.type && v.type !== "IMAGE")
     : [];
   const visualsHtml = succeededVisuals.length
-    ? `<section aria-labelledby="visuals-heading"><h2 id="visuals-heading">Evidence visuals</h2>${succeededVisuals
+    ? `<section aria-labelledby="visuals-heading"><h2 id="visuals-heading">${esc(chrome.visualsHeading)}</h2>${succeededVisuals
         .map(
           (v) => `<figure class="review-visual review-visual-${v.type.toLowerCase()}"><img src="${esc(v.url!)}" alt="${esc(v.altText || v.description || "")}" loading="lazy" />${v.description ? `<figcaption>${esc(v.description)}</figcaption>` : ""}</figure>`,
         )
@@ -1059,22 +1558,22 @@ async function renderReview(slug: string): Promise<RenderResult> {
 
   const protectionStepsText = clean(row.protectionSteps);
   const protectionStepsHtml = protectionStepsText
-    ? `<section aria-labelledby="protection-heading"><h2 id="protection-heading">If you've been targeted by ${esc(platformName)}</h2>${paragraphize(protectionStepsText)}</section>`
+    ? `<section aria-labelledby="protection-heading"><h2 id="protection-heading">${esc(chrome.protectionHeadingPrefix)}${esc(platformName)}</h2>${paragraphize(protectionStepsText)}</section>`
     : "";
 
   const notForYouText = clean(row.notForYou);
   const notForYouHtml = notForYouText
-    ? `<aside class="review-not-for-you" aria-labelledby="not-for-you-heading"><h2 id="not-for-you-heading">When this review may not apply</h2>${paragraphize(notForYouText)}</aside>`
+    ? `<aside class="review-not-for-you" aria-labelledby="not-for-you-heading"><h2 id="not-for-you-heading">${esc(chrome.notForYouHeading)}</h2>${paragraphize(notForYouText)}</aside>`
     : "";
 
   const expertiseDepthText = clean(row.expertiseDepth);
   const expertiseDepthHtml = expertiseDepthText
-    ? `<section aria-labelledby="expertise-heading"><h2 id="expertise-heading">Why trust this investigation</h2>${paragraphize(expertiseDepthText)}</section>`
+    ? `<section aria-labelledby="expertise-heading"><h2 id="expertise-heading">${esc(chrome.expertiseHeading)}</h2>${paragraphize(expertiseDepthText)}</section>`
     : "";
 
   const sources = Array.isArray(row.sources) ? row.sources : [];
   const sourcesHtml = sources.length
-    ? `<section aria-labelledby="sources-heading"><h2 id="sources-heading">Sources &amp; references</h2><ol class="review-sources">${sources
+    ? `<section aria-labelledby="sources-heading"><h2 id="sources-heading">${esc(chrome.sourcesHeading)}</h2><ol class="review-sources">${sources
         .map((s) => {
           if (!s || !s.url) return "";
           const typeBadge = s.type ? ` <span class="source-type">[${esc(s.type)}]</span>` : "";
@@ -1212,33 +1711,63 @@ async function renderReview(slug: string): Promise<RenderResult> {
         )
       : "";
 
+  // Locale-aware helpers for the footer-nav and byline. The footer-nav
+  // links point at the localized variants so users staying in `fr/` /
+  // `es/` keep their language as they browse.
+  const localizedHomeHref = localizePath("/", locale);
+  const localizedInvestigationsHref = localizePath("/investigations", locale);
+  const localizedMethodologyHref = localizePath("/methodology", locale);
+  const localizedReportHref = localizePath("/report", locale);
+  // Byline composition — split out so the legacy template + the modern
+  // article footer share the same string. Translator (when set on a
+  // non-EN translation row) gets a parenthetical credit after the
+  // master persona; persona alone is used when no translator was
+  // recorded.
+  const localizedByline = (() => {
+    const masterByline = reviewPersona
+      ? `<a href="${localizePath(`/author/${reviewPersona.slug}`, locale)}" rel="author">${esc(reviewPersona.name)}</a>`
+      : esc(row.author || "CryptoKiller Research Team");
+    const translatorSuffix = translatorName
+      ? ` <small>(${locale === "fr" ? "Traduit par" : locale === "es" ? "Traducido por" : "Translated by"} ${esc(translatorName)})</small>`
+      : "";
+    return `${masterByline}${translatorSuffix}`;
+  })();
+  const localizedDatePublished = datePublished
+    ? ` · ${esc(chrome.publishedLabel)} ${new Date(datePublished).toISOString().split("T")[0]}`
+    : "";
+  const localizedReadingMinutes = row.readingMinutes
+    ? ` · ${row.readingMinutes} ${esc(chrome.minuteReadLabel)}`
+    : "";
+  const localizedWordCount = row.wordCount
+    ? ` · ${row.wordCount.toLocaleString(locale === "en" ? "en-US" : locale)} ${esc(chrome.wordsLabel)}`
+    : "";
   const bodyHtml = fullArticleBodyHtml
     ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
       // Writer produces a complete article page with breadcrumb, hero, sections,
       // and disclaimer. We render it inside <article> with the site chrome and
       // append a small navigation footer for crawl-graph signal. No structured
       // sections are emitted here — they live in JSON-LD via the Task 7B graph.
-      `${siteHeaderHtml()}<main>
+      `${siteHeaderHtml(locale)}<main>
 <article id="article-body">
 ${fullArticleBodyHtml}
 </article>
-<nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
-</main>${siteFooterHtml()}`
+<nav aria-label="Investigation footer"><p><a href="${localizedInvestigationsHref}">${esc(chrome.backToInvestigations)}</a> · <a href="${localizedMethodologyHref}">${esc(chrome.howWeScoreScams)}</a> · <a href="${localizedReportHref}">${esc(chrome.reportRelatedScam)}</a></p></nav>
+</main>${siteFooterHtml(locale)}`
     : // ── Legacy fallback path (pre-Task 7D rows): structured template ──
       // For older review rows that pre-date the full_article migration. Once
       // every published review has been republished after Task 7D, this branch
       // will go unused — but we keep it so legacy rows still render coherently
       // until they're regenerated.
-      `${siteHeaderHtml()}<main>
-<nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
+      `${siteHeaderHtml(locale)}<main>
+<nav aria-label="${esc(chrome.breadcrumbLabel)}"><a href="${localizedHomeHref}">${esc(chrome.homeLabel)}</a> · <a href="${localizedInvestigationsHref}">${esc(chrome.investigationsLabel)}</a> · ${esc(platformName)}</nav>
 <article>
-<h1>${esc(platformName)} ${headlineLabel}${scoreSuffix}</h1>
+<h1>${esc(platformName)} ${esc(localizedHeadlineLabel)}${esc(scoreSuffix)}</h1>
 ${heroImageHtml}
-<p><strong>Verdict:</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>
-${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
+<p><strong>${esc(chrome.verdictLabel)}</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>
+${warningText ? `<p role="alert"><strong>${esc(chrome.warningLabel)}</strong> ${esc(warningText)}</p>` : ""}
 ${heroText && heroText !== summaryText ? `<p>${esc(heroText)}</p>` : ""}
-${summaryText ? `<section class="review-summary"><h2>Investigation summary</h2>${paragraphize(summaryText)}</section>` : ""}
-${stats.length ? `<section><h2>Investigation at a glance</h2><ul>${stats.join("")}</ul></section>` : ""}
+${summaryText ? `<section class="review-summary"><h2>${esc(chrome.investigationSummaryHeading)}</h2>${paragraphize(summaryText)}</section>` : ""}
+${stats.length ? `<section><h2>${esc(chrome.atAGlanceHeading)}</h2><ul>${stats.join("")}</ul></section>` : ""}
 ${keyFindingsHtml}
 ${contentImageByPlacement("section-1")}
 ${redFlagsHtml}
@@ -1246,19 +1775,17 @@ ${contentImageByPlacement("section-2")}
 ${funnelStagesHtml}
 ${visualsHtml}
 ${celebritiesHtml}
-${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
+${methodologyText ? `<section><h2>${esc(chrome.methodologyHeadingPrefix)}${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
 ${expertiseDepthHtml}
 ${protectionStepsHtml}
 ${faqHtml}
 ${sourcesHtml}
 ${notForYouHtml}
-${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
-<p><strong>Investigation by:</strong> ${reviewPersona
-  ? `<a href="/author/${reviewPersona.slug}" rel="author">${esc(reviewPersona.name)}</a>`
-  : esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
-<p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
+${disclaimerText ? `<section><h2>${esc(chrome.disclaimerHeading)}</h2>${paragraphize(disclaimerText)}</section>` : ""}
+<p><strong>${esc(chrome.investigationByLabel)}</strong> ${localizedByline}${localizedDatePublished}${localizedReadingMinutes}${localizedWordCount}</p>
+<p><a href="${localizedInvestigationsHref}">${esc(chrome.backToInvestigations)}</a> · <a href="${localizedMethodologyHref}">${esc(chrome.howWeScoreScams)}</a> · <a href="${localizedReportHref}">${esc(chrome.reportRelatedScam)}</a></p>
 </article>
-</main>${siteFooterHtml()}`;
+</main>${siteFooterHtml(locale)}`;
 
   const reviewBodyText = truncate(
     [
@@ -1307,9 +1834,9 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     authorNode,
     ...(itemReviewed ? [itemReviewed] : []),
     breadcrumbList([
-      { label: "Home", href: `${BASE}/` },
-      { label: "Investigations", href: `${BASE}/investigations` },
-      { label: `${platformName} ${headlineLabel}`, href: canonical },
+      { label: chrome.homeLabel, href: `${BASE}${localizePath("/", locale)}` },
+      { label: chrome.investigationsLabel, href: `${BASE}${localizePath("/investigations", locale)}` },
+      { label: `${platformName} ${localizedHeadlineLabel}`, href: canonical },
     ]),
     {
       // Single type — Review. Dual-typing with Article caused Google to
@@ -1326,7 +1853,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       // 1-line summary), then headline column, then platformName label as
       // last resort. The truncated SEO title goes in alternativeHeadline.
       headline: String(row.alternativeHeadline || row.headline || "").trim()
-        || `${platformName} ${headlineLabel}`,
+        || `${platformName} ${localizedHeadlineLabel}`,
       alternativeHeadline: title,
       url: canonical,
       // mainEntityOfPage is the canonical Article-style reference to the
@@ -1337,7 +1864,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       // significantLink, primaryImageOfPage, etc.) downstream.
       mainEntityOfPage: { "@type": "WebPage", "@id": `${canonical}#webpage` },
       description,
-      inLanguage: "en",
+      inLanguage: locale,
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
       author: authorRef,
@@ -1419,7 +1946,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     graph.push({
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
-      inLanguage: "en",
+      inLanguage: locale,
       // Backreferences to the Review + WebPage. Pre-2026-04-28 the FAQPage
       // node stood alone in the @graph — orphaned FAQ subgraphs are still
       // valid JSON-LD but Google reads connected graphs as stronger entity
@@ -1531,16 +2058,32 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     // SSR <meta name="author"> matches usePageMeta's CSR value (see
     // src/pages/ReviewPage.tsx line ~770) so crawlers see the persona on
     // first byte instead of the corporate fallback baked into index.html.
+    // When the page is a non-EN translation, append the translator
+    // attribution so the meta author reflects who actually wrote the
+    // text the reader is seeing.
     author: reviewPersona
-      ? `${reviewPersona.name} — cryptokiller.org`
+      ? translatorName
+        ? `${reviewPersona.name} (trans. ${translatorName}) — cryptokiller.org`
+        : `${reviewPersona.name} — cryptokiller.org`
       : undefined,
+    locale,
+    alternates,
     bodyHtml,
     jsonLd: { "@context": "https://schema.org", "@graph": graph },
     lastModified,
   };
 }
 
-async function renderBlogPost(slug: string): Promise<RenderResult> {
+async function renderBlogPost(slug: string, locale: Locale = "en"): Promise<RenderResult> {
+  // Blog post translations are not implemented yet — upstream Supabase
+  // has no blog_post_translations table. A request for /<locale>/blog/<slug>
+  // gets a clean localized 404 rather than the EN content with a wrong
+  // canonical. When blog translations land upstream this branch goes
+  // away and the function follows the renderReview pattern.
+  if (locale !== "en") {
+    return renderNotFound(localizePath(`/blog/${slug}`, locale), locale);
+  }
+
   // Fetch the row and platform-stat aggregates in parallel; substitution is
   // applied below to every string field of the row so {{platform_stat:KEY}}
   // tokens emitted by the writer (lib/aux-writer.js / content-prompts.js on
@@ -1881,26 +2424,26 @@ function renderAuthor(slug: string): RenderResult {
   };
 }
 
-function renderNotFound(originalPath: string): RenderResult {
+function renderNotFound(originalPath: string, locale: Locale = "en"): RenderResult {
+  const s = STRINGS[locale];
+  const p = (path: string) => localizePath(path, locale);
   const canonical = `${BASE}${originalPath}`;
-  const title = "Page Not Found — CryptoKiller";
-  const description =
-    "The page you are looking for does not exist. Browse CryptoKiller's crypto scam investigations or report a scam.";
 
-  const bodyHtml = `${siteHeaderHtml()}<main>
-<h1>404 — Page Not Found</h1>
-<p>The page you're looking for doesn't exist or has moved.</p>
-<p><a href="/">Back to home</a> · <a href="/investigations">Browse investigations</a> · <a href="/blog">Read the blog</a></p>
-</main>${siteFooterHtml()}`;
+  const bodyHtml = `${siteHeaderHtml(locale)}<main>
+<h1>${esc(s.notFoundHeading)}</h1>
+<p>${esc(s.notFoundBody)}</p>
+<p><a href="${p("/")}">${esc(s.backToHome)}</a> · <a href="${p("/investigations")}">${esc(s.browseInvestigations)}</a> · <a href="${p("/blog")}">${esc(s.readTheBlog)}</a></p>
+</main>${siteFooterHtml(locale)}`;
 
   return {
     status: 404,
-    title,
-    description,
+    title: s.notFoundTitle,
+    description: s.notFoundDescription,
     canonical,
     ogType: "website",
     ogImage: DEFAULT_OG_IMAGE,
     robots: "noindex, follow",
+    locale,
     bodyHtml,
   };
 }
@@ -2516,21 +3059,53 @@ export async function renderPage(rawPath: string): Promise<RenderResult> {
   const search = new URLSearchParams(queryString);
   const cleaned = pathOnly.replace(/\/+$/, "") || "/";
 
-  if (cleaned === "/") return renderHome();
-  if (cleaned === "/investigations") return renderInvestigationsList(search);
-  if (cleaned === "/blog") return renderBlogList();
+  // ── Locale prefix detection ────────────────────────────────────────────
+  // Strip an optional `/<locale>/...` segment. Locales must appear in
+  // SUPPORTED_LOCALES; any other 2–3 char first segment falls through to
+  // the EN route table (and almost certainly to 404).
+  //
+  // EN URLs stay unprefixed — we do not redirect `/review/foo` →
+  // `/en/review/foo`. Master canonicals are the un-prefixed paths.
+  let locale: Locale = "en";
+  let routePath = cleaned;
+  const localeMatch = cleaned.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(\/.*)?$/i);
+  if (localeMatch) {
+    const candidate = localeMatch[1].toLowerCase();
+    if (isLocale(candidate) && candidate !== "en") {
+      locale = candidate;
+      routePath = (localeMatch[2] || "/").replace(/\/+$/, "") || "/";
+    }
+  }
 
-  const reviewMatch = cleaned.match(/^\/review\/([^/]+)$/);
+  if (locale !== "en") {
+    // Localized route surface (v1): only `/<locale>/review/<slug>` is
+    // first-class. Other localized paths return a localized 404. When
+    // upstream gains translations for blog posts / static pages they
+    // can be wired here following the same pattern.
+    const reviewMatch = routePath.match(/^\/review\/([^/]+)$/);
+    if (reviewMatch) return renderReview(decodeURIComponent(reviewMatch[1]), locale);
+
+    // `/fr` (no trailing path) currently has no translated home —
+    // return a localized 404 rather than serving the EN home under
+    // the wrong canonical.
+    return renderNotFound(localizePath(routePath, locale), locale);
+  }
+
+  if (routePath === "/") return renderHome();
+  if (routePath === "/investigations") return renderInvestigationsList(search);
+  if (routePath === "/blog") return renderBlogList();
+
+  const reviewMatch = routePath.match(/^\/review\/([^/]+)$/);
   if (reviewMatch) return renderReview(decodeURIComponent(reviewMatch[1]));
 
-  const blogMatch = cleaned.match(/^\/blog\/([^/]+)$/);
+  const blogMatch = routePath.match(/^\/blog\/([^/]+)$/);
   if (blogMatch) return renderBlogPost(decodeURIComponent(blogMatch[1]));
 
-  const authorMatch = cleaned.match(/^\/author\/([^/]+)$/);
+  const authorMatch = routePath.match(/^\/author\/([^/]+)$/);
   if (authorMatch) return renderAuthor(decodeURIComponent(authorMatch[1]));
 
-  const staticHandler = STATIC_PAGES[cleaned];
+  const staticHandler = STATIC_PAGES[routePath];
   if (staticHandler) return staticHandler();
 
-  return renderNotFound(cleaned);
+  return renderNotFound(routePath);
 }

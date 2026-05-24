@@ -9,6 +9,7 @@ import {
   faqItemsTable,
   keyFindingsTable,
   geoTargetsTable,
+  reviewTranslationsTable,
 } from "@workspace/db";
 import { supabase } from "./supabase";
 import { logger } from "./logger";
@@ -58,9 +59,43 @@ interface SupaReview {
   experience_signals: string[];
 }
 
+// Upstream public.review_translations row shape — only the fields the
+// Replit mirror cares about. Upstream may carry more provenance columns;
+// extras get ignored.
+interface SupaReviewTranslation {
+  slug: string;
+  locale: string;
+  status: string;
+  title: string | null;
+  meta_description: string | null;
+  headline: string | null;
+  alternative_headline: string | null;
+  summary: string | null;
+  how_it_works: string | null;
+  verdict: string | null;
+  full_article: string | null;
+  not_for_you: string | null;
+  protection_steps: string | null;
+  methodology: string | null;
+  disclaimer: string | null;
+  expertise_depth: string | null;
+  red_flags: unknown;
+  faq: unknown;
+  key_takeaways: unknown;
+  translation_method: string | null;
+  ai_model: string | null;
+  ai_prompt_version: string | null;
+  translator_name: string | null;
+  translator_credentials: string | null;
+  source_review_updated_at: string | null;
+  published_at: string | null;
+  word_count: number | null;
+}
+
 export interface SyncResult {
   syncedBrands: number;
   syncedReviews: number;
+  syncedTranslations: number;
   durationMs: number;
 }
 
@@ -161,10 +196,11 @@ export async function runSupabaseSync(): Promise<SyncResult> {
   const start = Date.now();
   let syncedBrands = 0;
   let syncedReviews = 0;
+  let syncedTranslations = 0;
 
   if (!supabase) {
     log.warn("Supabase not configured — skipping sync");
-    return { syncedBrands: 0, syncedReviews: 0, durationMs: 0 };
+    return { syncedBrands: 0, syncedReviews: 0, syncedTranslations: 0, durationMs: 0 };
   }
 
   const { data: brands, error: brandsErr } = await supabase
@@ -175,7 +211,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
   if (brandsErr) throw brandsErr;
   if (!brands || brands.length === 0) {
     log.info("No brands found in Supabase");
-    return { syncedBrands: 0, syncedReviews: 0, durationMs: Date.now() - start };
+    return { syncedBrands: 0, syncedReviews: 0, syncedTranslations: 0, durationMs: Date.now() - start };
   }
 
   log.info(`Fetched ${brands.length} brands from Supabase`);
@@ -379,6 +415,101 @@ export async function runSupabaseSync(): Promise<SyncResult> {
     }
   }
 
+  // ── Review translations ────────────────────────────────────────────────
+  // Pull every published row from upstream public.review_translations and
+  // upsert into the Replit mirror keyed by (slug, locale). Master English
+  // text stays on the reviews table itself; this loop only handles
+  // localizations (fr, es, …). Missing translator_name / ai_model fields
+  // are tolerated — the SSR falls back to the master persona when null.
+  try {
+    const { data: translations, error: translationsErr } = await supabase
+      .from("review_translations")
+      .select("*")
+      .eq("status", "published");
+
+    if (translationsErr) {
+      log.warn({ error: translationsErr }, "Could not fetch review_translations (non-fatal)");
+    } else if (translations && translations.length > 0) {
+      log.info(`Fetched ${translations.length} published review translations from Supabase`);
+
+      for (const t of translations as SupaReviewTranslation[]) {
+        if (!t.slug || !t.locale) continue;
+
+        const redFlags = Array.isArray(t.red_flags) ? (t.red_flags as unknown[]) : [];
+        const faq = Array.isArray(t.faq) ? (t.faq as unknown[]) : [];
+        const keyTakeaways = Array.isArray(t.key_takeaways) ? (t.key_takeaways as unknown[]) : [];
+
+        const values = {
+          slug: t.slug,
+          locale: t.locale,
+          status: t.status ?? "draft",
+          title: t.title ?? "",
+          metaDescription: t.meta_description ?? "",
+          headline: t.headline ?? "",
+          alternativeHeadline: t.alternative_headline ?? "",
+          summary: t.summary ?? "",
+          howItWorks: t.how_it_works ?? "",
+          verdict: t.verdict ?? "",
+          fullArticle: t.full_article ?? "",
+          notForYou: t.not_for_you ?? "",
+          protectionSteps: t.protection_steps ?? "",
+          methodology: t.methodology ?? "",
+          disclaimer: t.disclaimer ?? "",
+          expertiseDepth: t.expertise_depth ?? "",
+          redFlags,
+          faq,
+          keyTakeaways,
+          translationMethod: t.translation_method ?? null,
+          aiModel: t.ai_model ?? null,
+          aiPromptVersion: t.ai_prompt_version ?? null,
+          translatorName: t.translator_name ?? null,
+          translatorCredentials: t.translator_credentials ?? null,
+          sourceReviewUpdatedAt: t.source_review_updated_at ? new Date(t.source_review_updated_at) : null,
+          publishedAt: t.published_at ? new Date(t.published_at) : null,
+          wordCount: t.word_count ?? 0,
+        };
+
+        await db
+          .insert(reviewTranslationsTable)
+          .values(values)
+          .onConflictDoUpdate({
+            target: [reviewTranslationsTable.slug, reviewTranslationsTable.locale],
+            set: {
+              status: values.status,
+              title: values.title,
+              metaDescription: values.metaDescription,
+              headline: values.headline,
+              alternativeHeadline: values.alternativeHeadline,
+              summary: values.summary,
+              howItWorks: values.howItWorks,
+              verdict: values.verdict,
+              fullArticle: values.fullArticle,
+              notForYou: values.notForYou,
+              protectionSteps: values.protectionSteps,
+              methodology: values.methodology,
+              disclaimer: values.disclaimer,
+              expertiseDepth: values.expertiseDepth,
+              redFlags: values.redFlags,
+              faq: values.faq,
+              keyTakeaways: values.keyTakeaways,
+              translationMethod: values.translationMethod,
+              aiModel: values.aiModel,
+              aiPromptVersion: values.aiPromptVersion,
+              translatorName: values.translatorName,
+              translatorCredentials: values.translatorCredentials,
+              sourceReviewUpdatedAt: values.sourceReviewUpdatedAt,
+              publishedAt: values.publishedAt,
+              wordCount: values.wordCount,
+            },
+          });
+
+        syncedTranslations++;
+      }
+    }
+  } catch (err) {
+    log.warn({ error: err }, "review_translations sync failed (non-fatal)");
+  }
+
   try {
     const { data: contentRows, error: contentErr } = await supabase
       .from("content")
@@ -457,9 +588,9 @@ export async function runSupabaseSync(): Promise<SyncResult> {
   }
 
   const durationMs = Date.now() - start;
-  log.info({ syncedBrands, syncedReviews, durationMs }, "Supabase sync complete");
+  log.info({ syncedBrands, syncedReviews, syncedTranslations, durationMs }, "Supabase sync complete");
 
-  return { syncedBrands, syncedReviews, durationMs };
+  return { syncedBrands, syncedReviews, syncedTranslations, durationMs };
 }
 
 const SYNC_INTERVAL_MS = 2 * 60 * 1000;

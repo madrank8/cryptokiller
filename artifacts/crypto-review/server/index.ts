@@ -42,8 +42,28 @@ function escapeJsonLd(obj: unknown): string {
   return JSON.stringify(obj).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
 }
 
+// og:locale wants a region-tagged identifier (`fr_FR`, `es_ES`) — the
+// BCP-47 short tags we use for hreflang aren't accepted by every Open
+// Graph consumer. Map our supported set; default to `en_US` for any
+// short tag we don't recognise.
+function localeToOgLocale(locale: string): string {
+  switch (locale) {
+    case "fr": return "fr_FR";
+    case "es": return "es_ES";
+    case "en": return "en_US";
+    default: return "en_US";
+  }
+}
+
 function applyMeta(template: string, r: RenderResult): string {
   let html = template;
+
+  // <html lang="…"> — the template ships with `lang="en"`. When the
+  // renderer set a non-EN locale, swap it. Crawlers and screen readers
+  // rely on this attribute to set the document language. JSON-LD
+  // `inLanguage` and og:locale are already locale-aware in prerender.
+  const lang = r.locale ?? "en";
+  html = html.replace(/<html\s+lang="[^"]*"/i, `<html lang="${escapeAttr(lang)}"`);
 
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(r.title)}</title>`);
 
@@ -72,6 +92,23 @@ function applyMeta(template: string, r: RenderResult): string {
   }
 
   let headInject = `<link rel="canonical" href="${escapeAttr(r.canonical)}" data-ssr="1" />`;
+  // hreflang siblings — emitted as <link rel="alternate" hreflang=...>
+  // for every locale variant the renderer reported. The list is built
+  // by prerender.buildAlternatesForPath and is restricted to locales
+  // that actually have published content (no dangling links to 404s).
+  // og:locale matches the page's own locale; og:locale:alternate
+  // siblings advertise the other variants to Open Graph consumers.
+  if (r.alternates && r.alternates.length > 0) {
+    for (const alt of r.alternates) {
+      headInject += `<link rel="alternate" hreflang="${escapeAttr(alt.hreflang)}" href="${escapeAttr(alt.href)}" data-ssr="1" />`;
+    }
+    headInject += `<meta property="og:locale" content="${escapeAttr(localeToOgLocale(r.locale ?? "en"))}" data-ssr="1" />`;
+    for (const alt of r.alternates) {
+      if (alt.hreflang === "x-default" || alt.hreflang === (r.locale ?? "en")) continue;
+      // og:locale:alternate doesn't accept x-default; skip it explicitly.
+      headInject += `<meta property="og:locale:alternate" content="${escapeAttr(localeToOgLocale(alt.hreflang))}" data-ssr="1" />`;
+    }
+  }
   if (r.jsonLd) {
     headInject += `<script type="application/ld+json" data-ssr-jsonld="1">${escapeJsonLd(r.jsonLd)}</script>`;
   }
