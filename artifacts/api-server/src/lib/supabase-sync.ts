@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, blogPostsTable } from "@workspace/db";
 import {
   platformsTable,
@@ -9,6 +9,7 @@ import {
   faqItemsTable,
   keyFindingsTable,
   geoTargetsTable,
+  reviewTranslationsTable,
 } from "@workspace/db";
 import { supabase } from "./supabase";
 import { logger } from "./logger";
@@ -61,8 +62,11 @@ interface SupaReview {
 export interface SyncResult {
   syncedBrands: number;
   syncedReviews: number;
+  syncedTranslations: number;
   durationMs: number;
 }
+
+const ALLOWED_TRANSLATION_LOCALES = new Set(["it", "es", "de", "fr", "pt-BR"]);
 
 function parseHowItWorks(text: string): { stageNumber: number; title: string; bullets: string[]; statValue: string; statLabel: string }[] {
   if (!text) return [];
@@ -161,10 +165,11 @@ export async function runSupabaseSync(): Promise<SyncResult> {
   const start = Date.now();
   let syncedBrands = 0;
   let syncedReviews = 0;
+  let syncedTranslations = 0;
 
   if (!supabase) {
     log.warn("Supabase not configured — skipping sync");
-    return { syncedBrands: 0, syncedReviews: 0, durationMs: 0 };
+    return { syncedBrands: 0, syncedReviews: 0, syncedTranslations: 0, durationMs: 0 };
   }
 
   const { data: brands, error: brandsErr } = await supabase
@@ -175,7 +180,7 @@ export async function runSupabaseSync(): Promise<SyncResult> {
   if (brandsErr) throw brandsErr;
   if (!brands || brands.length === 0) {
     log.info("No brands found in Supabase");
-    return { syncedBrands: 0, syncedReviews: 0, durationMs: Date.now() - start };
+    return { syncedBrands: 0, syncedReviews: 0, syncedTranslations: 0, durationMs: Date.now() - start };
   }
 
   log.info(`Fetched ${brands.length} brands from Supabase`);
@@ -456,10 +461,136 @@ export async function runSupabaseSync(): Promise<SyncResult> {
     log.warn({ error: err }, "content blog sync failed (non-fatal)");
   }
 
-  const durationMs = Date.now() - start;
-  log.info({ syncedBrands, syncedReviews, durationMs }, "Supabase sync complete");
+  // ── review_translations sync (Phase 3 — multilingual) ──
+  // Pull all published translations from Supabase and mirror into Replit
+  // Postgres. Map Supabase translation.review_id → Supabase reviews.slug →
+  // Replit reviews.id (same slug = same review on both sides).
+  // Delete-then-insert per (review_id) — translations that disappear
+  // upstream disappear here too.
+  try {
+    // Pull ALL translation rows (any status) so we can correctly prune
+    // local rows whose upstream was unpublished or deleted. The published
+    // subset is what we actually insert below.
+    const { data: supaTranslations, error: tErr } = await supabase
+      .from("review_translations")
+      .select("*");
 
-  return { syncedBrands, syncedReviews, durationMs };
+    if (tErr) {
+      log.warn({ error: tErr }, "review_translations fetch failed (non-fatal)");
+    } else if (supaTranslations) {
+      const supaReviewIds = [...new Set(supaTranslations.map((t: any) => t.review_id).filter(Boolean))];
+      const { data: supaRevs, error: rErr } = supaReviewIds.length
+        ? await supabase.from("reviews").select("id,slug").in("id", supaReviewIds)
+        : { data: [], error: null };
+
+      if (rErr) {
+        log.warn({ error: rErr }, "source reviews fetch for translations failed (non-fatal)");
+      } else {
+        const supaIdToSlug = new Map<string, string>();
+        for (const r of supaRevs ?? []) supaIdToSlug.set(r.id, r.slug);
+
+        const slugs = [...new Set([...supaIdToSlug.values()])];
+        const replitRows = slugs.length
+          ? await db.select({ id: reviewsTable.id, slug: reviewsTable.slug })
+              .from(reviewsTable).where(inArray(reviewsTable.slug, slugs))
+          : [];
+        const slugToReplitId = new Map<string, number>();
+        for (const r of replitRows) slugToReplitId.set(r.slug, r.id);
+
+        // Set of all local review IDs whose upstream translations we saw
+        // (any status). These are the rows we are authoritative for this
+        // run — delete all of them, then re-insert only the published
+        // subset. Reviews not in this set are left alone.
+        const affectedReplitIds = new Set<number>();
+        for (const t of supaTranslations) {
+          const sourceSlug = supaIdToSlug.get(t.review_id);
+          if (!sourceSlug) continue;
+          const replitId = slugToReplitId.get(sourceSlug);
+          if (replitId) affectedReplitIds.add(replitId);
+        }
+
+        const byReplitId = new Map<number, any[]>();
+        for (const t of supaTranslations) {
+          if (t.status !== "published") continue;
+          const locale = typeof t.locale === "string" ? t.locale.trim() : "";
+          const tSlug = typeof t.slug === "string" ? t.slug.trim() : "";
+          if (!locale || !tSlug) continue;
+          if (!ALLOWED_TRANSLATION_LOCALES.has(locale)) continue;
+          const sourceSlug = supaIdToSlug.get(t.review_id);
+          if (!sourceSlug) continue;
+          const replitId = slugToReplitId.get(sourceSlug);
+          if (!replitId) continue;
+          const arr = byReplitId.get(replitId) ?? [];
+          arr.push(t);
+          byReplitId.set(replitId, arr);
+        }
+
+        // Prune first across all affected reviews (including those that
+        // now have zero published translations), then insert the
+        // current published set. Each review's delete+insert runs in a
+        // transaction so a mid-insert failure cannot leave a review
+        // with all its translations wiped.
+        const prunedOnly = new Set<number>();
+        for (const replitId of affectedReplitIds) {
+          if (!byReplitId.has(replitId)) {
+            await db.delete(reviewTranslationsTable).where(eq(reviewTranslationsTable.reviewId, replitId));
+            prunedOnly.add(replitId);
+          }
+        }
+
+        for (const [replitId, rows] of byReplitId.entries()) {
+          await db.transaction(async (tx) => {
+            await tx.delete(reviewTranslationsTable).where(eq(reviewTranslationsTable.reviewId, replitId));
+            for (const t of rows) {
+              await tx.insert(reviewTranslationsTable).values({
+                reviewId: replitId,
+                locale: t.locale,
+                slug: t.slug,
+                status: t.status ?? "published",
+                title: t.title ?? null,
+                metaDescription: t.meta_description ?? null,
+                headline: t.headline ?? null,
+                alternativeHeadline: t.alternative_headline ?? null,
+                summary: t.summary ?? null,
+                verdict: t.verdict ?? null,
+                howItWorks: t.how_it_works ?? null,
+                fullArticle: typeof t.full_article === "string" ? t.full_article : null,
+                redFlags: t.red_flags ?? null,
+                faq: t.faq ?? null,
+                keyTakeaways: t.key_takeaways ?? null,
+                notForYou: t.not_for_you ?? null,
+                protectionSteps: t.protection_steps ?? null,
+                methodology: t.methodology ?? null,
+                disclaimer: t.disclaimer ?? null,
+                expertiseDepth: t.expertise_depth ?? null,
+                translationMethod: t.translation_method ?? null,
+                translatorName: t.translator_name ?? null,
+                translatorCredentials: t.translator_credentials ?? null,
+                aiModel: t.ai_model ?? null,
+                aiPromptVersion: t.ai_prompt_version ?? null,
+                reviewedAt: t.reviewed_at ? new Date(t.reviewed_at) : null,
+                wordCount: typeof t.word_count === "number" ? t.word_count : null,
+                publishedAt: t.published_at ? new Date(t.published_at) : null,
+                sourceReviewUpdatedAt: t.source_review_updated_at ? new Date(t.source_review_updated_at) : null,
+              });
+              syncedTranslations++;
+            }
+          });
+        }
+        log.info(
+          { syncedTranslations, prunedReviews: prunedOnly.size, affectedReviews: affectedReplitIds.size },
+          "review_translations sync complete",
+        );
+      }
+    }
+  } catch (err) {
+    log.warn({ error: err }, "review_translations sync failed (non-fatal)");
+  }
+
+  const durationMs = Date.now() - start;
+  log.info({ syncedBrands, syncedReviews, syncedTranslations, durationMs }, "Supabase sync complete");
+
+  return { syncedBrands, syncedReviews, syncedTranslations, durationMs };
 }
 
 const SYNC_INTERVAL_MS = 2 * 60 * 1000;
