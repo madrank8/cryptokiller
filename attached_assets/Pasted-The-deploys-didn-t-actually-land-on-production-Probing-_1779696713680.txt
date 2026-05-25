@@ -1,0 +1,103 @@
+The deploys didn't actually land on production. Probing cryptokiller.org
+shows old code is still serving:
+
+  curl -s "https://cryptokiller.org/api/reviews/blackrose-finbitnex?locale=fr" | jq '.verdict'
+  → "Blackrose Finbitnex is under active investigation. Verify before depositing."
+    (English — new code would 404 on a missing FR row, not return EN)
+
+  curl -sI "https://cryptokiller.org/fr/review/blackrose-finbitnex"
+  → HTTP/2 404
+
+  curl -s "https://cryptokiller.org/review/blackrose-finbitnex" | grep hreflang
+  → no hreflang="fr" entry (new SSR would emit one)
+
+  curl -s "https://cryptokiller.org/sitemap.xml" | grep -c "/fr/review/"
+  → 0
+
+Run these checks and report each one's output verbatim. Don't fix
+anything until I see them — I need to know which step regressed.
+
+────────────────────────────────────────────────────────
+CHECK A — Which commit is the api-server running?
+────────────────────────────────────────────────────────
+What git SHA is the LIVE api-server deployment built from? (Look at
+the deploy console, build logs, or whatever shows the deployed commit.)
+It needs to be 7b67e70 or a descendant. If it's still on 696be53 or
+older, redeploy api-server.
+
+────────────────────────────────────────────────────────
+CHECK B — Which commit is crypto-review running?
+────────────────────────────────────────────────────────
+Same question for the crypto-review (SSR) deployment. Must be 7b67e70+.
+If it's older, redeploy.
+
+────────────────────────────────────────────────────────
+CHECK C — Did the migration actually apply?
+────────────────────────────────────────────────────────
+Run against the Replit Postgres (DATABASE_URL):
+
+  SELECT to_regclass('public.review_translations') AS table_exists,
+         to_regclass('public.review_translations_slug_locale_idx') AS index_exists;
+
+Both must be non-null. If table_exists IS NULL, run
+lib/db/migrations/0007_review_translations.sql now.
+
+Then count the rows:
+  SELECT locale, status, count(*) FROM review_translations GROUP BY 1,2;
+
+If the count for (fr, published) is 0, the sync hasn't pulled yet —
+that's step CHECK E. Don't panic about 0 here, just report it.
+
+────────────────────────────────────────────────────────
+CHECK D — Does the running api-server actually have the new code?
+────────────────────────────────────────────────────────
+The new GET /reviews/:slug code 404s when locale=fr has no translation
+row; the OLD code ignores the query param and returns EN. So:
+
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    "$API_BASE/api/reviews/THIS_SLUG_DOES_NOT_EXIST_xyz123?locale=fr"
+  → expect 404 (review missing) on both old and new code
+
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    "$API_BASE/api/reviews/blackrose-finbitnex?locale=fr"
+  → expect 404 on NEW code (no translation row yet — until CHECK E)
+  → expect 200 on OLD code (param ignored, returns EN)
+
+If you see 200 here BEFORE the sync runs, the new api-server code is
+NOT actually deployed.
+
+────────────────────────────────────────────────────────
+CHECK E — Did the supabase sync run with the new code?
+────────────────────────────────────────────────────────
+Trigger the sync and capture the FULL JSON response:
+
+  curl -s -X POST "$API_BASE/sync/supabase" \
+       -H "x-sync-secret: $SYNC_SECRET" | jq .
+
+The response MUST contain a `syncedTranslations` field. If it doesn't,
+api-server is on old code (step CHECK A). If it does and the value is
+0, check api-server logs for "review_translations sync failed" or
+"Could not fetch review_translations" warnings — most likely a
+permissions issue on the upstream Supabase service key against the
+public.review_translations table.
+
+────────────────────────────────────────────────────────
+CHECK F — Does the running SSR have the new locale routing?
+────────────────────────────────────────────────────────
+The new SSR returns a real 404 for /fr/<anything-not-routed>; the old
+SSR can't even see /fr/ at all. Both return 404 from the request's
+perspective, so distinguish by the response body:
+
+  curl -s "https://cryptokiller.org/fr/this-cannot-exist" | grep -oE '<html lang="[^"]+"|404 — Page introuvable|404 — Page Not Found' | head
+
+  Old SSR: <html lang="en"> + "404 — Page Not Found"
+  New SSR: <html lang="fr"> + "404 — Page introuvable"
+
+If you see the EN 404 body, crypto-review is on old code.
+
+────────────────────────────────────────────────────────
+Report back the output of CHECK A through F.
+────────────────────────────────────────────────────────
+Don't redeploy or re-sync until I see those — I need to know whether
+this is a stale-deploy problem (most likely), a missing-migration
+problem, or a Supabase permissions problem.
