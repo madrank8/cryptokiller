@@ -2,6 +2,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import express, { type Request, type Response, type NextFunction } from "express";
+import compression from "compression";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import { renderPage, type RenderResult } from "./prerender.js";
 
@@ -131,6 +132,14 @@ function applyMeta(template: string, r: RenderResult): string {
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", true);
+
+// ─── Compression (The Website Specification — Performance) ───
+// gzip/deflate text responses (HTML, markdown, JS, CSS, JSON, SVG). Registered
+// first so every downstream response (static assets + SSR HTML) is compressed
+// for clients that send Accept-Encoding. compression appends `Accept-Encoding`
+// to any existing Vary header via on-headers, so the handlers' `Vary: Accept`
+// is preserved as `Vary: Accept, Accept-Encoding`.
+app.use(compression());
 
 // ─── Security headers (The Website Specification — Security category) ───
 // Applied to every response (static assets, SSR HTML, markdown, redirects,
