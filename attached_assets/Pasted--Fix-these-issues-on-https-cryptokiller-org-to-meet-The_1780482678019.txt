@@ -1,0 +1,33 @@
+# Fix these issues on https://cryptokiller.org/ to meet The Website Specification
+
+You are an AI coding assistant. Fix the problems below so this site conforms to The Website Specification (https://specification.website). Scope: the Security category. Each item lists the current evidence, the requirement, a reference, and (where known) a suggested fix. Make the smallest correct change for each item and do not touch anything not listed.
+
+## CAA records - FAIL (recommended)
+- **Evidence:** No CAA records found
+- **Requirement:** No CAA records restrict which CAs may issue certificates for this domain.
+- **Reference:** https://specification.website/spec/security/caa-records/
+- **Fix hint:** Add a CAA record, e.g. `example.com. IN CAA 0 issue "letsencrypt.org"`.
+
+## Cookie attributes - PARTIAL (required)
+- **Evidence:** GAESA (missing Secure, HttpOnly, SameSite)
+- **Requirement:** Some cookies are missing recommended security attributes.
+- **Reference:** https://specification.website/spec/security/cookie-attributes/
+- **Fix hint:** Set `Secure`, `HttpOnly` (where applicable), and an explicit `SameSite` on each cookie.
+
+## Content Security Policy - PARTIAL (recommended)
+- **Evidence:** CSP directives: default-src, base-uri, object-src, frame-ancestors, form-action, script-src, style-src, img-src, font-src, connect-src, frame-src, worker-src, upgrade-insecure-requests (script-src has 'unsafe-inline', 'unsafe-eval')
+- **Requirement:** CSP is present but weakened by unsafe-inline/unsafe-eval in script-src.
+- **Reference:** https://specification.website/spec/security/content-security-policy/
+- **Fix hint:** Remove 'unsafe-inline'/'unsafe-eval' from script-src; use nonces or hashes instead.
+
+## DNSSEC - FAIL (optional)
+- **Evidence:** DNSSEC not enabled
+- **Requirement:** DNSSEC is not enabled for this domain.
+- **Reference:** https://specification.website/spec/security/dnssec/
+- **Fix hint:** Enable DNSSEC at your DNS provider and publish a DS record at the registrar.
+
+## Subresource Integrity - PARTIAL (recommended)
+- **Evidence:** 3/3 without integrity: script https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1909284135670574, link https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjQ.woff2, link https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap
+- **Requirement:** Some cross-origin subresources are missing Subresource Integrity hashes.
+- **Reference:** https://specification.website/spec/security/subresource-integrity/
+- **Fix hint:** Add `integrity` (and `crossorigin`) attributes to the listed external resources.
