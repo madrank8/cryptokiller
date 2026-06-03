@@ -19,6 +19,7 @@
     "@workspace/i18n": "workspace:*",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "node-html-markdown": "^2.0.0",
     "pg": "^8.20.0",
     "sanitize-html": "^2.17.4"
   },

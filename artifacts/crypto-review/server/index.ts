@@ -2,7 +2,22 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import express, { type Request, type Response, type NextFunction } from "express";
+import { NodeHtmlMarkdown } from "node-html-markdown";
 import { renderPage, type RenderResult } from "./prerender.js";
+
+const nhm = new NodeHtmlMarkdown();
+
+// Agent Readiness — render a page's SSR result as a Markdown source document.
+// Leads with the title as an H1, then the meta description as a blockquote,
+// then the Markdown conversion of the page's rendered body HTML.
+function renderResultToMarkdown(result: RenderResult): string {
+  const parts: string[] = [];
+  if (result.title) parts.push(`# ${result.title}`);
+  if (result.description) parts.push(`> ${result.description}`);
+  const body = nhm.translate(result.bodyHtml ?? "").trim();
+  if (body) parts.push(body);
+  return parts.join("\n\n") + "\n";
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +160,68 @@ app.get("/healthz", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+// Agent Readiness — Markdown source endpoints. A `.md` suffix on any
+// routable page (e.g. `/index.md` → `/`, `/review/foo.md` → `/review/foo`)
+// returns the same page rendered as Markdown. `Accept: text/markdown` on a
+// normal page URL is honoured the same way. This lets agents fetch a clean
+// source variant of the canonical HTML page.
+function markdownTargetPath(reqPath: string): string | null {
+  if (reqPath.endsWith(".md")) {
+    const stripped = reqPath.slice(0, -3);
+    // `/index.md` is the Markdown variant of the homepage.
+    if (stripped === "/index" || stripped === "") return "/";
+    return stripped || "/";
+  }
+  return null;
+}
+
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+
+  const accept = String(req.headers.accept ?? "");
+  const wantsMarkdownByAccept =
+    !path.extname(req.path) && accept.includes("text/markdown");
+  const targetFromSuffix = markdownTargetPath(req.path);
+
+  if (!wantsMarkdownByAccept && targetFromSuffix === null) return next();
+
+  const targetPath = targetFromSuffix ?? req.path;
+  const query = (req.originalUrl || req.url).split("?")[1];
+  const renderUrl = query ? `${targetPath}?${query}` : targetPath;
+
+  try {
+    const result = await renderPage(renderUrl);
+    const markdown = renderResultToMarkdown(result);
+
+    res.status(result.status);
+    if (result.lastModified) {
+      res.setHeader("Last-Modified", result.lastModified);
+    }
+    res.setHeader(
+      "Cache-Control",
+      result.status === 200 ? "public, max-age=300, stale-while-revalidate=600" : "no-store",
+    );
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    // Agent Readiness — advertise the sitemap and the canonical HTML variant
+    // of this Markdown source via the Link header.
+    const htmlHref = targetPath === "/" ? "/" : targetPath;
+    res.setHeader("Link", [
+      `</sitemap.xml>; rel="sitemap"`,
+      `<${htmlHref}>; rel="alternate"; type="text/html"`,
+    ].join(", "));
+    res.setHeader("Vary", "Accept");
+
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+    res.send(markdown);
+  } catch (err) {
+    console.error("[markdown] error rendering", req.path, err);
+    next(err);
+  }
+});
+
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   if (req.method !== "GET" && req.method !== "HEAD") return next();
   if (path.extname(req.path)) return next();
@@ -166,6 +243,14 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
       result.status === 200 ? "public, max-age=300, stale-while-revalidate=600" : "no-store",
     );
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    // Agent Readiness — advertise the sitemap and the Markdown source variant
+    // of this page via the Link header so agents can discover related
+    // resources without parsing the HTML body.
+    const mdHref = req.path === "/" ? "/index.md" : `${req.path.replace(/\/$/, "")}.md`;
+    res.setHeader("Link", [
+      `</sitemap.xml>; rel="sitemap"`,
+      `<${mdHref}>; rel="alternate"; type="text/markdown"`,
+    ].join(", "));
     res.setHeader("Vary", "Accept");
 
     if (req.method === "HEAD") {
