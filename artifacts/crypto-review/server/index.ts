@@ -153,17 +153,19 @@ const CONTENT_SECURITY_POLICY = [
   "object-src 'none'",
   "frame-ancestors 'self'",
   "form-action 'self'",
-  // 'unsafe-inline'/'unsafe-eval'/blob: are required by Google AdSense and by
-  // the inline JSON-LD + adsbygoogle bootstrap scripts the page emits.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://*.google.com https://*.gstatic.com https://*.doubleclick.net https://adservice.google.com",
-  // Inline styles are used throughout (SSR fallback markup + React style={{}})
-  // alongside the Google Fonts stylesheet.
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  // No third-party scripts: the app ships only its own bundled, same-origin JS.
+  // The only inline <script> the page emits is escaped JSON-LD (type
+  // application/ld+json), which is a data block not governed by script-src, so
+  // 'unsafe-inline'/'unsafe-eval' are not needed.
+  "script-src 'self'",
+  // Inline styles are used throughout (SSR fallback markup + React style={{}}).
+  // Fonts are self-hosted, so no external stylesheet origins are required.
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' https://fonts.gstatic.com data:",
+  // Inter is self-hosted from same-origin /assets; data: covers inlined glyphs.
+  "font-src 'self' data:",
   "connect-src 'self' https:",
-  // AdSense renders its ad units inside iframes served from these origins.
-  "frame-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com",
+  "frame-src 'self'",
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join("; ");

@@ -1,0 +1,2 @@
+- [crypto-review CSP & third-party baseline](crypto-review-csp-baseline.md) — strict CSP (script-src 'self', no unsafe-*), AdSense removed + Inter self-hosted for Website Spec security; don't silently reintroduce ad/font origins.
+- [crypto-review SSR testing](crypto-review-ssr-testing.md) — SSR prod server can OOM in bash; test light endpoints with --max-old-space-size=512.
