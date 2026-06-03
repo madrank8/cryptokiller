@@ -132,6 +132,65 @@ const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", true);
 
+// ─── Security headers (The Website Specification — Security category) ───
+// Applied to every response (static assets, SSR HTML, markdown, redirects,
+// errors). Kept permissive enough not to break the one external script the
+// site loads (Google AdSense) or Google Fonts, while still adding
+// clickjacking, MIME-sniffing, referrer, permissions, and CSP injection
+// defence-in-depth.
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'",
+  "form-action 'self'",
+  // 'unsafe-inline'/'unsafe-eval'/blob: are required by Google AdSense and by
+  // the inline JSON-LD + adsbygoogle bootstrap scripts the page emits.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://*.google.com https://*.gstatic.com https://*.doubleclick.net https://adservice.google.com",
+  // Inline styles are used throughout (SSR fallback markup + React style={{}})
+  // alongside the Google Fonts stylesheet.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "connect-src 'self' https:",
+  // AdSense renders its ad units inside iframes served from these origins.
+  "frame-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com",
+  "worker-src 'self' blob:",
+  "upgrade-insecure-requests",
+].join("; ");
+
+const PERMISSIONS_POLICY =
+  "geolocation=(), camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), midi=()";
+
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", PERMISSIONS_POLICY);
+  res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload",
+  );
+  next();
+});
+
+// ─── /.well-known/security.txt (RFC 9116) ───
+// express.static ignores dotfiles by default, so this is served explicitly.
+const SECURITY_TXT = [
+  "Contact: mailto:security@cryptokiller.org",
+  "Expires: 2027-06-03T00:00:00.000Z",
+  "Preferred-Languages: en",
+  "Canonical: https://cryptokiller.org/.well-known/security.txt",
+  "",
+].join("\n");
+
+app.get("/.well-known/security.txt", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(SECURITY_TXT);
+});
+
 // Convention: search engines and humans look for /sitemap.xml at the
 // site root. The canonical location is /api/sitemap.xml (built
 // dynamically from the DB, including all locale alternates). 301 here
