@@ -186,6 +186,58 @@
   }
 }
 
+/* ── Accessibility: WCAG colour contrast ──────────────────────────────
+   slate-500 (#64748b ≈ 4.2:1) and slate-600 (#475569) fall below the
+   4.5:1 AA ratio on the dark slate theme. Raise them to slate-400
+   (#94a3b8), which clears AA on every background surface used here. */
+.text-slate-500 {
+  color: #94a3b8;
+}
+.text-slate-600 {
+  color: #94a3b8;
+}
+
+/* ── Accessibility: minimum 24×24px touch targets ─────────────────────
+   Header-nav and footer links are inline text links under 24px tall.
+   Give each an inline-flex hit area at least 24px high. */
+header nav a,
+footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+/* ── Accessibility: skip-to-content link ──────────────────────────────
+   Hidden until focused; the first focusable element on every page. */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3.5rem;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+/* ── Accessibility: respect prefers-reduced-motion ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

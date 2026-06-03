@@ -1,0 +1,33 @@
+# Fix these issues on https://cryptokiller.org/ to meet The Website Specification
+
+You are an AI coding assistant. Fix the problems below so this site conforms to The Website Specification (https://specification.website). Scope: the Accessibility category. Each item lists the current evidence, the requirement, a reference, and (where known) a suggested fix. Make the smallest correct change for each item and do not touch anything not listed.
+
+## Colour contrast - FAIL (required)
+- **Evidence:** axe color-contrast: 84 node(s) e.g. .border-0, .pl-4, .gap-4.min-w-0.items-center:nth-child(1) > .md\:hidden.uppercase.tracking-widest, .gap-4.min-w-0.items-center:nth-child(2) > .md\:hidden.uppercase.tracking-widest, .border-slate-800\/60 > .text-\[12px\].text-center.text-slate-500
+- **Requirement:** Multiple elements fail the WCAG contrast ratio.
+- **Reference:** https://specification.website/spec/accessibility/color-contrast/
+- **Fix hint:** Raise foreground/background contrast to 4.5:1 (3:1 for large text).
+
+## Empty links & buttons - FAIL (avoid)
+- **Evidence:** axe link-name/button-name: 1 empty control(s) e.g. .focus-visible\:outline-none
+- **Requirement:** Links or buttons have no discernible accessible name (often icon-only).
+- **Reference:** https://specification.website/spec/accessibility/empty-links-buttons/
+- **Fix hint:** Add visible text or an aria-label to each empty link/button.
+
+## Touch target size - FAIL (required)
+- **Evidence:** 17 undersized target(s): a (106×21), a (153×21), a (358×20), a (71×20), a (150×20)
+- **Requirement:** Some interactive elements are smaller than the 24×24 CSS px minimum.
+- **Reference:** https://specification.website/spec/accessibility/touch-target-size/
+- **Fix hint:** Enlarge the targets (or their padding/hit area) to at least 24×24 CSS px.
+
+## Skip links - FAIL (recommended)
+- **Evidence:** First focusable element is not a skip-to-content link
+- **Requirement:** No skip link was found as the first focusable element.
+- **Reference:** https://specification.website/spec/accessibility/skip-links/
+- **Fix hint:** Add a `<a href="#main">Skip to content</a>` as the first focusable element.
+
+## Reduced motion - PARTIAL (required)
+- **Evidence:** Animations present but no prefers-reduced-motion handling found
+- **Requirement:** The page animates but does not respect users who prefer reduced motion.
+- **Reference:** https://specification.website/spec/accessibility/reduced-motion/
+- **Fix hint:** Wrap animations in `@media (prefers-reduced-motion: no-preference)` or disable them under `reduce`.

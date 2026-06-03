@@ -81,6 +81,8 @@ export default function SiteHeader({ activeNav }: SiteHeaderProps) {
             variant="ghost"
             size="icon"
             className="md:hidden text-slate-300"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             <Menu className="h-5 w-5" />
