@@ -177,7 +177,7 @@ function HeroSection() {
           href="https://wa.me/14155238886?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
           target="_blank"
           rel="noopener noreferrer"
-          className="block mt-6 text-sm text-[#25D366]/70 hover:text-[#25D366] transition-colors"
+          className="block mt-6 py-1 text-sm text-[#25D366]/70 hover:text-[#25D366] transition-colors"
         >
           💬 Or check any platform instantly on WhatsApp →
         </a>
@@ -197,6 +197,9 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
       : "from-amber-500 to-orange-500";
 
   const scoreBg = isExtreme ? "bg-red-600" : isHigh ? "bg-orange-500" : "bg-amber-500";
+  // WCAG: white clears 4.5:1 on the dark red-600 chip; the lighter orange/amber
+  // chips need near-black text to clear 4.5:1.
+  const scoreText = isExtreme ? "text-white" : "text-slate-950";
 
   const trend = daysActive > 400 ? "Stable" : daysActive > 100 ? "Rising" : "Surging";
   const trendColor = trend === "Surging" ? "text-red-400 bg-red-950/50 border-red-900/40" : trend === "Rising" ? "text-orange-400 bg-orange-950/50 border-orange-900/40" : "text-amber-400 bg-amber-950/50 border-amber-900/40";
@@ -210,8 +213,8 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
           {/* score + name */}
           <div className="flex items-start gap-4 mb-4">
             <div className={`${scoreBg} w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 shadow-lg`}>
-              <span className="text-white text-xl font-black leading-none">{threatScore}</span>
-              <span className="text-white/60 text-[9px] font-bold">Score</span>
+              <span className={`${scoreText} text-xl font-black leading-none`}>{threatScore}</span>
+              <span className={`${scoreText} text-[9px] font-bold`}>Score</span>
             </div>
             <div className="min-w-0 flex-1 pt-0.5">
               <h3 className="text-white font-bold text-lg leading-tight group-hover:text-red-400 transition-colors truncate">{platformName}</h3>

@@ -37,8 +37,40 @@ const INDEX_HTML_PATH = path.join(PUBLIC_DIR, "index.html");
 
 let indexHtml = "";
 
+// Performance (The Website Specification — preload/preconnect): preload the
+// above-the-fold self-hosted Inter weights so the hero/LCP text paints without a
+// font swap. Filenames are content-hashed at build time, so we discover them
+// from the built assets dir rather than hardcoding. Font fetches are always in
+// CORS mode, so `crossorigin` is required even for same-origin preloads.
+async function buildFontPreloadLinks(): Promise<string> {
+  try {
+    const assetsDir = path.join(PUBLIC_DIR, "assets");
+    const files = await fs.readdir(assetsDir);
+    const wanted = ["inter-latin-400-normal-", "inter-latin-700-normal-"];
+    const links: string[] = [];
+    for (const prefix of wanted) {
+      const file = files.find((f) => f.startsWith(prefix) && f.endsWith(".woff2"));
+      if (file) {
+        links.push(
+          `<link rel="preload" as="font" type="font/woff2" href="/assets/${file}" crossorigin>`,
+        );
+      }
+    }
+    return links.join("");
+  } catch {
+    return "";
+  }
+}
+
 async function loadIndexHtml(): Promise<void> {
-  indexHtml = await fs.readFile(INDEX_HTML_PATH, "utf-8");
+  let html = await fs.readFile(INDEX_HTML_PATH, "utf-8");
+  const fontPreloads = await buildFontPreloadLinks();
+  if (fontPreloads) {
+    html = html.includes("<!--SSR-HEAD-INJECT-->")
+      ? html.replace("<!--SSR-HEAD-INJECT-->", `${fontPreloads}<!--SSR-HEAD-INJECT-->`)
+      : html.replace("</head>", `${fontPreloads}</head>`);
+  }
+  indexHtml = html;
 }
 
 function escapeHtml(s: string): string {
@@ -143,8 +175,8 @@ app.use(compression());
 
 // ─── Security headers (The Website Specification — Security category) ───
 // Applied to every response (static assets, SSR HTML, markdown, redirects,
-// errors). Kept permissive enough not to break the one external script the
-// site loads (Google AdSense) or Google Fonts, while still adding
+// errors). The site loads no third-party scripts, styles, or fonts (AdSense was
+// removed and Inter is self-hosted), so the CSP can be strict while adding
 // clickjacking, MIME-sniffing, referrer, permissions, and CSP injection
 // defence-in-depth.
 const CONTENT_SECURITY_POLICY = [

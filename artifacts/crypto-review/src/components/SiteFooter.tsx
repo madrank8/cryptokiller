@@ -38,7 +38,7 @@ export default function SiteFooter() {
               </p>
               <a
                 href="mailto:contact@cryptokiller.org"
-                className="flex items-center gap-1.5 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 min-h-[24px] hover:text-white transition-colors"
               >
                 <Mail className="h-3 w-3 shrink-0" />
                 contact@cryptokiller.org
@@ -55,7 +55,7 @@ export default function SiteFooter() {
           </div>
           <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm text-slate-500">
             {footerLinks.map(l => (
-              <a key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</a>
+              <a key={l.label} href={l.href} className="flex items-center min-h-[24px] hover:text-white transition-colors">{l.label}</a>
             ))}
           </div>
         </div>
@@ -66,7 +66,7 @@ export default function SiteFooter() {
               href="https://wa.me/14155238886"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-green-400 transition-colors"
+              className="flex items-center gap-1.5 min-h-[24px] text-xs text-slate-500 hover:text-green-400 transition-colors"
               aria-label="Contact us on WhatsApp"
             >
               <MessageCircle className="h-4 w-4" />
