@@ -284,6 +284,17 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     await client.query("DELETE FROM funnel_stages WHERE review_id = $1", [reviewId]);
     if (Array.isArray(review.funnel_stages)) {
       for (const fs of review.funnel_stages) {
+        // Reject out-of-range stage numbers at ingestion — valid funnels have
+        // exactly stages 1–4. Complements the read-path dedupe/cap guard in
+        // routes/reviews.ts (defense-in-depth against corrupted payloads).
+        const stageNumber = Number(fs.stage_number);
+        if (!Number.isInteger(stageNumber) || stageNumber < 1 || stageNumber > 4) {
+          req.log.warn(
+            { reviewId, stageNumber: fs.stage_number },
+            "skipping funnel stage with out-of-range stage_number"
+          );
+          continue;
+        }
         await client.query(
           `INSERT INTO funnel_stages (
             review_id, stage_number, title, description,
@@ -291,7 +302,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
           [
             reviewId,
-            fs.stage_number,
+            stageNumber,
             fs.title,
             fs.description ?? "",
             fs.stat_value ?? "",

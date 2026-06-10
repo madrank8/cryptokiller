@@ -136,7 +136,7 @@ import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, per
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
 import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
-import { resolveReviewTier } from "@/lib/reviewTier";
+import { resolveReviewTier, tierFromScore } from "@/lib/reviewTier";
 import { buildItemReviewedJsonLdNode } from "@/lib/reviewItemReviewedSchema";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
@@ -213,6 +213,28 @@ const COUNTRY_PATHS: Record<string, string> = {
   PL2: "",
   UA: "M 504,102 l 4,-1 3,2 1,3 -2,2 -3,1 -3,-1 -1,-3 1,-3z",
 };
+
+// Threat-tier language policy: declarative warnings ("Do Not Deposit",
+// "confirmed scam", "Active Scam") are only permitted for brands scoring
+// >= 60/100 (tiers: confirmed >=80, high >=60). Below that, language must be
+// hedged (elevated >=40, watchlist >=20, low <20). These helpers gate every
+// hardcoded declarative string in this file so a low-signal review can never
+// render a banned declarative warning (legal exposure — see crest-fundgrove).
+function depositWarning(score: number): string {
+  if (score >= 60) return "Extreme Risk — Do Not Deposit";
+  if (score >= 40) return "Exercise extreme caution before depositing any money.";
+  return "Verify regulatory registration independently before depositing.";
+}
+
+function statusLabel(score: number): string {
+  return score >= 60 ? "Active Scam" : "Active Campaign";
+}
+
+function verdictHeadline(platformName: string, score: number): string {
+  if (score >= 60) return `${platformName} is a confirmed crypto scam.`;
+  if (score >= 40) return `${platformName} shows strong indicators of fraud.`;
+  return `${platformName} shows warning signs that warrant independent verification.`;
+}
 
 function ThreatGauge({ score }: { score: number }) {
   const [animatedScore, setAnimatedScore] = useState(0);
@@ -292,7 +314,7 @@ function ThreatGauge({ score }: { score: number }) {
         <text x="18" y="100" fill="#22c55e" fontSize="7" fontWeight="bold">LOW</text>
         <text x="164" y="100" fill="#ef4444" fontSize="7" fontWeight="bold">HIGH</text>
       </svg>
-      <p className="text-red-400 font-semibold text-sm mt-1">Extreme Risk — Do Not Deposit</p>
+      <p className="text-red-400 font-semibold text-sm mt-1">{depositWarning(score)}</p>
     </div>
   );
 }
@@ -1148,6 +1170,21 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
   if (isLoading) return <ReviewSkeleton />;
   if (error || !review) return <NotFoundPage slug={slug} />;
 
+  // Score-based tier for the hero badge, consistent with the deposit/status/
+  // verdict thresholds above (declarative framing only at score >= 60). We use
+  // tierFromScore rather than resolveReviewTier here because pre-migration-0003
+  // rows persist frameAsScam=false explicitly (not null), which would suppress
+  // the red declarative badge even on a confirmed-tier (90/100) review. Gating
+  // on score keeps a low-signal brand from ever being labelled a confirmed scam
+  // (legal exposure — see crest-fundgrove) while preserving the red "Confirmed
+  // Scam" badge for genuine high scores.
+  const heroTier = tierFromScore(review.threatScore ?? 0);
+  const heroBadgeColor = heroTier.frameAsScam
+    ? "bg-red-600"
+    : heroTier.tier === "elevated"
+      ? "bg-amber-600"
+      : "bg-slate-600";
+
   const formattedDate = new Date(review.investigationDate).toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
@@ -1170,9 +1207,9 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         <div className="mb-10">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white">{review.headline || review.platformName}</h1>
-            <Badge className="bg-red-600 text-white text-sm px-3 py-1.5 uppercase tracking-widest border-0 flex items-center gap-1.5 shrink-0">
+            <Badge className={`${heroBadgeColor} text-white text-sm px-3 py-1.5 uppercase tracking-widest border-0 flex items-center gap-1.5 shrink-0`}>
               <ShieldAlert className="h-4 w-4" />
-              CONFIRMED SCAM
+              {heroTier.label}
             </Badge>
           </div>
 
@@ -1724,7 +1761,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
                       value: (
                         <span className="text-red-400 font-bold flex items-center gap-1 justify-end">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-                          Active Scam
+                          {statusLabel(review.threatScore)}
                         </span>
                       )
                     },
@@ -1780,7 +1817,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
                   <AlertOctagon className="h-5 w-5 text-red-400" />
                   <span className="text-red-400 font-bold text-sm uppercase tracking-wide">Final Verdict</span>
                 </div>
-                <p className="text-white font-semibold text-base mb-1">{review.platformName} is a confirmed crypto scam.</p>
+                <p className="text-white font-semibold text-base mb-1">{verdictHeadline(review.platformName, review.threatScore)}</p>
                 <p className="text-red-300 font-bold">{review.verdict}</p>
                 <Separator className="bg-red-900/40 my-3" />
                 <p className="text-slate-400 text-xs">Based on analysis of {review.adCreatives.toLocaleString()} ad creatives across {review.countriesTargeted} countries.</p>

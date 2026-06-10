@@ -20,6 +20,53 @@ import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
 
 const router: IRouter = Router();
 
+// ── Defensive funnel_stages normalization ─────────────────────────────────
+// Defense-in-depth guard for corrupted funnel_stages, added after the
+// WhatsApp Bot incident (2026-04-28, stage 4 rendered 3×). The API read path
+// never had a guard, so a corrupted row set (e.g. crest-fundgrove: 5 rows,
+// duplicate stage 4, one image-only stage) was served raw to the client
+// renderer. A weaker dedup exists in the SSR prerender
+// (artifacts/crypto-review/server/prerender.ts) but it keeps the FIRST row,
+// applies no prose filter, and no cap — this guard is intentionally stricter.
+// Defense-in-depth only; the upstream data fix lives on the Vercel side.
+// Duplicated rather than shared because artifacts must not import from each
+// other.
+//
+//   1. Collapse duplicates by stage_number, keeping the row with the most
+//      prose (NOT raw length — an image-only row's long markdown URL must not
+//      win the tie-break and then get dropped in step 2, deleting the stage).
+//   2. Drop image-only stages: < 40 chars of prose after stripping
+//      <img>/<figure>/HTML tags and markdown images.
+//   3. Cap at 4 stages, ordered by stage_number.
+function funnelProseLength(description: string | null | undefined): number {
+  return String(description ?? "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")        // markdown images
+    .replace(/<figure[\s\S]*?<\/figure>/gi, "")  // <figure> blocks
+    .replace(/<img\b[^>]*>/gi, "")               // <img> tags
+    .replace(/<[^>]+>/g, "")                      // any remaining HTML tags
+    .trim().length;
+}
+
+function normalizeFunnelStages<T extends { stageNumber: number; description: string | null }>(rows: readonly T[]): T[] {
+  const byNumber = new Map<number, T>();
+  for (const fs of rows) {
+    const n = Number(fs.stageNumber) || 0;
+    if (n < 1) continue;
+    const existing = byNumber.get(n);
+    // Tie-break duplicate stage_numbers by keeping the row with the most prose,
+    // so a prose-bearing stage always beats an image-only duplicate (whose long
+    // markdown image URL would otherwise win a raw-length comparison and then be
+    // dropped by the prose filter below, silently deleting the stage).
+    if (!existing || funnelProseLength(fs.description) > funnelProseLength(existing.description)) {
+      byNumber.set(n, fs);
+    }
+  }
+  return [...byNumber.values()]
+    .filter(fs => funnelProseLength(fs.description) >= 40)
+    .sort((a, b) => a.stageNumber - b.stageNumber)
+    .slice(0, 4);
+}
+
 router.get("/reviews", async (req, res): Promise<void> => {
   const rows = await db
     .select({
@@ -199,7 +246,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     lastActive: row.lastActive ?? "",
     celebrityNames: row.celebrityNames ?? [],
     allCountryCodes,
-    funnelStages: funnelStages.map(s => ({
+    funnelStages: normalizeFunnelStages(funnelStages).map(s => ({
       stageNumber: s.stageNumber,
       title: s.title,
       description: s.description,
@@ -414,7 +461,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     lastActive: masterRow.lastActive ?? "",
     celebrityNames: masterRow.celebrityNames ?? [],
     allCountryCodes,
-    funnelStages: funnelStages.map(s => ({
+    funnelStages: normalizeFunnelStages(funnelStages).map(s => ({
       stageNumber: s.stageNumber,
       title: s.title,
       description: s.description,
