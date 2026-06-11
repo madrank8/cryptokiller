@@ -1,0 +1,65 @@
+# Replit Handoff — 4 Production Fixes (2026-06-11)
+
+Paste this to the Replit agent working on the cryptokiller.org production repo. These are fixes to the **Replit-side** rendering/API code; the Vercel admin side has already shipped its half of each fix. Ordered by severity.
+
+---
+
+## Fix 1 (HIGH — legal/defamation risk): ThreatGauge hardcodes "Do not deposit any money."
+
+**Problem:** The ThreatGauge component renders the directive "Do not deposit any money." unconditionally, on every review page — including LOW-SIGNAL brands. Example: Crest Fundgrove scores **13/100** ("shows limited signals in current surveillance data… ongoing monitoring") yet the gauge tells readers not to deposit. Publishing an unqualified "do not deposit" directive about a brand we explicitly have NOT classified as a scam is a defamation exposure and contradicts the page's own prose and schema (`ratingExplanation` says "limited signals").
+
+**Fix:** Make the gauge caption tier-aware, driven by `threat_score` (0-100). Use the same tier boundaries the admin pipeline uses:
+
+| Score | Tier | Gauge caption |
+|---|---|---|
+| 80-100 | confirmed | "Confirmed scam. Do not deposit any money." |
+| 60-79 | high | "Very high risk. Do not deposit any money." |
+| 40-59 | elevated | "Multiple serious red flags. Exercise extreme caution." |
+| 20-39 | watchlist | "Under investigation. Verify independently before depositing." |
+| 0-19 | low | "Limited signals in current data. Monitoring ongoing." |
+
+**Acceptance:** `/review/crest-fundgrove` (13/100) shows the "Limited signals" caption; a confirmed-tier review still shows "Do not deposit any money."
+
+---
+
+## Fix 2 (HIGH — Google rich results): itemReviewed type whitelist rejects `Product`
+
+**Problem:** The schema builder that constructs the `#item-reviewed` node validates the incoming `item_reviewed.type` against `{FinancialProduct, Service, SoftwareApplication, Organization}` and falls back to `Service` for anything else. Verified live on 2026-06-11: a synced payload with `type: "Product"` rendered as `@type: "Service"`.
+
+Two of those types are **invalid for Google review-snippet rich results** (no subclass inference): `FinancialProduct` and `Service` both produce the Rich Results Test critical error `Invalid object type for field "itemReviewed"`. Google's accepted list: Book, Course, CreativeWorkSeason, CreativeWorkSeries, Episode, Event, Game, HowTo, LocalBusiness, MediaObject, Movie, MusicPlaylist, MusicRecording, Organization, Product, Recipe, SoftwareApplication.
+
+**Fix:**
+1. Extend the whitelist to accept `Product` and `LocalBusiness` (pass-through).
+2. Map `FinancialProduct` → `Product` and `Service` → `Organization` if they arrive (defense in depth — Vercel already remaps them before sync).
+3. Change the fallback from `Service` to `Organization`.
+
+**Context:** The Vercel sync now sends only `{SoftwareApplication, Organization}` as a workaround for this whitelist. Once this fix ships, tell us — we'll restore `FinancialProduct → Product` on the Vercel side (semantically better for fake investment products).
+
+**Acceptance:** Sync a payload with `item_reviewed.type: "Product"` → page renders `"@type": "Product"` on the `#item-reviewed` node; Rich Results Test on any review page shows no itemReviewed error.
+
+---
+
+## Fix 3 (MEDIUM — visual bug): `GET /api/reviews/:slug` has no stage_number dedupe
+
+**Problem:** The funnel_stages dedupe-by-stage_number guard exists in `server/prerender.ts` but NOT in the `GET /api/reviews/:slug` JSON endpoint. Historic rows with duplicate stage numbers (the Crest Fundgrove 5-card funnel bug, 2026-06-10) render correctly via SSR but still come back duplicated through the API, so any client-side rendering or future consumer reproduces the bug.
+
+**Fix:** Apply the same dedupe (keep first occurrence per `stage_number`, order ascending) in the API route, ideally extracted into one shared helper both paths call.
+
+**Acceptance:** For a review with duplicate stage_number rows, the API response contains at most one funnel stage per stage_number, max 4 stages.
+
+---
+
+## Fix 4 (LOW — E-E-A-T copy): About/Methodology page missing the regulator cross-check line
+
+**Problem:** The Vercel pipeline (since 2026-06-10) cross-checks every investigated brand against the FCA Financial Services Register, the FCA Warning List, and SEC EDGAR full-text search, and review bylines now state this. The public About/Methodology page doesn't mention it, so the byline claim has no corroborating methodology page — a missed E-E-A-T signal and an inconsistency.
+
+**Fix:** Add a sentence to the Methodology section, e.g.:
+> "Every investigated platform is cross-checked against official regulator data: the FCA Financial Services Register, the FCA Warning List of unauthorised firms, and SEC EDGAR full-text search. Where a regulator has published a warning naming the platform, we cite it directly. We never imply endorsement by any regulator; absence from a register is reported as a factual finding, not a verdict."
+
+**Acceptance:** Methodology page mentions FCA register, FCA Warning List, and SEC EDGAR cross-checks with the no-endorsement caveat.
+
+---
+
+## Do NOT change
+- The delete-then-insert sync handlers (`/api/sync/blog` etc.) — working as intended.
+- The renderBlogPost division of labour (summary/FAQ/sources/JSON-LD rendered Replit-side only) — both sides depend on it.

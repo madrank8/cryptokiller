@@ -1,4 +1,4 @@
-- [crypto-review CSP & third-party baseline](crypto-review-csp-baseline.md) — strict CSP (script-src 'self', no unsafe-*), AdSense removed + Inter self-hosted for Website Spec security; don't silently reintroduce ad/font origins.
-- [crypto-review deploy edge headers](crypto-review-edge-headers.md) — live Cache-Control `private` prefix + HTTP/3 alt-svc are Replit-edge controlled, not app code; re-check stale audit findings against fresh deploy.
+- [crypto-review CSP & third-party baseline](crypto-review-csp-baseline.md) — strict CSP (script-src 'self', no unsafe-*); AdSense removed, Inter self-hosted; don't reintroduce ad/font origins.
+- [crypto-review deploy edge headers](crypto-review-edge-headers.md) — live Cache-Control `private` + HTTP/3 alt-svc are Replit-edge controlled, not app code; recheck stale audits post-deploy.
 - [crypto-review SSR testing](crypto-review-ssr-testing.md) — SSR prod server can OOM in bash; test light endpoints with --max-old-space-size=512.
-- [crypto-review tier/funnel guards](crypto-review-tier-funnel-guards.md) — frame_as_scam is NOT NULL DEFAULT false so resolveReviewTier's ?? fallback never fires; score-gated declarative UI must use tierFromScore. Dedup tie-break must match the later filter metric.
+- [crypto-review tier/funnel guards](crypto-review-tier-funnel-guards.md) — frame_as_scam NOT NULL so ?? fallback never fires; score-gated UI uses tierFromScore; dedup tie-break must match the filter metric.

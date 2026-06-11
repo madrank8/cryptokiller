@@ -1662,7 +1662,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   // Vercel sync-shape populates from the writer's item_reviewed field
   // (Task 7A) and Replit's /sync/review persists via migration 0004.
   // Pre-migration rows (null) fall through to the helper's synthetic
-  // Service fallback.
+  // Organization fallback.
   const itemReviewed = buildItemReviewedJsonLdNode(
     row.itemReviewed,
     canonical,
@@ -1763,12 +1763,13 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
         : {}),
       // itemReviewed: reference to the typed entity node above (not inline).
       // When the helper synthesized a usable node we emit a bare @id ref —
-      // otherwise fall back to an inline Service node so Rich Results has
-      // something valid to parse.
+      // otherwise fall back to an inline Organization node so Rich Results has
+      // something valid to parse. Organization (not Service) because Service
+      // is not a Google-accepted itemReviewed type.
       itemReviewed: itemReviewed
         ? { "@id": `${canonical}#item-reviewed` }
         : {
-            "@type": "Service",
+            "@type": "Organization",
             name: platformName,
             description: `Platform under investigation by CryptoKiller. Threat score ${row.threatScore ?? "?"}/100 (${tier.label}).`,
           },

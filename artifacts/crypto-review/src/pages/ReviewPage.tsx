@@ -214,16 +214,22 @@ const COUNTRY_PATHS: Record<string, string> = {
   UA: "M 504,102 l 4,-1 3,2 1,3 -2,2 -3,1 -3,-1 -1,-3 1,-3z",
 };
 
-// Threat-tier language policy: declarative warnings ("Do Not Deposit",
-// "confirmed scam", "Active Scam") are only permitted for brands scoring
-// >= 60/100 (tiers: confirmed >=80, high >=60). Below that, language must be
-// hedged (elevated >=40, watchlist >=20, low <20). These helpers gate every
-// hardcoded declarative string in this file so a low-signal review can never
-// render a banned declarative warning (legal exposure — see crest-fundgrove).
+// Threat-tier language policy: declarative warnings ("Do not deposit any
+// money.", "confirmed scam", "Active Scam") are only permitted for brands
+// scoring >= 60/100. Below that, language must be hedged. These helpers gate
+// every hardcoded declarative string in this file so a low-signal review can
+// never render a banned declarative warning (legal exposure — e.g.
+// crest-fundgrove at 13/100 must not say "do not deposit").
+//
+// depositWarning() (the ThreatGauge caption) follows the admin pipeline's
+// full 5-tier caption scheme with 80/60/40/20 boundaries; statusLabel() and
+// verdictHeadline() use the simpler >=60 / >=40 split.
 function depositWarning(score: number): string {
-  if (score >= 60) return "Extreme Risk — Do Not Deposit";
-  if (score >= 40) return "Exercise extreme caution before depositing any money.";
-  return "Verify regulatory registration independently before depositing.";
+  if (score >= 80) return "Confirmed scam. Do not deposit any money.";
+  if (score >= 60) return "Very high risk. Do not deposit any money.";
+  if (score >= 40) return "Multiple serious red flags. Exercise extreme caution.";
+  if (score >= 20) return "Under investigation. Verify independently before depositing.";
+  return "Limited signals in current data. Monitoring ongoing.";
 }
 
 function statusLabel(score: number): string {
@@ -920,7 +926,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     const itemRef = itemReviewedGraphNode
       ? { "@id": `${pageUrl}#item-reviewed` }
       : {
-          "@type": "Service",
+          "@type": "Organization",
           name: review.platformName,
           description: `Platform under investigation by CryptoKiller. Threat score ${review.threatScore ?? "?"}/100 (${tier.label}).`,
         };

@@ -336,6 +336,20 @@ export default function MethodologyPage() {
             Every data point cited in our investigations can be independently verified.
           </p>
 
+          <div className="bg-slate-900/60 border-l-2 border-blue-500/60 rounded-r-xl p-5 mb-8 max-w-3xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="h-4 w-4 text-blue-400" />
+              <h4 className="text-white font-bold text-sm">Regulator Cross-Checks</h4>
+            </div>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Every investigated platform is cross-checked against official regulator data:
+              the FCA Financial Services Register, the FCA Warning List of unauthorised firms,
+              and SEC EDGAR full-text search. Where a regulator has published a warning naming
+              the platform, we cite it directly. We never imply endorsement by any regulator;
+              absence from a register is reported as a factual finding, not a verdict.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {dataSources.map((source) => (
               <div key={source.name} className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
