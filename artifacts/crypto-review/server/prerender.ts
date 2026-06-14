@@ -2242,13 +2242,74 @@ ${sourcesHtml}
   };
 }
 
-function renderAuthor(slug: string): RenderResult {
+async function renderAuthor(slug: string): Promise<RenderResult> {
   const persona: WriterPersona | undefined = WRITER_PERSONAS[slug];
   if (!persona) return renderNotFound(`/author/${slug}`);
 
   const title = `${persona.name} — ${persona.role} | CryptoKiller`;
   const description = truncate(persona.fullBio || persona.bio, 160);
   const canonical = `${BASE}/author/${persona.slug}`;
+
+  // Fetch authored reviews and blog posts from the DB so the prerendered HTML
+  // includes crawlable links — this is the path search engines index, so the
+  // author-to-content hub must be present here, not only in the React render.
+  const MAX_AUTHOR_ITEMS = 6;
+  const [authoredReviewRows, authoredPostRows] = await Promise.all([
+    db
+      .select({
+        slug: reviewsTable.slug,
+        platformName: platformsTable.name,
+        threatScore: reviewsTable.threatScore,
+        verdict: reviewsTable.verdict,
+        investigationDate: reviewsTable.investigationDate,
+      })
+      .from(reviewsTable)
+      .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+      .where(and(
+        eq(reviewsTable.status, "published"),
+        eq(reviewsTable.authorPersonaId, slug),
+      ))
+      .orderBy(desc(reviewsTable.investigationDate))
+      .limit(MAX_AUTHOR_ITEMS),
+    db
+      .select({
+        slug: blogPostsTable.slug,
+        title: blogPostsTable.title,
+        headline: blogPostsTable.headline,
+        publishedAt: blogPostsTable.publishedAt,
+      })
+      .from(blogPostsTable)
+      .where(and(
+        eq(blogPostsTable.status, "published"),
+        eq(blogPostsTable.authorPersonaId, slug),
+      ))
+      .orderBy(desc(blogPostsTable.publishedAt))
+      .limit(MAX_AUTHOR_ITEMS),
+  ]);
+
+  const investigationsSection = authoredReviewRows.length > 0
+    ? `<section>
+<h2>Latest investigations by ${esc(persona.name)}</h2>
+<ul>
+${authoredReviewRows.map(r =>
+  `<li><a href="/review/${encodeURIComponent(r.slug)}">${esc(r.platformName)} Review</a> — threat score ${r.threatScore}/100, verdict: ${esc(r.verdict ?? "")}</li>`
+).join("\n")}
+</ul>
+<p><a href="/investigations">Browse all investigations</a></p>
+</section>`
+    : "";
+
+  const articlesSection = authoredPostRows.length > 0
+    ? `<section>
+<h2>Recent articles by ${esc(persona.name)}</h2>
+<ul>
+${authoredPostRows.map(p =>
+  `<li><a href="/blog/${encodeURIComponent(p.slug)}">${esc(p.headline ?? p.title ?? p.slug)}</a></li>`
+).join("\n")}
+</ul>
+<p><a href="/blog">Read all articles</a></p>
+</section>`
+    : "";
 
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · ${esc(persona.name)}</nav>
@@ -2259,7 +2320,18 @@ function renderAuthor(slug: string): RenderResult {
 <p><strong>Specialties:</strong> ${persona.specialties.map(esc).join(", ")}</p>
 <p>${esc(persona.published)} · ${esc(persona.yearsExperience)} of experience</p>
 </article>
+${investigationsSection}
+${articlesSection}
 </main>${siteFooterHtml()}`;
+
+  // Build JSON-LD: if we have authored reviews, surface the top ones as
+  // mainEntityOfPage on the Person node to give crawlers a machine-readable
+  // connection between the analyst and their published investigations.
+  const authoredWorkRefs = authoredReviewRows.slice(0, 3).map(r => ({
+    "@type": "Article",
+    url: `${BASE}/review/${r.slug}`,
+    name: `${r.platformName} Review`,
+  }));
 
   return {
     status: 200,
@@ -2282,7 +2354,12 @@ function renderAuthor(slug: string): RenderResult {
         // the dedicated /author/{slug} profile page (uses fullBio when
         // available, and the page itself is the canonical url for the
         // Person — not the slug-derived path personNode defaults to).
-        { ...personNode(persona), description: persona.fullBio || persona.bio, url: canonical },
+        {
+          ...personNode(persona),
+          description: persona.fullBio || persona.bio,
+          url: canonical,
+          ...(authoredWorkRefs.length > 0 && { mainEntityOfPage: authoredWorkRefs }),
+        },
         {
           "@type": "ProfilePage",
           url: canonical,
@@ -2958,7 +3035,7 @@ export async function renderPage(rawPath: string): Promise<RenderResult> {
   if (blogMatch) return renderBlogPost(decodeURIComponent(blogMatch[1]));
 
   const authorMatch = cleaned.match(/^\/author\/([^/]+)$/);
-  if (authorMatch) return renderAuthor(decodeURIComponent(authorMatch[1]));
+  if (authorMatch) return await renderAuthor(decodeURIComponent(authorMatch[1]));
 
   const staticHandler = STATIC_PAGES[cleaned];
   if (staticHandler) return staticHandler();

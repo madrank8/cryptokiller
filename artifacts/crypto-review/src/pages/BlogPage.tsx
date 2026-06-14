@@ -87,10 +87,14 @@ function PostMeta({ post }: { post: BlogPostSummary }) {
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
       {persona && (
-        <span className="flex items-center gap-1">
+        <Link
+          href={`/author/${persona.slug}`}
+          className="flex items-center gap-1 hover:text-slate-300 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
           <User className="h-3.5 w-3.5" />
           {persona.name}
-        </span>
+        </Link>
       )}
       {date && (
         <span className="flex items-center gap-1">

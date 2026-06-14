@@ -77,6 +77,7 @@ router.get("/reviews", async (req, res): Promise<void> => {
       verdict: reviewsTable.verdict,
       status: reviewsTable.status,
       investigationDate: reviewsTable.investigationDate,
+      authorPersonaId: reviewsTable.authorPersonaId,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -91,6 +92,7 @@ router.get("/reviews", async (req, res): Promise<void> => {
   res.json(rows.map(r => ({
     ...r,
     investigationDate: r.investigationDate?.toISOString() ?? "",
+    authorPersonaId: r.authorPersonaId ?? null,
     adCreatives: r.adCreatives ?? 0,
     countriesTargeted: r.countriesTargeted ?? 0,
     daysActive: r.daysActive ?? 0,
@@ -691,6 +693,11 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const ITEMS_PER_PAGE = 20;
   const investigationPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
 
+  // Author profile pages — sourced from the static WRITER_PERSONAS list in
+  // the frontend. These are stable trust-building pages that reinforce E-E-A-T
+  // for YMYL content; keeping them in the sitemap ensures consistent discovery.
+  const AUTHOR_SLUGS = ["webb", "nair", "ortiz", "pepi", "majithia"];
+
   const staticPages = [
     { loc: "/", changefreq: "daily", priority: "1.0", lastmod: globalLastmodStr },
     { loc: "/investigations", changefreq: "daily", priority: "0.9", lastmod: investigationsLastmod },
@@ -701,6 +708,12 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     { loc: "/recovery", changefreq: "monthly", priority: "0.7", lastmod: globalLastmodStr },
     { loc: "/privacy", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
     { loc: "/terms", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
+    ...AUTHOR_SLUGS.map(s => ({
+      loc: `/author/${s}`,
+      changefreq: "monthly",
+      priority: "0.6",
+      lastmod: globalLastmodStr,
+    })),
   ];
 
   const base = "https://cryptokiller.org";

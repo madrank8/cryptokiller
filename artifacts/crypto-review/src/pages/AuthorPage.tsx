@@ -1,7 +1,8 @@
 import { useParams, Link } from "wouter";
 import {
-  Shield, ArrowLeft, BookOpen, Award, Clock, MapPin
+  Shield, ArrowLeft, BookOpen, Award, Clock, MapPin, AlertTriangle, FileText
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -10,11 +11,69 @@ import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 
 const BASE = "https://cryptokiller.org";
 
+interface ReviewSummary {
+  slug: string;
+  platformName: string;
+  threatScore: number;
+  verdict: string;
+  investigationDate: string;
+  authorPersonaId: string | null;
+}
+
+interface BlogPostSummary {
+  id: number;
+  title: string;
+  headline: string;
+  slug: string;
+  publishedAt: string;
+  authorPersonaId: string | null;
+}
+
+interface BlogIndexResponse {
+  items: BlogPostSummary[];
+}
+
+const MAX_ITEMS = 6;
+
 export default function AuthorPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
 
   const persona = Object.values(WRITER_PERSONAS).find(p => p.slug === slug);
+
+  const { data: reviewsData } = useQuery<ReviewSummary[]>({
+    queryKey: ["/api/reviews"],
+    queryFn: async () => {
+      const res = await fetch("/api/reviews");
+      if (!res.ok) throw new Error("Failed to load reviews");
+      return res.json();
+    },
+    enabled: !!persona,
+  });
+
+  const { data: blogData } = useQuery<BlogIndexResponse>({
+    queryKey: ["/api/blog"],
+    queryFn: async () => {
+      const res = await fetch("/api/blog");
+      if (!res.ok) throw new Error("Failed to load posts");
+      return res.json();
+    },
+    enabled: !!persona,
+  });
+
+  const authoredReviews = reviewsData
+    ? reviewsData
+        .filter(r => r.authorPersonaId === slug)
+        .sort((a, b) => new Date(b.investigationDate).getTime() - new Date(a.investigationDate).getTime())
+        .slice(0, MAX_ITEMS)
+    : [];
+
+  const authoredPosts = blogData?.items
+    ? blogData.items
+        .filter(p => p.authorPersonaId === slug)
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        .slice(0, MAX_ITEMS)
+    : [];
 
   const crumbs = [
     { label: "Home", href: `${BASE}/` },
@@ -35,6 +94,13 @@ export default function AuthorPage() {
           url: BASE,
         },
         knowsAbout: persona.specialties,
+        ...(authoredReviews.length > 0 && {
+          mainEntityOfPage: authoredReviews.slice(0, 3).map(r => ({
+            "@type": "Article",
+            url: `${BASE}/review/${r.slug}`,
+            name: r.platformName,
+          })),
+        }),
       }
     : undefined;
 
@@ -168,6 +234,88 @@ export default function AuthorPage() {
             ))}
           </div>
         </section>
+
+        {authoredReviews.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-white mb-4">
+              Latest investigations by {persona.name}
+            </h2>
+            <ul className="space-y-2">
+              {authoredReviews.map((r) => (
+                <li key={r.slug}>
+                  <Link
+                    href={`/review/${r.slug}`}
+                    className="flex items-start gap-3 group bg-slate-900/50 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3 transition-colors"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-slate-200 font-medium group-hover:text-red-400 transition-colors block truncate">
+                        {r.platformName} Review
+                      </span>
+                      <span className="text-slate-500 text-xs">
+                        Threat score: {r.threatScore}/100
+                        {r.investigationDate && (
+                          <> · {new Date(r.investigationDate).toLocaleDateString("en-US", { year: "numeric", month: "short" })}</>
+                        )}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-bold shrink-0 px-2 py-0.5 rounded ${
+                      r.threatScore >= 80
+                        ? "text-red-400 bg-red-950/60 border border-red-900/40"
+                        : r.threatScore >= 50
+                        ? "text-amber-400 bg-amber-950/60 border border-amber-900/40"
+                        : "text-green-400 bg-green-950/60 border border-green-900/40"
+                    }`}>
+                      {r.verdict}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/investigations"
+              className="inline-block mt-3 text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
+            >
+              Browse all investigations →
+            </Link>
+          </section>
+        )}
+
+        {authoredPosts.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-white mb-4">
+              Recent articles by {persona.name}
+            </h2>
+            <ul className="space-y-2">
+              {authoredPosts.map((p) => (
+                <li key={p.slug}>
+                  <Link
+                    href={`/blog/${p.slug}`}
+                    className="flex items-start gap-3 group bg-slate-900/50 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3 transition-colors"
+                  >
+                    <FileText className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-slate-200 font-medium group-hover:text-red-400 transition-colors block truncate">
+                        {p.headline || p.title}
+                      </span>
+                      {p.publishedAt && (
+                        <span className="text-slate-500 text-xs">
+                          {new Date(p.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/blog"
+              className="inline-block mt-3 text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
+            >
+              Read all articles →
+            </Link>
+          </section>
+        )}
 
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 flex items-start gap-3 mb-10">
           <MapPin className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
