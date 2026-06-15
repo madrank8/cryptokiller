@@ -465,7 +465,7 @@ function HowItWorks() {
       icon: <Target className="h-7 w-7" />,
       color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30",
       title: "Scam Ads Detected",
-      desc: "Our sophisticated systems monitor social media ad platforms across 50+ countries† 24/7, detecting crypto scam campaigns in real time.",
+      desc: "Our sophisticated systems monitor social media ad platforms across 84+ countries† 24/7, detecting crypto scam campaigns in real time.",
       footnote: "† CryptoKiller Ad Surveillance Network, April 2026",
     },
     {
@@ -556,7 +556,7 @@ export default function HomePage() {
         name: "CryptoKiller",
         url: "https://cryptokiller.org",
         logo: "https://cryptokiller.org/favicon.svg",
-        description: "Crypto scam intelligence platform tracking 1,000+ fraudulent brands through real-time ad surveillance and evidence-based investigation.",
+        description: "Crypto scam intelligence platform tracking 22,000+ fraudulent brands through real-time ad surveillance and evidence-based investigation.",
         foundingDate: "2025",
         knowsAbout: [
           "Cryptocurrency Scams",
@@ -651,7 +651,7 @@ export default function HomePage() {
 
   usePageMeta({
     title: "Crypto Scam Checker — Investigate Any Platform | CryptoKiller",
-    description: "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing, fake exchanges — with evidence and threat scores.",
+    description: "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands — pig butchering, rug pulls, phishing, fake exchanges — with evidence and threat scores.",
     canonical: "https://cryptokiller.org/",
     jsonLd,
   });

@@ -1165,6 +1165,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     description: seoDescription,
     canonical: pageUrlForLocale,
     ogType: "article",
+    ogImage: review?.heroImageUrl ?? undefined,
     jsonLd,
     author: authorPersona ? `${authorPersona.name} — cryptokiller.org` : "CryptoKiller Research Team — cryptokiller.org",
     htmlLang,

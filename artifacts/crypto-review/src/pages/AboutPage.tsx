@@ -19,7 +19,7 @@ export default function AboutPage() {
 
   usePageMeta({
     title: "About CryptoKiller — Crypto Scam Intelligence Platform",
-    description: "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 1,000 fraudulent brands across 84+ countries.",
+    description: "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 22,000 fraudulent brands across 84+ countries.",
     canonical: "https://cryptokiller.org/about",
     jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
   });
@@ -63,7 +63,7 @@ export default function AboutPage() {
               icon: <Eye className="h-6 w-6" />,
               color: "text-red-400",
               bg: "bg-red-500/10 border-red-900/30",
-              stat: "1,000+",
+              stat: "22,000+",
               label: "Scam Brands Tracked",
             },
             {

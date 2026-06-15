@@ -396,7 +396,7 @@ async function renderHome(): Promise<RenderResult> {
 
   const title = "CryptoKiller — Crypto Scam Checker & Investigations";
   const description =
-    "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.";
+    "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.";
 
   const recentList = recent
     .map(
@@ -482,9 +482,9 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
   const title =
     clampedPage > 1
       ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-      : "Crypto Scam Investigations — 1,000+ Platforms | CryptoKiller";
+      : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller";
   const description =
-    "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.";
+    "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.";
 
   const canonical = clampedPage > 1 ? `${BASE}/investigations?page=${clampedPage}` : `${BASE}/investigations`;
 
@@ -586,6 +586,29 @@ async function renderBlogList(): Promise<RenderResult> {
 <ul>${itemsHtml}</ul>
 </main>${siteFooterHtml()}`;
 
+  const pageNode: Record<string, unknown> = {
+    "@type": "CollectionPage",
+    "@id": `${BASE}/blog#webpage`,
+    url: `${BASE}/blog`,
+    name: title,
+    description,
+    isPartOf: { "@id": WEBSITE_ID },
+    inLanguage: "en",
+  };
+
+  if (rows.length > 0) {
+    pageNode.mainEntity = {
+      "@type": "ItemList",
+      numberOfItems: rows.length,
+      itemListElement: rows.slice(0, 10).map((b, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${BASE}/blog/${b.slug}`,
+        name: b.headline || b.title,
+      })),
+    };
+  }
+
   return {
     status: 200,
     title,
@@ -605,15 +628,7 @@ async function renderBlogList(): Promise<RenderResult> {
           { label: "Home", href: `${BASE}/` },
           { label: "Blog", href: `${BASE}/blog` },
         ]),
-        {
-          "@type": "CollectionPage",
-          "@id": `${BASE}/blog#webpage`,
-          url: `${BASE}/blog`,
-          name: title,
-          description,
-          isPartOf: { "@id": WEBSITE_ID },
-          inLanguage: "en",
-        },
+        pageNode,
       ],
     },
   };
@@ -1952,7 +1967,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     description,
     canonical,
     ogType: "article",
-    ogImage: DEFAULT_OG_IMAGE,
+    ogImage: row.heroImageUrl || DEFAULT_OG_IMAGE,
     bodyHtml,
     jsonLd: { "@context": "https://schema.org", "@graph": graph },
     lastModified,
@@ -2404,10 +2419,10 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
       path: "/about",
       title: "About CryptoKiller — Crypto Scam Intelligence Platform",
       description:
-        "CryptoKiller is an independent crypto scam intelligence platform tracking 1,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
+        "CryptoKiller is an independent crypto scam intelligence platform tracking 22,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
       h1: "About CryptoKiller",
       intro:
-        "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. in Singapore. We track over 1,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
+        "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. in Singapore. We track over 22,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
       sections: [
         {
           heading: "What we do",
@@ -2715,7 +2730,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "What we can and cannot do",
           paragraphs: [
-            "We can investigate, publish, and warn. We can cross-reference your report against 1,000+ tracked brands and 84+ countries of ad surveillance. We can cite the regulators with jurisdiction over your case and link directly to their warning bulletins. We can coordinate with law enforcement when they ask.",
+            "We can investigate, publish, and warn. We can cross-reference your report against 22,000+ tracked brands and 84+ countries of ad surveillance. We can cite the regulators with jurisdiction over your case and link directly to their warning bulletins. We can coordinate with law enforcement when they ask.",
             "We cannot recover your funds. Nobody can guarantee fund recovery, and anyone who claims they can is running a second scam on top of the first one. We cannot file police reports on your behalf — that must come from you, through your national reporting channel. We cannot freeze wallets, reverse transactions, or negotiate with the scammer.",
             "If your primary need is fund recovery, see our recovery guide for the legitimate paths — chargebacks, exchange reporting, law enforcement. These are slower and less certain than recovery scammers advertise, but they are the only real options.",
           ],

@@ -197,22 +197,18 @@ export default function BlogPage() {
 
   const blogJsonLd = useMemo(() => {
     const globalGraph = ((globalSiteSchema()["@graph"] as Record<string, unknown>[] | undefined) ?? []);
-    const graph: Record<string, unknown>[] = [
-      ...globalGraph,
-      {
-        "@type": "CollectionPage",
-        "@id": `${BASE}/blog#webpage`,
-        name: "CryptoKiller Blog",
-        description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety.",
-        url: `${BASE}/blog`,
-        isPartOf: { "@id": `${BASE}/#website` },
-        publisher: { "@id": `${BASE}/#organization` },
-      },
-      breadcrumbJsonLd(crumbs),
-    ];
+    const pageNode: Record<string, unknown> = {
+      "@type": "CollectionPage",
+      "@id": `${BASE}/blog#webpage`,
+      name: "CryptoKiller Blog",
+      description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety.",
+      url: `${BASE}/blog`,
+      isPartOf: { "@id": `${BASE}/#website` },
+      publisher: { "@id": `${BASE}/#organization` },
+    };
 
     if (posts && posts.length > 0) {
-      graph[0].mainEntity = {
+      pageNode.mainEntity = {
         "@type": "ItemList",
         numberOfItems: posts.length,
         itemListElement: posts.slice(0, 10).map((p, i) => ({
@@ -223,6 +219,12 @@ export default function BlogPage() {
         })),
       };
     }
+
+    const graph: Record<string, unknown>[] = [
+      ...globalGraph,
+      pageNode,
+      breadcrumbJsonLd(crumbs),
+    ];
 
     return { "@context": "https://schema.org", "@graph": graph };
   }, [posts, crumbs]);
