@@ -659,16 +659,18 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-900 selection:text-white">
       <SiteHeader activeNav="home" />
-      <LiveFeedTicker reviews={reviews ?? []} />
-      <HeroSection reviews={reviews ?? []} />
-      <TrustBar />
-      <TrendingScams reviews={reviews} isLoading={isLoading} />
-      <LatestReviews reviews={reviews} />
-      <WarningBanner />
-      <HowItWorks />
-      <ResearchTeam />
-      <ScamActionSteps />
-      <EditorialBand />
+      <main id="main" tabIndex={-1}>
+        <LiveFeedTicker reviews={reviews ?? []} />
+        <HeroSection reviews={reviews ?? []} />
+        <TrustBar />
+        <TrendingScams reviews={reviews} isLoading={isLoading} />
+        <LatestReviews reviews={reviews} />
+        <WarningBanner />
+        <HowItWorks />
+        <ResearchTeam />
+        <ScamActionSteps />
+        <EditorialBand />
+      </main>
       <WhatsAppFloatingButton />
 
       <SiteFooter />
