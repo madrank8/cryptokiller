@@ -5,6 +5,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import compression from "compression";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import { renderPage, type RenderResult } from "./prerender.js";
+import { getIndexNowKey } from "./indexnow.js";
 
 const nhm = new NodeHtmlMarkdown();
 
@@ -242,6 +243,17 @@ app.get("/.well-known/security.txt", (_req: Request, res: Response) => {
 app.get("/sitemap.xml", (_req: Request, res: Response) => {
   res.redirect(301, "/api/sitemap.xml");
 });
+
+// IndexNow ownership verification file. Search engines (Bing/Yandex/Seznam)
+// fetch https://<host>/<key>.txt and confirm the body matches the key before
+// honouring IndexNow submissions. Served at the domain root, before static +
+// the SSR catch-all. Only registered when INDEXNOW_KEY is set.
+const indexNowKey = getIndexNowKey();
+if (indexNowKey) {
+  app.get(`/${indexNowKey}.txt`, (_req: Request, res: Response) => {
+    res.type("text/plain").send(indexNowKey);
+  });
+}
 
 // === Legacy plural-URL redirects (301). Must run before the renderPage
 // handlers (markdown + HTML) so retired plural page URLs 301 to their live
