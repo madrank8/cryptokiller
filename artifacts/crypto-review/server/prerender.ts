@@ -1418,7 +1418,7 @@ async function renderReview(
     const credit = found.credit
       ? `<figcaption>${esc(found.credit)}${found.creditUrl ? ` — <a href="${esc(found.creditUrl)}" rel="nofollow">source</a>` : ""}</figcaption>`
       : "";
-    return `<figure class="review-content-image"><img src="${esc(found.url)}" alt="${esc(found.alt || "")}" loading="lazy" />${credit}</figure>`;
+    return `<figure class="review-content-image"><img src="${esc(found.url)}" alt="${esc(found.alt || `Screenshot from ${platformName} investigation`)}" loading="lazy" />${credit}</figure>`;
   };
 
   // visual_meta entries are chart/diagram/infographic metadata with a
@@ -1431,7 +1431,7 @@ async function renderReview(
   const visualsHtml = succeededVisuals.length
     ? `<section aria-labelledby="visuals-heading"><h2 id="visuals-heading">Evidence visuals</h2>${succeededVisuals
         .map(
-          (v) => `<figure class="review-visual review-visual-${v.type.toLowerCase()}"><img src="${esc(v.url!)}" alt="${esc(v.altText || v.description || "")}" loading="lazy" />${v.description ? `<figcaption>${esc(v.description)}</figcaption>` : ""}</figure>`,
+          (v) => `<figure class="review-visual review-visual-${v.type.toLowerCase()}"><img src="${esc(v.url!)}" alt="${esc(v.altText || v.description || `Evidence visual from ${platformName} investigation`)}" loading="lazy" />${v.description ? `<figcaption>${esc(v.description)}</figcaption>` : ""}</figure>`,
         )
         .join("")}</section>`
     : "";
