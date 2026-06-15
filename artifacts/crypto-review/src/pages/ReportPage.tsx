@@ -25,6 +25,9 @@ const scamTypes = [
 
 const currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "BTC", "ETH", "USDT"];
 
+const WHATSAPP_NUMBER = "";
+const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=I%20just%20submitted%20a%20scam%20report%20on%20CryptoKiller%20and%20want%20to%20add%20more%20details`;
+
 export default function ReportPage() {
   const crumbs = [
     { label: "Home", href: "https://cryptokiller.org/" },
@@ -107,6 +110,22 @@ export default function ReportPage() {
             <p className="text-slate-500 text-sm mb-8">
               Report ID: <span className="text-green-400 font-mono font-bold">#{reportId}</span>
             </p>
+            {WHATSAPP_NUMBER && (
+              <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 mb-8">
+                <p className="text-slate-200 font-semibold text-sm mb-4">
+                  Want to follow up with our team or add more evidence?
+                </p>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white"
+                >
+                  <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+                    Continue on WhatsApp →
+                  </a>
+                </Button>
+              </div>
+            )}
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 text-left mb-8">
               <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-amber-400" /> What happens next
@@ -182,6 +201,24 @@ export default function ReportPage() {
             </div>
           ))}
         </div>
+
+        {WHATSAPP_NUMBER && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-900/40 border border-slate-800 rounded-xl px-5 py-4 mb-6">
+            <div>
+              <p className="text-slate-200 font-semibold text-sm">Prefer to report by chat?</p>
+              <p className="text-slate-500 text-xs">same confidentiality, faster for mobile users.</p>
+            </div>
+            <Button
+              asChild
+              variant="outline"
+              className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white shrink-0"
+            >
+              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+                💬 Report via WhatsApp
+              </a>
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Card className="bg-slate-900/60 border-slate-800 mb-6">
