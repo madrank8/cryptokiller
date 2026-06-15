@@ -17,6 +17,13 @@ import { LOCALE_HREFLANG as SITEMAP_LOCALE_HREFLANG } from "@workspace/i18n";
 import { logger } from "../lib/logger";
 import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
 import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
+import {
+  HOST,
+  LOCALE_URL_SEGMENT,
+  reviewUrl,
+  reviewLocaleUrl,
+  blogUrl,
+} from "../canonical-urls";
 
 const router: IRouter = Router();
 
