@@ -602,21 +602,19 @@ function escapeXml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
-function encodeSlugForLoc(slug: string): string {
-  return escapeXml(encodeURI(slug));
+// XML-escape a full canonical URL for use inside a <loc> or href attribute.
+// encodeURI percent-encodes unsafe path characters (scheme/host/segment are
+// already URL-safe), then escapeXml handles XML metacharacters. Applied on top
+// of the canonical-urls builders so the emitted bytes stay identical to the
+// previous escapeXml(encodeURI(slug))-on-the-slug construction.
+function xmlLoc(url: string): string {
+  return escapeXml(encodeURI(url));
 }
 
-// Phase 6 — i18n sitemap helpers. Locale URL segments are lowercase
-// (`/it/`, `/pt-br/`) while DB / hreflang values are BCP-47 canonical
-// (`it`, `pt-BR`). Hreflang uses bare codes per Phase 5 cheat sheet.
-const SITEMAP_LOCALE_URL_SEGMENT: Record<string, string> = {
-  it: "it",
-  es: "es",
-  de: "de",
-  fr: "fr",
-  "pt-BR": "pt-br",
-};
-// SITEMAP_LOCALE_HREFLANG — see @workspace/i18n (imported at top).
+// Phase 6 — i18n sitemap helpers. Locale URL segments now live in
+// canonical-urls (LOCALE_URL_SEGMENT) so the sitemap and the IndexNow ping
+// hooks share a single source of truth. Hreflang codes come from
+// @workspace/i18n (SITEMAP_LOCALE_HREFLANG, imported above).
 
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const [rows, blogRows, latestDates, translationRows] = await Promise.all([
@@ -704,7 +702,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     })),
   ];
 
-  const base = "https://cryptokiller.org";
+  const base = HOST;
 
   // Phase 6 — bucket translations by review id so each master row can emit
   // the full reciprocal alternate cluster (en + each published locale +
@@ -715,7 +713,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     Array<{ locale: string; slug: string; updatedAt: Date | null }>
   >();
   for (const t of translationRows) {
-    if (!SITEMAP_LOCALE_URL_SEGMENT[t.locale]) continue; // unsupported locale, skip
+    if (!LOCALE_URL_SEGMENT[t.locale]) continue; // unsupported locale, skip
     const bucket = translationsByReviewId.get(t.reviewId) ?? [];
     bucket.push({ locale: t.locale, slug: t.slug, updatedAt: t.updatedAt });
     translationsByReviewId.set(t.reviewId, bucket);
@@ -730,14 +728,14 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   ): string => {
     if (siblings.length === 0) return "";
     let out =
-      `    <xhtml:link rel="alternate" hreflang="en" href="${base}/review/${encodeSlugForLoc(masterSlug)}"/>\n`;
+      `    <xhtml:link rel="alternate" hreflang="en" href="${xmlLoc(reviewUrl(masterSlug))}"/>\n`;
     for (const s of siblings) {
-      const seg = SITEMAP_LOCALE_URL_SEGMENT[s.locale];
+      const localeUrl = reviewLocaleUrl(s.locale, s.slug);
       const hl = SITEMAP_LOCALE_HREFLANG[s.locale];
-      if (!seg || !hl) continue;
-      out += `    <xhtml:link rel="alternate" hreflang="${hl}" href="${base}/${seg}/review/${encodeSlugForLoc(s.slug)}"/>\n`;
+      if (!localeUrl || !hl) continue;
+      out += `    <xhtml:link rel="alternate" hreflang="${hl}" href="${xmlLoc(localeUrl)}"/>\n`;
     }
-    out += `    <xhtml:link rel="alternate" hreflang="x-default" href="${base}/review/${encodeSlugForLoc(masterSlug)}"/>\n`;
+    out += `    <xhtml:link rel="alternate" hreflang="x-default" href="${xmlLoc(reviewUrl(masterSlug))}"/>\n`;
     return out;
   };
 
@@ -755,7 +753,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     const siblings = translationsByReviewId.get(r.id) ?? [];
     const alternatesXml = renderAlternates(r.slug, siblings);
     const lastmod = r.updatedAt ? new Date(r.updatedAt).toISOString().split("T")[0] : "";
-    xml += `  <url>\n    <loc>${base}/review/${encodeSlugForLoc(r.slug)}</loc>\n`;
+    xml += `  <url>\n    <loc>${xmlLoc(reviewUrl(r.slug))}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n${alternatesXml}  </url>\n`;
 
@@ -764,12 +762,12 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     // translation row's own updatedAt so Google can see when the locale
     // copy was refreshed independently of the master.
     for (const s of siblings) {
-      const seg = SITEMAP_LOCALE_URL_SEGMENT[s.locale];
-      if (!seg) continue;
+      const localeUrl = reviewLocaleUrl(s.locale, s.slug);
+      if (!localeUrl) continue;
       const tLastmod = s.updatedAt
         ? new Date(s.updatedAt).toISOString().split("T")[0]
         : lastmod;
-      xml += `  <url>\n    <loc>${base}/${seg}/review/${encodeSlugForLoc(s.slug)}</loc>\n`;
+      xml += `  <url>\n    <loc>${xmlLoc(localeUrl)}</loc>\n`;
       if (tLastmod) xml += `    <lastmod>${tLastmod}</lastmod>\n`;
       xml += `    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n${alternatesXml}  </url>\n`;
     }
@@ -777,7 +775,7 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
 
   for (const b of blogRows) {
     const lastmod = b.updatedAt ? new Date(b.updatedAt).toISOString().split("T")[0] : "";
-    xml += `  <url>\n    <loc>${base}/blog/${encodeSlugForLoc(b.slug)}</loc>\n`;
+    xml += `  <url>\n    <loc>${xmlLoc(blogUrl(b.slug))}</loc>\n`;
     if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
   }

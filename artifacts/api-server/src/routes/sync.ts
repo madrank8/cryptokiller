@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
-import { submitToIndexNow } from "../lib/indexnow";
+import { pingIndexNow } from "../indexnow";
+import { reviewUrls } from "../canonical-urls";
 import { upsertVercelSyncRow, type VercelSyncPayload } from "../lib/platform-aggregates";
 import { createHash } from "crypto";
 
@@ -358,7 +359,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     // If translation drift becomes an operational issue, add an
     // `expected_full_article_hash` field per translation entry.
     const ALLOWED_TRANSLATION_LOCALES = new Set(["it", "es", "de", "fr", "pt-BR"]);
-    const translationUrls: string[] = [];
+    const translationRefs: { locale: string; slug: string }[] = [];
     await client.query("DELETE FROM review_translations WHERE review_id = $1", [reviewId]);
     if (Array.isArray(review.translations)) {
       for (const t of review.translations) {
@@ -427,10 +428,9 @@ router.post("/sync/review", async (req, res): Promise<void> => {
             t.source_review_updated_at ?? null,
           ]
         );
-        // URL segment is lowercased ('pt-BR' → 'pt-br').
-        translationUrls.push(
-          `https://cryptokiller.org/${locale.toLowerCase()}/review/${tSlug}`
-        );
+        // Collect locale + translation slug; canonical-urls builds the actual
+        // URL (the same builder the sitemap uses) so the ping can't drift.
+        translationRefs.push({ locale, slug: tSlug });
       }
     }
 
@@ -469,10 +469,14 @@ router.post("/sync/review", async (req, res): Promise<void> => {
 
     await client.query("COMMIT");
 
-    submitToIndexNow([
-      `https://cryptokiller.org/review/${review.slug}`,
-      ...translationUrls,
-    ]).catch(() => {});
+    // Fire-and-forget IndexNow ping — published reviews only, never drafts.
+    // Batches the master URL + every published-translation URL into one
+    // submission. URLs come from canonical-urls (the single source of truth
+    // shared with the sitemap), so a pinged URL is byte-identical to the
+    // indexed URL. Never awaited / never throws into the request lifecycle.
+    if ((review.status ?? "published") === "published") {
+      pingIndexNow(reviewUrls(review.slug, translationRefs));
+    }
 
     res.json({
       ok: true,
