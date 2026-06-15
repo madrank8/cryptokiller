@@ -243,6 +243,44 @@ app.get("/sitemap.xml", (_req: Request, res: Response) => {
   res.redirect(301, "/api/sitemap.xml");
 });
 
+// === Legacy plural-URL redirects (301). Must run before the renderPage
+// handlers (markdown + HTML) so retired plural page URLs 301 to their live
+// singular equivalents instead of hard-404ing and wasting crawl budget.
+// Placed here (after the /sitemap.xml redirect, before static + both
+// renderPage callers) so the redirect fires regardless of Accept type.
+// The plural /api/reviews/* JSON routes live in artifacts/api-server and are
+// intentionally untouched.
+const LOCALES = ["it", "es", "de", "fr", "pt-br"];
+const DEAD_BLOG: Record<string, string> = {
+  "/blog/ai-deepfake-crypto-scam": "/blog",
+  // add other confirmed-removed blog slugs here -> target
+};
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const [pathOnly, ...rest] = req.originalUrl.split("?");
+  const qs = rest.length ? "?" + rest.join("?") : "";
+  const p = pathOnly.replace(/\/+$/, "") || "/";
+  let target: string | null = null;
+
+  if (DEAD_BLOG[p]) target = DEAD_BLOG[p];
+
+  if (!target) {
+    const m = p.match(/^\/reviews\/translations\/([^/]+)\/([^/]+)$/);
+    if (m && LOCALES.includes(m[1])) target = `/${m[1]}/review/${m[2]}`;
+  }
+  if (!target) {
+    const m = p.match(/^\/reviews\/([^/]+)(?:\/.*)?$/);
+    if (m && m[1] !== "translations") target = `/review/${m[1]}`;
+  }
+  if (!target && p === "/reviews") target = "/investigations";
+
+  if (target && target !== p) {
+    res.redirect(301, target + qs);
+    return;
+  }
+  next();
+});
+
 app.use(
   express.static(PUBLIC_DIR, {
     index: false,
