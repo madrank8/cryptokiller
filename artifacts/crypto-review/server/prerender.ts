@@ -270,6 +270,25 @@ function siteFooterHtml(): string {
   return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:corrections@cryptokiller.org">Editorial corrections</a></p></footer>`;
 }
 
+/**
+ * Crawlable analyst directory for the SSR home + about pages. Mirrors the
+ * client ResearchTeam.tsx / AboutPage.tsx "Investigation Team" sections,
+ * sourced from the same WRITER_PERSONAS registry. Emits one internal link
+ * per analyst to /author/:slug so crawlers and AI bots see the author hub
+ * (E-E-A-T + internal linking) in the pre-hydration HTML, not only in the
+ * JS-rendered client tree. Plain anchors (no rel="author") — these list the
+ * team, they are not the author of the listing page.
+ */
+function analystDirectoryHtml(headingId = "analysts-heading"): string {
+  const items = Object.values(WRITER_PERSONAS)
+    .map(
+      (a) =>
+        `<li><a href="/author/${a.slug}"><strong>${esc(a.name)}</strong></a> — ${esc(a.role)}. ${esc(a.credentials)}. ${esc(a.bio)}</li>`,
+    )
+    .join("");
+  return `<section aria-labelledby="${headingId}"><h2 id="${headingId}">Our analysts</h2><p>Every CryptoKiller investigation is authored by a named analyst — never anonymous AI output. Each profile links to that analyst's full background and published investigations.</p><ul>${items}</ul></section>`;
+}
+
 interface StaticSection {
   heading: string;
   paragraphs: string[];
@@ -291,6 +310,8 @@ interface StaticPageInput {
   faq?: StaticFaq[];
   ogType?: string;
   jsonLd?: Record<string, unknown>;
+  /** When true, inject the crawlable analyst directory before the FAQ. */
+  analystDirectory?: boolean;
 }
 
 function renderStaticPage(p: StaticPageInput): RenderResult {
@@ -321,6 +342,7 @@ function renderStaticPage(p: StaticPageInput): RenderResult {
 <h1>${esc(p.h1)}</h1>
 <p>${esc(p.intro)}</p>
 ${sectionsHtml}
+${p.analystDirectory ? analystDirectoryHtml() : ""}
 ${faqHtml}
 <p><a href="/">Back to home</a> · <a href="/investigations">Browse investigations</a> · <a href="/blog">Read the blog</a></p>
 </article>
@@ -415,6 +437,7 @@ async function renderHome(): Promise<RenderResult> {
 <p>Each investigation combines real-time ad surveillance, blockchain forensics, and OSINT to produce an evidence-based threat score from 0 to 100. Every score is auditable and links to the underlying ad creatives, registration patterns, and red flags.</p>
 <h2>Recently published investigations</h2>
 <ul>${recentList}</ul>
+${analystDirectoryHtml()}
 <p><a href="/investigations">Browse all investigations</a> · <a href="/methodology">Read our methodology</a> · <a href="/report">Report a scam</a></p>
 </main>${siteFooterHtml()}`;
 
@@ -1638,6 +1661,27 @@ async function renderReview(
     translationDisclosureHtml = `<aside data-translation-disclosure aria-label="Translation information" style="margin:0 0 1.5rem 0;padding:0">${staleBanner}<p style="border-left:2px solid #334155;padding:0 0 0 0.75rem;margin:0;color:#94a3b8;font-size:0.75rem;line-height:1.6"><em>${parts.join("")}</em></p></aside>`;
   }
 
+  // ── Byline + trust metadata for the modern full-article path ──
+  // The writer-emitted full_article HTML carries no CryptoKiller byline, so
+  // this branch previously shipped no visible author attribution or author-
+  // profile link in SSR — author identity was schema-only, invisible to non-JS
+  // crawlers on YMYL review pages. Mirror the legacy branch byline (~line 1700)
+  // and the client byline in src/pages/ReviewPage.tsx: resolved persona,
+  // rel="author" link to /author/:slug, published + updated dates, read time,
+  // and a crawlable link to the methodology page.
+  const bylinePersona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
+  const bylineAuthorHtml = bylinePersona
+    ? `<a href="/author/${bylinePersona.slug}" rel="author">${esc(bylinePersona.name)}</a>, ${esc(bylinePersona.role)}`
+    : esc(row.author || "CryptoKiller Research Team");
+  const bylinePublished = datePublished ? new Date(datePublished).toISOString().split("T")[0] : "";
+  const bylineUpdated = dateModified ? new Date(dateModified).toISOString().split("T")[0] : "";
+  const showBylineUpdated = bylineUpdated !== "" && bylineUpdated !== bylinePublished;
+  // Trust block mirrors the client review page's crawlable editorial/
+  // methodology copy (src/pages/ReviewPage.tsx ~lines 1324-1337) so non-JS
+  // crawlers see the same E-E-A-T signals on the modern full-article path.
+  const fullArticleBylineHtml = `<p data-review-byline><strong>Investigation by:</strong> ${bylineAuthorHtml}${bylinePublished ? ` · Published ${bylinePublished}` : ""}${showBylineUpdated ? ` · Updated ${bylineUpdated}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""} · <a href="/methodology">How we score scams</a></p>
+<div data-review-trust><p>Reviewed by our editorial team · Methodology: <a href="/methodology">cryptokiller.org/methodology</a></p><p>All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency. <a href="/methodology">How we investigate →</a></p></div>`;
+
   const bodyHtml = fullArticleBodyHtml
     ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
       // Writer produces a complete article page with breadcrumb, hero, sections,
@@ -1649,6 +1693,7 @@ async function renderReview(
       // inject after the H1 without parsing the writer's HTML).
       `${siteHeaderHtml()}<main>
 ${translationDisclosureHtml}<article id="article-body">
+${fullArticleBylineHtml}
 ${fullArticleBodyHtml}
 </article>
 ${recentAdsHtml}
@@ -2468,6 +2513,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
       description:
         "CryptoKiller is an independent crypto scam intelligence platform tracking 22,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
       h1: "About CryptoKiller",
+      analystDirectory: true,
       intro:
         "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. in Singapore. We track over 22,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
       sections: [
