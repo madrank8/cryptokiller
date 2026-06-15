@@ -26,3 +26,4 @@
 ## Notes from this scan
 - Public `.md` alternates exist for agent/LLM consumption. If they remain enabled, they should stay non-indexable so they do not compete with the canonical HTML pages.
 - Public author pages are in scope because they materially support trust and expertise signals on this YMYL site.
+- Because this app serves simplified SSR HTML before React hydration, future SEO scans should always check SSR/CSR parity for titles, structured data, author attribution, and internal links on public pages.
