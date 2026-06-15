@@ -178,6 +178,9 @@ export interface RenderResult {
   lastModified?: string;
   prevPage?: string;
   nextPage?: string;
+  // When set, the server should issue a redirect to this URL instead of
+  // rendering HTML. `status` carries the redirect code (301).
+  redirectTo?: string;
   // Phase 5 — SEO localization. `htmlLang` overrides the `<html lang>` attr
   // (default `en` in index.html). `alternates` emits one
   // `<link rel="alternate" hreflang>` per entry plus an `x-default`. When
@@ -452,9 +455,39 @@ async function renderHome(): Promise<RenderResult> {
 }
 
 async function renderInvestigationsList(query: URLSearchParams): Promise<RenderResult> {
-  const pageNum = Math.max(1, Number(query.get("page")) || 1);
+  const rawPage = query.get("page");
+  const parsedNum = rawPage !== null ? Number(rawPage) : NaN;
   const PER_PAGE = 20;
-  const offset = (pageNum - 1) * PER_PAGE;
+
+  // Malformed or zero/negative page param → 301 to /investigations
+  if (rawPage !== null && (Number.isNaN(parsedNum) || !Number.isFinite(parsedNum) || parsedNum < 1 || !Number.isInteger(parsedNum))) {
+    return {
+      status: 301,
+      redirectTo: `${BASE}/investigations`,
+      title: "",
+      description: "",
+      canonical: `${BASE}/investigations`,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml: "",
+    };
+  }
+
+  // Explicit ?page=1 → 301 to /investigations (canonical form)
+  if (rawPage !== null && parsedNum === 1) {
+    return {
+      status: 301,
+      redirectTo: `${BASE}/investigations`,
+      title: "",
+      description: "",
+      canonical: `${BASE}/investigations`,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml: "",
+    };
+  }
+
+  const pageNum = rawPage === null ? 1 : parsedNum;
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -462,7 +495,21 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     .where(eq(reviewsTable.status, "published"));
 
   const totalPages = Math.max(1, Math.ceil(count / PER_PAGE));
-  const clampedPage = Math.min(pageNum, totalPages);
+
+  // Out-of-range page → 301 to the last valid page
+  if (pageNum > totalPages) {
+    const target = totalPages > 1 ? `${BASE}/investigations?page=${totalPages}` : `${BASE}/investigations`;
+    return {
+      status: 301,
+      redirectTo: target,
+      title: "",
+      description: "",
+      canonical: target,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml: "",
+    };
+  }
 
   const rows = await db
     .select({
@@ -477,16 +524,16 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     .where(eq(reviewsTable.status, "published"))
     .orderBy(desc(reviewsTable.updatedAt))
     .limit(PER_PAGE)
-    .offset((clampedPage - 1) * PER_PAGE);
+    .offset((pageNum - 1) * PER_PAGE);
 
   const title =
-    clampedPage > 1
-      ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
+    pageNum > 1
+      ? `Crypto Scam Investigations — Page ${pageNum} | CryptoKiller`
       : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller";
   const description =
     "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.";
 
-  const canonical = clampedPage > 1 ? `${BASE}/investigations?page=${clampedPage}` : `${BASE}/investigations`;
+  const canonical = pageNum > 1 ? `${BASE}/investigations?page=${pageNum}` : `${BASE}/investigations`;
 
   const lastModified = rows[0]?.updatedAt ? new Date(rows[0].updatedAt).toUTCString() : undefined;
 
@@ -497,13 +544,13 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     )
     .join("");
 
-  const prevPage = clampedPage > 1 ? `${BASE}/investigations${clampedPage - 1 > 1 ? `?page=${clampedPage - 1}` : ""}` : undefined;
-  const nextPage = clampedPage < totalPages ? `${BASE}/investigations?page=${clampedPage + 1}` : undefined;
+  const prevPage = pageNum > 1 ? `${BASE}/investigations${pageNum - 1 > 1 ? `?page=${pageNum - 1}` : ""}` : undefined;
+  const nextPage = pageNum < totalPages ? `${BASE}/investigations?page=${pageNum + 1}` : undefined;
 
   const bodyHtml = `${siteHeaderHtml()}<main>
 <h1>Crypto Scam Investigations</h1>
-<p>${count.toLocaleString()} published investigations. Showing page ${clampedPage} of ${totalPages}.</p>
-<ol start="${(clampedPage - 1) * PER_PAGE + 1}">${itemsHtml}</ol>
+<p>${count.toLocaleString()} published investigations. Showing page ${pageNum} of ${totalPages}.</p>
+<ol start="${(pageNum - 1) * PER_PAGE + 1}">${itemsHtml}</ol>
 <nav aria-label="Pagination">${prevPage ? `<a rel="prev" href="${esc(prevPage)}">Previous</a> · ` : ""}${nextPage ? `<a rel="next" href="${esc(nextPage)}">Next</a>` : ""}</nav>
 </main>${siteFooterHtml()}`;
 

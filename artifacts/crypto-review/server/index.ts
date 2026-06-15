@@ -343,6 +343,12 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const result = await renderPage(renderUrl);
+
+    if (result.redirectTo) {
+      res.redirect(result.status, result.redirectTo);
+      return;
+    }
+
     const markdown = renderResultToMarkdown(result);
 
     res.status(result.status);
@@ -391,6 +397,12 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const result = await renderPage(req.originalUrl || req.url);
+
+    if (result.redirectTo) {
+      res.redirect(result.status, result.redirectTo);
+      return;
+    }
+
     const html = applyMeta(indexHtml, result);
 
     res.status(result.status);
