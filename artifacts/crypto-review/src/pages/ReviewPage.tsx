@@ -1432,7 +1432,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
                         <figure className="my-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
                           <img
                             src={img.url}
-                            alt={img.alt || ""}
+                            alt={img.alt || `Screenshot from ${review.platformName} investigation`}
                             loading="lazy"
                             className="w-full h-auto"
                           />
@@ -1576,7 +1576,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
                       >
                         <img
                           src={v.url!}
-                          alt={v.altText || v.description || ""}
+                          alt={v.altText || v.description || `Evidence visual from ${review.platformName} investigation`}
                           loading="lazy"
                           className="w-full h-auto"
                         />
