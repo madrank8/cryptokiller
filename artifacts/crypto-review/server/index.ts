@@ -304,6 +304,13 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
       result.status === 200 ? "public, max-age=300, stale-while-revalidate=600" : "no-store",
     );
     res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    // Crawlability — the Markdown response is an alternate representation of
+    // the canonical HTML page, not a distinct page. Mark it non-indexable so
+    // search engines don't treat `*.md` URLs (or `Accept: text/markdown`
+    // variants) as duplicate content and split ranking signals. `follow`
+    // keeps link equity flowing, and the resource stays fully fetchable for
+    // agents (we intentionally do NOT block it in robots.txt).
+    res.setHeader("X-Robots-Tag", "noindex, follow");
     // Agent Readiness — advertise the sitemap and the canonical HTML variant
     // of this Markdown source via the Link header.
     const htmlHref = targetPath === "/" ? "/" : targetPath;
