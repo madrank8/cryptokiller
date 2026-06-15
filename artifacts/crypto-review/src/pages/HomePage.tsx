@@ -252,7 +252,7 @@ function HeroSection({ reviews }: { reviews: ReviewSummary[] }) {
               ],
             },
             {
-              value: "22,033+",
+              value: "22,000+",
               label: "Brands Tracked",
               citations: [{ name: "CryptoKiller Database" }],
             },

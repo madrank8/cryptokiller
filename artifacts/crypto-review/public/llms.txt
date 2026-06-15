@@ -48,7 +48,7 @@ CryptoKiller operates an ad surveillance network monitoring crypto scam advertis
 ## Key Statistics
 
 - 281,110+ scam ads analyzed
-- 22,033+ brands tracked
+- 22,000+ brands tracked
 - 84+ countries monitored
 - 900+ investigations published
 - Ad surveillance across 84+ countries, 24/7
