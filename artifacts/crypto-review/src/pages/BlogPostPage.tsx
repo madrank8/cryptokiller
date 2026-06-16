@@ -1,3 +1,4 @@
+import "@/styles/blog-post.css";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { usePageMeta } from "@/hooks/usePageMeta";

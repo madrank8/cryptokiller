@@ -59,11 +59,12 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // Keep the React runtime in one stable, long-cached chunk shared by
-        // every route (Task #44). Route components are split per-route via
-        // React.lazy; Vite extracts other shared modules (UI primitives, etc.)
-        // into common chunks automatically, so we only pin the always-loaded
-        // React core here to maximize cross-route + cross-deploy cache reuse.
+        // Pin stable third-party runtimes into named vendor chunks so they
+        // survive across deploys without cache-busting. Route components are
+        // code-split via React.lazy; Vite splits other shared modules
+        // (UI primitives, icons, etc.) automatically.
+        //   react-vendor  — React core (react, react-dom, scheduler)
+        //   query-vendor  — TanStack React Query (@tanstack/react-query)
         manualChunks(id) {
           if (
             /[\\/]node_modules[\\/](react|react-dom|scheduler|react-is)[\\/]/.test(
@@ -71,6 +72,13 @@ export default defineConfig({
             )
           ) {
             return "react-vendor";
+          }
+          if (
+            /[\\/]node_modules[\\/](@tanstack[\\/]react-query|@tanstack[\\/]query-core)[\\/]/.test(
+              id,
+            )
+          ) {
+            return "query-vendor";
           }
           return undefined;
         },
