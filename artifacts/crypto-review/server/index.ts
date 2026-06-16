@@ -107,6 +107,12 @@ function applyMeta(template: string, r: RenderResult): string {
   replaceAttr(/<meta property="og:description"[^>]*>/, r.description);
   replaceAttr(/<meta property="og:url"[^>]*>/, r.canonical);
   replaceAttr(/<meta property="og:image"[^>]*>/, r.ogImage);
+  // og:locale — replace the shell's default `en_US` in-place rather than
+  // appending a second tag. When the renderer doesn't specify a locale (non-
+  // review pages) the existing `en_US` stays untouched.
+  if (r.ogLocale) {
+    replaceAttr(/<meta property="og:locale"[^>]*>/, r.ogLocale);
+  }
   replaceAttr(/<meta name="twitter:title"[^>]*>/, r.title);
   replaceAttr(/<meta name="twitter:description"[^>]*>/, r.description);
   replaceAttr(/<meta name="twitter:image"[^>]*>/, r.ogImage);
@@ -136,6 +142,13 @@ function applyMeta(template: string, r: RenderResult): string {
   // shipping a machine translation that competes with our editorial one.
   if (r.noTranslate) {
     headInject += `<meta name="googlebot" content="notranslate" data-ssr="1" />`;
+  }
+  // og:locale:alternate — one tag per sibling locale, injected into <head>.
+  // The og:locale value itself was already written by replaceAttr above.
+  if (r.ogLocaleAlternates && r.ogLocaleAlternates.length > 0) {
+    for (const alt of r.ogLocaleAlternates) {
+      headInject += `<meta property="og:locale:alternate" content="${escapeAttr(alt)}" data-ssr="1" />`;
+    }
   }
 
   if (html.includes("<!--SSR-HEAD-INJECT-->")) {

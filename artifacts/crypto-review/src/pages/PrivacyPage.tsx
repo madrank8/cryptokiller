@@ -33,6 +33,58 @@ export default function PrivacyPage() {
     title: "Privacy Policy",
     description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
     canonical: "https://cryptokiller.org/privacy",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://cryptokiller.org/" },
+            { "@type": "ListItem", position: 2, name: "Privacy Policy", item: "https://cryptokiller.org/privacy" },
+          ],
+        },
+        {
+          "@type": "WebPage",
+          "@id": "https://cryptokiller.org/privacy#webpage",
+          url: "https://cryptokiller.org/privacy",
+          name: "Privacy Policy — CryptoKiller",
+          description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
+          isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          inLanguage: "en",
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://cryptokiller.org/privacy#faq",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Do you use Google Analytics?",
+              acceptedAnswer: { "@type": "Answer", text: "No. We do not use Google Analytics or any third-party behavioural analytics service. We also do not use Facebook Pixel, advertising trackers, or session-recording tools. The only logging we do is standard server access logs, retained for 30 days." },
+            },
+            {
+              "@type": "Question",
+              name: "Do you use cookies?",
+              acceptedAnswer: { "@type": "Answer", text: "We use a minimal set of technical cookies required for the site to function. We do not use tracking cookies, marketing cookies, or third-party advertising cookies." },
+            },
+            {
+              "@type": "Question",
+              name: "If I submit a report, can I later delete it?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Email corrections@cryptokiller.org requesting deletion of your report, and we will remove it from our intelligence system within 30 days. Published investigation content based on multiple corroborated sources may remain, but your specific submission and any reference to it will be removed." },
+            },
+            {
+              "@type": "Question",
+              name: "How do I exercise my GDPR or CCPA rights?",
+              acceptedAnswer: { "@type": "Answer", text: "Email corrections@cryptokiller.org with your request. For erasure, access, rectification, and portability requests, we respond within 30 days (or one month under GDPR). We may ask you to verify your identity before processing substantive requests to prevent impersonation." },
+            },
+            {
+              "@type": "Question",
+              name: "Do you sell personal information?",
+              acceptedAnswer: { "@type": "Answer", text: "No. We do not sell personal information. We do not share personal information with advertisers, marketers, or data brokers. This is as true for CCPA as it is for any other framework — our business model does not depend on user data." },
+            },
+          ],
+        },
+      ],
+    },
   });
 
   useEffect(() => {

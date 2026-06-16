@@ -535,6 +535,15 @@ components:
           type: string
           nullable: true
           description: Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty.
+        alternativeHeadline:
+          type: string
+          nullable: true
+          description: >-
+            Writer-supplied SEO title override (≤55 chars). When present, the
+            client and SSR use this instead of the generic
+            "{platformName} Scam Review — Threat Score N/100" formula. Mirrors
+            `alternative_headline` in the Vercel CMS schema.
+            Null for reviews that have not been through the Polish pipeline.
         contentImages:
           type: array
           items:

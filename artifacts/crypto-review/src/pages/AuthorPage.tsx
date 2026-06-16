@@ -81,40 +81,66 @@ export default function AuthorPage() {
     ...(persona ? [{ label: persona.name, href: `${BASE}/author/${slug}` }] : []),
   ];
 
+  const canonicalUrl = `${BASE}/author/${slug}`;
+  const pageTitle = persona
+    ? `${persona.name} — ${persona.role} | CryptoKiller`
+    : "Author Not Found | CryptoKiller";
+  const pageDescription = persona?.fullBio?.slice(0, 160) || "Author profile on CryptoKiller.";
+
   const personJsonLd = persona
     ? {
         "@type": "Person",
         name: persona.name,
         jobTitle: persona.role,
         description: persona.fullBio,
-        url: `${BASE}/author/${slug}`,
+        url: canonicalUrl,
         worksFor: {
           "@type": "Organization",
           name: "CryptoKiller",
           url: BASE,
         },
         knowsAbout: persona.specialties,
+        // mainEntityOfPage is the profile page URL (singular) — not the
+        // authored-work list. Per schema.org, mainEntityOfPage on a Person
+        // is the page that most prominently features this entity, not a
+        // collection of authored articles.
+        mainEntityOfPage: canonicalUrl,
+      }
+    : undefined;
+
+  const profilePageJsonLd = persona
+    ? {
+        "@type": "ProfilePage",
+        "@id": `${canonicalUrl}#profile`,
+        url: canonicalUrl,
+        name: pageTitle,
+        description: pageDescription,
+        mainEntity: { "@type": "Person", name: persona.name, url: canonicalUrl },
+        isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: BASE },
+        inLanguage: "en",
+        // Authored work list lives on ProfilePage.hasPart — a valid pattern
+        // for associating a profile page with the entity's published works.
         ...(authoredReviews.length > 0 && {
-          mainEntityOfPage: authoredReviews.slice(0, 3).map(r => ({
+          hasPart: authoredReviews.slice(0, 3).map(r => ({
             "@type": "Article",
             url: `${BASE}/review/${r.slug}`,
-            name: r.platformName,
+            name: `${r.platformName} Investigation`,
           })),
         }),
       }
     : undefined;
 
   usePageMeta({
-    title: persona
-      ? `${persona.name} — ${persona.role} | CryptoKiller`
-      : "Author Not Found | CryptoKiller",
-    description: persona?.fullBio?.slice(0, 160) || "Author profile on CryptoKiller.",
-    canonical: `${BASE}/author/${slug}`,
+    title: pageTitle,
+    description: pageDescription,
+    canonical: canonicalUrl,
+    ogType: "profile",
     jsonLd: {
       "@context": "https://schema.org",
       "@graph": [
         breadcrumbJsonLd(crumbs),
         ...(personJsonLd ? [personJsonLd] : []),
+        ...(profilePageJsonLd ? [profilePageJsonLd] : []),
       ],
     },
   });

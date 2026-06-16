@@ -242,6 +242,8 @@ export interface ReviewFull {
   heroImageCredit?: string | null;
   /** Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty. */
   headline?: string | null;
+  /** Writer-supplied SEO title override (≤55 chars). When present, the client and SSR use this instead of the generic "{platformName} Scam Review — Threat Score N/100" formula. Mirrors `alternative_headline` in the Vercel CMS schema. Null for reviews that have not been through the Polish pipeline. */
+  alternativeHeadline?: string | null;
   /** Inline section images placed between content blocks. */
   contentImages: ContentImage[];
   /** Chart/diagram/infographic metadata. Only succeeded=true entries are rendered. */

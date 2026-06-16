@@ -108,6 +108,18 @@ function buildTranslatedReview(t: ReviewFullTranslated): ReviewFull {
     protectionSteps: t.protectionSteps ?? m.protectionSteps,
     notForYou: t.notForYou ?? m.notForYou,
     expertiseDepth: t.expertiseDepth ?? m.expertiseDepth,
+    // headline and alternativeHeadline drive the <title> (via pickReviewTitleBase)
+    // and the visible H1. Overlay with translation values so the hydrated CSR
+    // title matches the SSR title that prerender.ts builds with the same logic:
+    //   alternativeHeadline: translationRow.alternativeHeadline ?? row.alternativeHeadline
+    // Without this, locale pages would compute a title from the master's
+    // English alternativeHeadline, overwriting the SSR-rendered translated title.
+    headline: (t as unknown as Record<string, unknown>).headline != null
+      ? String((t as unknown as Record<string, unknown>).headline)
+      : m.headline,
+    alternativeHeadline: (t as unknown as Record<string, unknown>).alternativeHeadline != null
+      ? String((t as unknown as Record<string, unknown>).alternativeHeadline)
+      : m.alternativeHeadline,
     redFlags: overlaidRedFlags,
     faqItems: overlaidFaq,
     keyFindings: overlaidKeyFindings,
@@ -1116,10 +1128,62 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     };
   }, [review, slug, locale, pageUrlForLocale, pageInLanguage, masterUrl]);
 
+  // OG locale map — same keys as LOCALE_HTML_LANG, output uses underscores
+  // (Facebook / Open Graph convention). `en_US` is the default for the English master.
+  const LOCALE_OG: Record<string, string> = {
+    it: "it_IT",
+    es: "es_ES",
+    de: "de_DE",
+    fr: "fr_FR",
+    "pt-BR": "pt_BR",
+  };
+
+  // pickReviewTitleBase — exact port of the SSR function in prerender.ts.
+  // Must stay in parity so hydration never overwrites the prerendered <title>
+  // with a differently-worded string that confuses crawler title-change signals.
+  //
+  // Rules (match prerender.ts pickReviewTitleBase exactly):
+  //   1. alternativeHeadline present and ≤55 chars → use as-is.
+  //   2. alternativeHeadline present but >55 chars → word-boundary truncate
+  //      at last space before char 55 (min cut at char 30); strip trailing
+  //      connectors and punctuation. NEVER append ellipsis on SEO titles.
+  //   3. No alternativeHeadline → "{name} {headlineLabel}{scoreSuffix}"
+  //      headlineLabel = frameAsScam ? "Scam Review" : "Investigation"
+  //      scoreSuffix   = score > 0 ? " — Threat Score N/100" : ""
+  function pickReviewTitleBase(r: NonNullable<typeof review>): string {
+    const tier = resolveReviewTier({
+      threatScore: r.threatScore ?? null,
+      threatTier: r.threatTier ?? null,
+      threatLabel: r.threatLabel ?? null,
+      threatBadge: r.threatBadge ?? null,
+      frameAsScam: r.frameAsScam ?? null,
+    });
+    const headlineLabel = tier.frameAsScam ? "Scam Review" : "Investigation";
+    const scoreSuffix = r.threatScore && r.threatScore > 0
+      ? ` — Threat Score ${r.threatScore}/100`
+      : "";
+    const altHeadline = String(r.alternativeHeadline || "").trim();
+    if (altHeadline) {
+      if (altHeadline.length <= 55) return altHeadline;
+      const candidate = altHeadline.slice(0, 55);
+      const lastSpace = candidate.lastIndexOf(" ");
+      const cut = lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate;
+      return cut
+        .replace(/[\s—\-:,]+$/, "")
+        .replace(/\b(and|or|of|to|for|the|a|an)\s*$/i, "")
+        .trim();
+    }
+    return `${r.platformName} ${headlineLabel}${scoreSuffix}`;
+  }
+
+  const REVIEW_BRAND_SUFFIX = " | CryptoKiller";
   const seoTitle = review
-    ? (`${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`.length <= 60
-        ? `${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`
-        : `${review.platformName} Scam Review | CryptoKiller`)
+    ? (() => {
+        const base = pickReviewTitleBase(review);
+        return base.length + REVIEW_BRAND_SUFFIX.length <= 70
+          ? `${base}${REVIEW_BRAND_SUFFIX}`
+          : base;
+      })()
     : error
       ? "Investigation Not Found | CryptoKiller"
       : "Loading Investigation | CryptoKiller";
@@ -1160,6 +1224,30 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
   // whose target language we don't yet cover editorially.
   const noTranslate = !locale && hasTranslations;
 
+  // og:locale — set for all review pages.  Translated locale pages carry
+  // their own locale; the EN master defaults to en_US.
+  const ogLocale = locale ? (LOCALE_OG[locale] ?? locale.replace("-", "_")) : "en_US";
+  // og:locale:alternate — every other locale in the cluster (excludes current).
+  const ogLocaleAlternate = useMemo(() => {
+    if (!review) return undefined;
+    const siblings = (review.translations ?? []).filter(
+      (t) => !!t && typeof t.locale === "string",
+    );
+    if (locale) {
+      // Translated page: include en_US + other sibling locales except self
+      return [
+        "en_US",
+        ...siblings
+          .filter((t) => t.locale !== locale)
+          .map((t) => LOCALE_OG[t.locale] ?? t.locale.replace("-", "_")),
+      ];
+    }
+    // EN master: include all translated locales
+    return siblings.length > 0
+      ? siblings.map((t) => LOCALE_OG[t.locale] ?? t.locale.replace("-", "_"))
+      : undefined;
+  }, [review, locale]);
+
   usePageMeta({
     title: seoTitle,
     description: seoDescription,
@@ -1171,6 +1259,8 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     htmlLang,
     alternates,
     noTranslate,
+    ogLocale,
+    ogLocaleAlternate,
   });
 
 

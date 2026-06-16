@@ -191,6 +191,11 @@ export interface RenderResult {
   htmlLang?: string;
   alternates?: Array<{ hreflang: string; href: string }>;
   noTranslate?: boolean;
+  // Open Graph locale. OG locale format uses underscores (`en_US`, `it_IT`,
+  // `pt_BR`). `ogLocale` sets `og:locale`; `ogLocaleAlternates` emits one
+  // `og:locale:alternate` per sibling locale in a translated cluster.
+  ogLocale?: string;
+  ogLocaleAlternates?: string[];
 }
 
 function esc(s: string | null | undefined): string {
@@ -1282,6 +1287,28 @@ async function renderReview(
   // competes with our manual one. Translation pages never get notranslate.
   const noTranslate = !isLocale && siblings.length > 0;
 
+  // og:locale — Open Graph locale uses underscore format (`en_US`, `it_IT`).
+  // The OG locale map converts from our internal BCP-47 locale keys → OG format.
+  // `ogLocaleAlternates` lists the OTHER locales in the cluster so crawlers
+  // can discover related translated pages via <meta property="og:locale:alternate">.
+  const OG_LOCALE_MAP: Record<string, string> = {
+    it: "it_IT",
+    es: "es_ES",
+    de: "de_DE",
+    fr: "fr_FR",
+    "pt-BR": "pt_BR",
+  };
+  const currentOgLocale = isLocale
+    ? (OG_LOCALE_MAP[opts!.locale!] ?? opts!.locale!.replace("-", "_"))
+    : "en_US";
+  // Build alternates list — every locale in the cluster EXCEPT the current one.
+  const siblingLocales = siblings.map((s) => s.locale);
+  const ogLocaleAlternates: string[] = isLocale
+    // Current page is a translated locale — include en_US + other siblings
+    ? ["en_US", ...siblingLocales.filter((l) => l !== opts!.locale!).map((l) => OG_LOCALE_MAP[l] ?? l.replace("-", "_"))]
+    // Current page is the EN master — list all translated locales
+    : siblingLocales.map((l) => OG_LOCALE_MAP[l] ?? l.replace("-", "_"));
+
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = row.investigationDate ? new Date(row.investigationDate).toISOString() : undefined;
   const dateModified = row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined;
@@ -2066,6 +2093,8 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     htmlLang,
     alternates,
     noTranslate,
+    ogLocale: currentOgLocale,
+    ogLocaleAlternates: ogLocaleAlternates.length > 0 ? ogLocaleAlternates : undefined,
   };
 }
 

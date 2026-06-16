@@ -132,6 +132,12 @@ export const GetReviewResponse = zod.object({
     .describe(
       "Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null\/empty.",
     ),
+  alternativeHeadline: zod
+    .string()
+    .nullish()
+    .describe(
+      'Writer-supplied SEO title override (≤55 chars). When present, the client and SSR use this instead of the generic \"{platformName} Scam Review — Threat Score N\/100\" formula. Mirrors `alternative_headline` in the Vercel CMS schema. Null for reviews that have not been through the Polish pipeline.',
+    ),
   contentImages: zod
     .array(
       zod
@@ -548,6 +554,12 @@ export const GetReviewTranslationResponse = zod
         .nullish()
         .describe(
           "Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null\/empty.",
+        ),
+      alternativeHeadline: zod
+        .string()
+        .nullish()
+        .describe(
+          'Writer-supplied SEO title override (≤55 chars). When present, the client and SSR use this instead of the generic \"{platformName} Scam Review — Threat Score N\/100\" formula. Mirrors `alternative_headline` in the Vercel CMS schema. Null for reviews that have not been through the Polish pipeline.',
         ),
       contentImages: zod
         .array(

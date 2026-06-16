@@ -18,6 +18,13 @@ interface PageMeta {
   htmlLang?: string;
   alternates?: Array<{ hreflang: string; href: string }>;
   noTranslate?: boolean;
+  // Open Graph locale. OG uses underscore notation (e.g. `en_US`, `it_IT`,
+  // `pt_BR`). `ogLocale` sets `og:locale` for the page; `ogLocaleAlternate`
+  // emits one `og:locale:alternate` per entry for sibling locales in a
+  // translated cluster. Both are optional — unset pages keep the default
+  // `en_US` declared in index.html.
+  ogLocale?: string;
+  ogLocaleAlternate?: string[];
 }
 
 const SITE_NAME = "CryptoKiller";
@@ -37,7 +44,7 @@ function deriveCanonical(explicit?: string): string {
   return normalizeCanonical(`${BASE_URL}${path}`);
 }
 
-export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate }: PageMeta) {
+export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate, ogLocale, ogLocaleAlternate }: PageMeta) {
   useEffect(() => {
     const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
     document.title = fullTitle;
@@ -53,6 +60,31 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
     setMeta("twitter:title", fullTitle);
     setMeta("twitter:description", description);
     setMeta("twitter:image", ogImage || DEFAULT_IMAGE);
+
+    // og:locale — only update when the page specifies a non-default locale.
+    // The index.html shell carries the default `en_US`; we reset to it on
+    // cleanup so SPA nav back to an English page doesn't keep a stale locale.
+    if (ogLocale) {
+      setMeta("og:locale", ogLocale, true);
+    }
+    // og:locale:alternate — wipe previous set tagged with our marker before
+    // re-emitting so SPA nav between locale pages doesn't accumulate stale
+    // entries. SSR-injected og:locale:alternate tags carry data-ssr="1" and
+    // are also cleared here.
+    document
+      .querySelectorAll<HTMLMetaElement>(
+        'meta[property="og:locale:alternate"][data-oglocale], meta[property="og:locale:alternate"][data-ssr]',
+      )
+      .forEach((el) => el.remove());
+    if (ogLocaleAlternate && ogLocaleAlternate.length > 0) {
+      for (const loc of ogLocaleAlternate) {
+        const el = document.createElement("meta");
+        el.setAttribute("property", "og:locale:alternate");
+        el.content = loc;
+        el.setAttribute("data-oglocale", "1");
+        document.head.appendChild(el);
+      }
+    }
 
     if (author) setMeta("author", author);
     if (robots) setMeta("robots", robots);
@@ -150,6 +182,15 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
       }
       setLink("prev", undefined);
       setLink("next", undefined);
+      // og:locale cleanup — reset to en_US (index.html default) and remove
+      // any og:locale:alternate tags so SPA nav back to English pages doesn't
+      // keep a stale translated locale.
+      if (ogLocale) {
+        setMeta("og:locale", "en_US", true);
+      }
+      document
+        .querySelectorAll<HTMLMetaElement>('meta[property="og:locale:alternate"][data-oglocale]')
+        .forEach((e) => e.remove());
       // Phase 5 cleanup — reset html lang to en, drop hreflang alternates,
       // strip notranslate meta. Mirrors the SSR default so SPA navigation
       // between locale-prefixed and root routes doesn't leak stale i18n
@@ -164,7 +205,7 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
         )
         .forEach((e) => e.remove());
     };
-  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate]);
+  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate, ogLocale, ogLocaleAlternate]);
 }
 
 function setLink(rel: string, href: string | undefined) {
