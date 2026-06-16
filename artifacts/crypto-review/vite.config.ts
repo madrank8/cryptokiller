@@ -57,6 +57,25 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Keep the React runtime in one stable, long-cached chunk shared by
+        // every route (Task #44). Route components are split per-route via
+        // React.lazy; Vite extracts other shared modules (UI primitives, etc.)
+        // into common chunks automatically, so we only pin the always-loaded
+        // React core here to maximize cross-route + cross-deploy cache reuse.
+        manualChunks(id) {
+          if (
+            /[\\/]node_modules[\\/](react|react-dom|scheduler|react-is)[\\/]/.test(
+              id,
+            )
+          ) {
+            return "react-vendor";
+          }
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port,

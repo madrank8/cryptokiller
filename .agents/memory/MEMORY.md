@@ -2,5 +2,6 @@
 - [crypto-review deploy edge headers](crypto-review-edge-headers.md) — live Cache-Control `private` + HTTP/3 alt-svc are Replit-edge controlled, not app code; recheck stale audits post-deploy.
 - [crypto-review SSR testing](crypto-review-ssr-testing.md) — SSR prod server can OOM in bash; test light endpoints with --max-old-space-size=512.
 - [crypto-review tier/funnel guards](crypto-review-tier-funnel-guards.md) — frame_as_scam NOT NULL so ?? fallback never fires; score-gated UI uses tierFromScore; dedup tie-break must match the filter metric.
+- [Stale lib .d.ts after a merge](merge-stale-lib-dts.md) — post-merge "Property X does not exist" on generated types is stale composite-lib dist; run `pnpm run typecheck:libs`.
 - [IndexNow ↔ sitemap canonical URLs](indexnow-canonical-urls.md) — pinged URLs must be byte-identical to sitemap; build via shared canonical-urls.ts; INDEXNOW_KEY env must match crypto-review's hosted key file; bulk sync must NOT ping.
 - [crypto-review server/scripts typecheck gap](crypto-review-server-typecheck.md) — package typecheck only covers src/**; server/ & scripts/ are esbuild/tsx type-stripped, verify them with a targeted tsc + runtime smoke.
