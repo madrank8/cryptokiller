@@ -631,6 +631,8 @@ async function renderBlogList(): Promise<RenderResult> {
         summary: blogPostsTable.summary,
         metaDescription: blogPostsTable.metaDescription,
         updatedAt: blogPostsTable.updatedAt,
+        authorPersonaId: blogPostsTable.authorPersonaId,
+        publishedAt: blogPostsTable.publishedAt,
       })
       .from(blogPostsTable)
       .where(eq(blogPostsTable.status, "published"))
@@ -649,10 +651,13 @@ async function renderBlogList(): Promise<RenderResult> {
   const lastModified = rows[0]?.updatedAt ? new Date(rows[0].updatedAt).toUTCString() : undefined;
 
   const itemsHtml = rows
-    .map(
-      (b) =>
-        `<li><h3><a href="/blog/${esc(b.slug)}">${esc(b.headline || b.title)}</a></h3><p>${esc(truncate(b.metaDescription || b.summary || "", 220))}</p></li>`,
-    )
+    .map((b) => {
+      const persona = b.authorPersonaId ? WRITER_PERSONAS[b.authorPersonaId] : undefined;
+      const bylineHtml = persona
+        ? `<p class="byline">By <a href="/author/${esc(persona.slug)}" rel="author">${esc(persona.name)}</a>, ${esc(persona.role)}</p>`
+        : "";
+      return `<li><h3><a href="/blog/${esc(b.slug)}">${esc(b.headline || b.title)}</a></h3>${bylineHtml}<p>${esc(truncate(b.metaDescription || b.summary || "", 220))}</p></li>`;
+    })
     .join("");
 
   const bodyHtml = `${siteHeaderHtml()}<main>
