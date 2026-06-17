@@ -596,7 +596,7 @@ export default function HomePage() {
         publisher: { "@id": "https://cryptokiller.org/#organization" },
         potentialAction: {
           "@type": "SearchAction",
-          target: "https://cryptokiller.org/search?q={search_term_string}",
+          target: { "@type": "EntryPoint", urlTemplate: "https://cryptokiller.org/investigations?q={search_term_string}" },
           "query-input": "required name=search_term_string",
         },
       },
@@ -650,8 +650,8 @@ export default function HomePage() {
   }), []);
 
   usePageMeta({
-    title: "Crypto Scam Checker — Investigate Any Platform | CryptoKiller",
-    description: "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands — pig butchering, rug pulls, phishing, fake exchanges — with evidence and threat scores.",
+    title: "CryptoKiller — Crypto Scam Checker & Investigations",
+    description: "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.",
     canonical: "https://cryptokiller.org/",
     jsonLd,
   });

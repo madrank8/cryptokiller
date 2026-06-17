@@ -31,8 +31,8 @@ export default function RecoveryPage() {
   ];
 
   usePageMeta({
-    title: "Crypto Scam Recovery Guide — What To Do After Losing Funds | CryptoKiller",
-    description: "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
+    title: "Crypto Scam Recovery Guide — CryptoKiller",
+    description: "Step-by-step recovery guide if you have lost crypto to a scam. Immediate actions, reporting authorities in every major jurisdiction, and how to avoid recovery scams.",
     canonical: "https://cryptokiller.org/recovery",
     jsonLd: {
       "@context": "https://schema.org",
@@ -42,8 +42,8 @@ export default function RecoveryPage() {
           "@type": "WebPage",
           "@id": "https://cryptokiller.org/recovery#webpage",
           url: "https://cryptokiller.org/recovery",
-          name: "Crypto Scam Recovery Guide — What To Do After Losing Funds",
-          description: "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
+          name: "Crypto Scam Recovery Guide — CryptoKiller",
+          description: "Step-by-step recovery guide if you have lost crypto to a scam. Immediate actions, reporting authorities in every major jurisdiction, and how to avoid recovery scams.",
           isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
           inLanguage: "en",
         },

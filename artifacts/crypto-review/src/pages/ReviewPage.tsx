@@ -1261,6 +1261,10 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     noTranslate,
     ogLocale,
     ogLocaleAlternate,
+    // Preserve SSR-prerendered head while the review data is still loading.
+    // Without this, crawlers executing JS would briefly see "Loading Investigation"
+    // instead of the correct platform title and description.
+    skip: isLoading,
   });
 
 

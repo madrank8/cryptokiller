@@ -11,6 +11,13 @@ interface PageMeta {
   robots?: string;
   prevPage?: string;
   nextPage?: string;
+  /**
+   * When true the effect is a no-op and existing head elements (e.g. SSR
+   * prerendered metadata) are left untouched. Use on dynamic pages where the
+   * client fetch is in-flight so loading placeholders never overwrite the
+   * correct SSR-injected title/description/OG tags.
+   */
+  skip?: boolean;
   // Phase 5 — SEO localisation. `htmlLang` sets `<html lang>` (BCP-47 long
   // form: `it-IT`, `pt-BR`, ...). `alternates` emits one hreflang link per
   // entry. `noTranslate` emits `<meta name="googlebot" content="notranslate">`
@@ -44,8 +51,13 @@ function deriveCanonical(explicit?: string): string {
   return normalizeCanonical(`${BASE_URL}${path}`);
 }
 
-export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate, ogLocale, ogLocaleAlternate }: PageMeta) {
+export function usePageMeta({ title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate, ogLocale, ogLocaleAlternate, skip }: PageMeta) {
   useEffect(() => {
+    // When skip=true the client-side data is not yet ready (e.g. still
+    // fetching). Leave the SSR-prerendered head untouched so crawlers that
+    // execute JS never see loading-placeholder titles or descriptions.
+    if (skip) return;
+
     const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
     document.title = fullTitle;
 
@@ -205,7 +217,7 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
         )
         .forEach((e) => e.remove());
     };
-  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate, ogLocale, ogLocaleAlternate]);
+  }, [title, description, canonical, ogType, ogImage, jsonLd, author, robots, prevPage, nextPage, htmlLang, alternates, noTranslate, ogLocale, ogLocaleAlternate, skip]);
 }
 
 function setLink(rel: string, href: string | undefined) {

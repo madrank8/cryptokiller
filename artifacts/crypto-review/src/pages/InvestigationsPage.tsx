@@ -280,7 +280,7 @@ export default function InvestigationsPage() {
       name:
         clampedPage > 1
           ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-          : "Crypto Scam Investigations Database — 22,000+ Platforms | CryptoKiller",
+          : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller",
       description:
         "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.",
       isPartOf: { "@id": `${BASE}/#website` },
@@ -313,7 +313,7 @@ export default function InvestigationsPage() {
   usePageMeta({
     title: clampedPage > 1
       ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-      : "Crypto Scam Investigations Database — 22,000+ Platforms | CryptoKiller",
+      : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller",
     description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.",
     canonical: canonicalUrl(clampedPage),
     jsonLd: investigationsJsonLd,
