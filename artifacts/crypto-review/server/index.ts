@@ -306,6 +306,38 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// ─── Canonical URL normalization ───
+// Must run before express.static and the SSR catch-all so every response is
+// served at exactly one URL. Two non-canonical forms are normalised:
+//
+//   1. /index.html → /
+//      express.static (with index:false) still serves an explicit /index.html
+//      request, bypassing the SSR applyMeta() path and exposing the raw Vite
+//      shell as a duplicate homepage. 301 here closes that gap.
+//
+//   2. /about/ → /about  (any non-root trailing-slash path)
+//      renderPage() strips the slash for route matching but still returns 200
+//      for the raw trailing-slash URL. 301 here makes the slashless form the
+//      only canonical URL that returns 200.
+//
+// Query strings are preserved on all redirects.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const [pathOnly, ...rest] = req.originalUrl.split("?");
+  const qs = rest.length ? "?" + rest.join("?") : "";
+
+  if (pathOnly === "/index.html") {
+    res.redirect(301, "/" + qs);
+    return;
+  }
+
+  if (pathOnly.length > 1 && pathOnly.endsWith("/")) {
+    res.redirect(301, pathOnly.replace(/\/+$/, "") + qs);
+    return;
+  }
+
+  next();
+});
+
 app.use(
   express.static(PUBLIC_DIR, {
     index: false,
