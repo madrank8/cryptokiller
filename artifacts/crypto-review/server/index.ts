@@ -68,8 +68,8 @@ async function loadIndexHtml(): Promise<void> {
   const fontPreloads = await buildFontPreloadLinks();
   if (fontPreloads) {
     html = html.includes("<!--SSR-HEAD-INJECT-->")
-      ? html.replace("<!--SSR-HEAD-INJECT-->", `${fontPreloads}<!--SSR-HEAD-INJECT-->`)
-      : html.replace("</head>", `${fontPreloads}</head>`);
+      ? html.replace("<!--SSR-HEAD-INJECT-->", () => `${fontPreloads}<!--SSR-HEAD-INJECT-->`)
+      : html.replace("</head>", () => `${fontPreloads}</head>`);
   }
   indexHtml = html;
 }
@@ -94,10 +94,17 @@ function escapeJsonLd(obj: unknown): string {
 function applyMeta(template: string, r: RenderResult): string {
   let html = template;
 
-  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(r.title)}</title>`);
+  // NOTE: every dynamic value below is inserted via a replacement *function*,
+  // never a replacement *string*. String.prototype.replace interprets `$&`,
+  // `$\``, `$'`, `$$` and `$n` in a replacement string as special patterns, so
+  // DB-sourced content containing a `$` (e.g. "$300" in scam ad copy) would
+  // otherwise splice the matched/surrounding HTML — including the whole <head>
+  // and its JSON-LD <script> — into the output. A function return value is
+  // inserted literally, with no `$` interpretation, which is the correct fix.
+  html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${escapeHtml(r.title)}</title>`);
 
   const replaceAttr = (pattern: RegExp, value: string): void => {
-    html = html.replace(pattern, (match) => match.replace(/content="[^"]*"/, `content="${escapeAttr(value)}"`));
+    html = html.replace(pattern, (match) => match.replace(/content="[^"]*"/, () => `content="${escapeAttr(value)}"`));
   };
 
   replaceAttr(/<meta name="description"[^>]*>/, r.description);
@@ -152,9 +159,9 @@ function applyMeta(template: string, r: RenderResult): string {
   }
 
   if (html.includes("<!--SSR-HEAD-INJECT-->")) {
-    html = html.replace("<!--SSR-HEAD-INJECT-->", headInject);
+    html = html.replace("<!--SSR-HEAD-INJECT-->", () => headInject);
   } else {
-    html = html.replace("</head>", `${headInject}</head>`);
+    html = html.replace("</head>", () => `${headInject}</head>`);
   }
 
   // Phase 5 — `<html lang>` reflects the page locale (BCP-47 long form like
@@ -162,13 +169,13 @@ function applyMeta(template: string, r: RenderResult): string {
   // pages stay at the index.html default of `en`).
   if (r.htmlLang) {
     html = html.replace(/<html\b[^>]*\blang="[^"]*"/i, (m) =>
-      m.replace(/lang="[^"]*"/, `lang="${escapeAttr(r.htmlLang!)}"`));
+      m.replace(/lang="[^"]*"/, () => `lang="${escapeAttr(r.htmlLang!)}"`));
   }
 
   if (html.includes("<!--SSR-BODY-START-->") && html.includes("<!--SSR-BODY-END-->")) {
     html = html.replace(
       /<!--SSR-BODY-START-->[\s\S]*?<!--SSR-BODY-END-->/,
-      `<!--SSR-BODY-START-->${r.bodyHtml}<!--SSR-BODY-END-->`,
+      () => `<!--SSR-BODY-START-->${r.bodyHtml}<!--SSR-BODY-END-->`,
     );
   }
 
