@@ -16,6 +16,7 @@ import InvestigationsPage from "@/pages/InvestigationsPage";
 import BlogPage from "@/pages/BlogPage";
 import BlogPostPage from "@/pages/BlogPostPage";
 import MethodologyPage from "@/pages/MethodologyPage";
+import AiDisclosurePage from "@/pages/AiDisclosurePage";
 import AuthorPage from "@/pages/AuthorPage";
 import NotFound from "@/pages/not-found";
 
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/privacy" component={() => <PrivacyPage />} />
       <Route path="/terms" component={() => <TermsPage />} />
       <Route path="/methodology" component={() => <MethodologyPage />} />
+      <Route path="/ai-disclosure" component={() => <AiDisclosurePage />} />
       <Route path="/recovery" component={() => <RecoveryPage />} />
       <Route component={NotFound} />
     </Switch>

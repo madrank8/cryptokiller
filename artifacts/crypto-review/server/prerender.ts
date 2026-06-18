@@ -246,6 +246,21 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
   return { ref, node };
 }
 
+// Named human reviewer accountable for editorial standards across the site.
+// On YMYL content a verifiable human reviewer — with a real, linkable profile —
+// is the E-E-A-T Trust signal that pseudonymous analyst bylines cannot carry.
+// Emitted as `reviewedBy` on Review/BlogPosting nodes and surfaced on the
+// /ai-disclosure page. (Audit: AI-disclosure pipeline.)
+const REVIEWER_PERSON: Record<string, unknown> = {
+  "@type": "Person",
+  "@id": `${BASE}/#reviewer-john-feldt`,
+  name: "John Feldt",
+  jobTitle: "Editorial Standards Reviewer",
+  url: `${BASE}/ai-disclosure`,
+  sameAs: ["https://www.linkedin.com/in/john-feldt-240838249/"],
+  worksFor: { "@id": ORG_ID },
+};
+
 function siteHeaderHtml(): string {
   return `<header role="banner"><nav aria-label="Primary"><a href="/">CryptoKiller</a> · <a href="/investigations">Investigations</a> · <a href="/blog">Blog</a> · <a href="/methodology">Methodology</a> · <a href="/recovery">Recovery</a> · <a href="/report">Report a Scam</a> · <a href="/about">About</a></nav></header>`;
 }
@@ -1341,6 +1356,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
       author: authorRef,
+      reviewedBy: REVIEWER_PERSON,
       ...(datePublished ? { datePublished } : {}),
       ...(dateModified ? { dateModified } : {}),
       ...(row.wordCount ? { wordCount: row.wordCount } : {}),
@@ -1750,6 +1766,7 @@ ${sourcesHtml}
     isPartOf: { "@id": WEBSITE_ID },
     publisher: { "@id": ORG_ID },
     author: persona ? personRef(persona) : authorNode,
+    reviewedBy: REVIEWER_PERSON,
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
@@ -1906,6 +1923,62 @@ function renderNotFound(originalPath: string): RenderResult {
 }
 
 const STATIC_PAGES: Record<string, () => RenderResult> = {
+  "/ai-disclosure": () =>
+    renderStaticPage({
+      path: "/ai-disclosure",
+      title: "AI Disclosure & Editorial Standards — CryptoKiller",
+      description:
+        "How CryptoKiller uses AI in its investigations: AI-assisted drafting, deterministic source verification, and human editorial review by a named, accountable reviewer before publication.",
+      h1: "AI Disclosure & Editorial Standards",
+      intro:
+        "CryptoKiller is transparent about how its investigations and articles are produced. Our content is drafted with the assistance of large language models, grounded in evidence we collect and cite, checked by automated verification gates, and reviewed by a named human editor before it is published. This page explains exactly how AI is and is not used, who is accountable for what we publish, and how to reach us with a correction.",
+      sections: [
+        {
+          heading: "How our content is created",
+          paragraphs: [
+            "Each investigation and article is produced by a multi-stage pipeline. Evidence — ad creatives, landing pages, regulatory records, and on-chain data — is collected first. A large language model then drafts the prose from that evidence using a fixed editorial process; it does not invent facts, figures, or sources, and any statistic or citation must trace to a verifiable source we collect.",
+            "Before anything is published, the draft passes automated quality gates that block templated or unverified content and check every cited source URL for liveness. Source links that cannot be verified are removed rather than published. A named human editor then reviews the result for accuracy and evidence-backing.",
+          ],
+        },
+        {
+          heading: "Our AI-assistance level",
+          paragraphs: [
+            "We classify our content as AI-generated with human editorial review (level L3 on the standard L0–L4 AI-assistance scale, where L0 is fully human-written and L4 is fully automated with no human review). In plain terms: a large language model writes the first draft from human-collected evidence, automated checks gate quality and verify sources, and a human editor reviews and is accountable for publication.",
+            "AI-generated images on this site carry IPTC DigitalSourceType: trainedAlgorithmicMedia metadata embedded in the image file, the machine-readable standard signalling that an image was produced by a generative model. Screenshots of real scam advertisements are evidence, not AI-generated, and are presented as captured.",
+          ],
+        },
+        {
+          heading: "Who reviews and is accountable",
+          paragraphs: [
+            "John Feldt is the Editorial Standards Reviewer accountable for content published on CryptoKiller. He reviews investigations and articles for accuracy and evidence-backing before publication. His professional profile is public: https://www.linkedin.com/in/john-feldt-240838249/.",
+            "Investigations carry an analyst byline. To protect analysts who investigate organized fraud operations, analysts publish under consistent editorial personas rather than full personal identities; the personas describe the analyst's coverage area, not fabricated personal credentials. Legal and publishing responsibility rests with DEX Algo Technologies Pte Ltd., the publisher of record.",
+          ],
+        },
+        {
+          heading: "Corrections",
+          paragraphs: [
+            "Accuracy matters most on content that affects people's money. If you believe anything we have published is factually wrong, email corrections@cryptokiller.org. We review every correction request and publish factual updates transparently.",
+          ],
+        },
+      ],
+      faq: [
+        {
+          question: "Is CryptoKiller's content written by AI?",
+          answer:
+            "Our investigations and articles are drafted by a large language model from evidence our team collects, then verified by automated gates and reviewed by a named human editor before publication. AI does not invent facts, figures, or sources — every statistic and citation must trace to a verifiable source.",
+        },
+        {
+          question: "Does a human review the content before it is published?",
+          answer:
+            "Yes. John Feldt, our Editorial Standards Reviewer, reviews content for accuracy and evidence-backing before publication and is the accountable human reviewer for the site.",
+        },
+        {
+          question: "Are the images on this site AI-generated?",
+          answer:
+            "Editorial illustrations are AI-generated and carry IPTC trainedAlgorithmicMedia provenance metadata in the image file. Screenshots of real scam advertisements are captured evidence and are not AI-generated.",
+        },
+      ],
+    }),
   "/about": () =>
     renderStaticPage({
       path: "/about",
