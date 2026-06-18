@@ -22,6 +22,7 @@ const InvestigationsPage = lazy(() => import("@/pages/InvestigationsPage"));
 const BlogPage = lazy(() => import("@/pages/BlogPage"));
 const BlogPostPage = lazy(() => import("@/pages/BlogPostPage"));
 const MethodologyPage = lazy(() => import("@/pages/MethodologyPage"));
+const AiDisclosurePage = lazy(() => import("@/pages/AiDisclosurePage"));
 const AuthorPage = lazy(() => import("@/pages/AuthorPage"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -58,6 +59,7 @@ function Router() {
         <Route path="/privacy" component={() => <PrivacyPage />} />
         <Route path="/terms" component={() => <TermsPage />} />
         <Route path="/methodology" component={() => <MethodologyPage />} />
+        <Route path="/ai-disclosure" component={() => <AiDisclosurePage />} />
         <Route path="/recovery" component={() => <RecoveryPage />} />
         <Route component={NotFound} />
       </Switch>

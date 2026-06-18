@@ -267,6 +267,22 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
   return { ref, node };
 }
 
+// Named human reviewer for YMYL E-E-A-T. Emitted as `reviewedBy` on the Review
+// and BlogPosting JSON-LD nodes so Google sees a real, accountable person who
+// signed off on the content (distinct from the persona who authored it). The
+// @id is stable and the url points at the public /ai-disclosure page that
+// documents our editorial standards. Only ever serialized inside the escaped
+// <script type="application/ld+json"> — never rendered into the page body.
+const REVIEWER_PERSON = {
+  "@type": "Person",
+  "@id": `${BASE}/#reviewer-john-feldt`,
+  name: "John Feldt",
+  jobTitle: "Editorial Standards Reviewer",
+  url: `${BASE}/ai-disclosure`,
+  sameAs: ["https://www.linkedin.com/in/john-feldt-240838249/"],
+  worksFor: { "@id": ORG_ID },
+};
+
 function siteHeaderHtml(): string {
   return `<header role="banner"><nav aria-label="Primary"><a href="/">CryptoKiller</a> · <a href="/investigations">Investigations</a> · <a href="/blog">Blog</a> · <a href="/methodology">Methodology</a> · <a href="/recovery">Recovery</a> · <a href="/report">Report a Scam</a> · <a href="/about">About</a></nav></header>`;
 }
@@ -1860,6 +1876,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
       author: authorRef,
+      reviewedBy: REVIEWER_PERSON,
       ...(datePublished ? { datePublished } : {}),
       ...(dateModified ? { dateModified } : {}),
       ...(row.wordCount ? { wordCount: row.wordCount } : {}),
@@ -2313,6 +2330,7 @@ ${sourcesHtml}
     isPartOf: { "@id": WEBSITE_ID },
     publisher: { "@id": ORG_ID },
     author: persona ? personRef(persona) : authorNode,
+    reviewedBy: REVIEWER_PERSON,
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
@@ -2702,6 +2720,52 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           question: "Are your investigations peer-reviewed?",
           answer:
             "Every investigation goes through internal peer review: a second analyst independently verifies evidence and scoring before publication. We also publish the full evidence base alongside every investigation, so external peer review is possible. Academic researchers studying crypto fraud can contact us for archive access.",
+        },
+      ],
+    }),
+
+  "/ai-disclosure": () =>
+    renderStaticPage({
+      path: "/ai-disclosure",
+      title: "AI Disclosure & Editorial Standards — CryptoKiller",
+      description:
+        "How CryptoKiller uses AI: investigations are AI-drafted from collected evidence, pass automated source-verification gates, and are reviewed by a named human editor before publishing.",
+      h1: "AI Disclosure & Editorial Standards",
+      ogType: "article",
+      intro:
+        "CryptoKiller is transparent about how its investigations are produced. Our content is AI-drafted from collected evidence, passes automated source-verification gates, and is reviewed by a named human editor before it is published. AI accelerates how fast we turn verifiable evidence into a structured investigation — it never decides what is true, and every published page carries a named human reviewer who is accountable for it.",
+      sections: [
+        {
+          heading: "How our content is created",
+          paragraphs: [
+            "Our pipeline is evidence-first. We begin with evidence we have collected — captured advertisements, landing pages, domain and infrastructure records, regulator bulletins, and corroborated victim reports — and only then draft an investigation from that evidence. AI assists with drafting; it does not gather the facts and it is not permitted to invent them.",
+          ],
+          list: [
+            "Evidence first — an investigation only begins once verifiable evidence has been collected and archived.",
+            "AI-assisted drafting — AI turns the collected evidence into a structured draft, with no invented facts, figures, or sources.",
+            "Automated quality and source-liveness gates — drafts pass automated checks that confirm the cited sources are real and reachable before a human sees them.",
+            "Human editorial review — a named human editor reviews the investigation against the evidence and is accountable for what is published.",
+          ],
+        },
+        {
+          heading: "Level of AI assistance",
+          paragraphs: [
+            "We classify our content as \"AI-generated with human editorial review (L3 on the L0–L4 scale).\" AI produces the draft from collected evidence, and a named human editor reviews it against that evidence before publication. The human reviewer — not the model — is accountable for the published page.",
+            "AI-generated images on this site carry the IPTC DigitalSourceType value trainedAlgorithmicMedia, identifying them as machine-generated. Screenshots of scam advertisements are captured evidence — they are real artefacts we recorded from live ad campaigns, not AI-generated images.",
+          ],
+        },
+        {
+          heading: "Accountability",
+          paragraphs: [
+            "John Feldt is our Editorial Standards Reviewer and is publicly accountable for our editorial standards. His professional profile is at https://www.linkedin.com/in/john-feldt-240838249/.",
+            "Individual analysts publish under consistent personas to protect their operational security, because scam operations are frequently run by organised groups that retaliate against investigators. Personas are stable and accountable — they are a security measure, not anonymity. The publisher of record for every investigation is DEX Algo Technologies Pte Ltd.",
+          ],
+        },
+        {
+          heading: "Corrections",
+          paragraphs: [
+            "If you believe we have published something inaccurate, email corrections@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request on the merits and publish a dated correction notice when warranted.",
+          ],
         },
       ],
     }),

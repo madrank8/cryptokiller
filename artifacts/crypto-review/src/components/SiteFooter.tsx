@@ -6,6 +6,7 @@ const footerLinks = [
   { label: "Recovery Guide", href: "/recovery" },
   { label: "About", href: "/about" },
   { label: "Methodology", href: "/methodology" },
+  { label: "AI Disclosure", href: "/ai-disclosure" },
   { label: "Blog", href: "/blog" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },

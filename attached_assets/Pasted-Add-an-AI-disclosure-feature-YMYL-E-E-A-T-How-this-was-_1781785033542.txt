@@ -1,0 +1,26 @@
+Add an AI-disclosure feature (YMYL E-E-A-T "How this was created"). Apply in the live renderer code, then commit & push to GitHub cryptokiller main so the repo matches what's deployed (it's currently behind — main is e2ae236).
+
+A. Named reviewer constant (near the author/persona helpers in server/prerender.ts):
+
+const REVIEWER_PERSON = {
+  "@type": "Person",
+  "@id": `${BASE}/#reviewer-john-feldt`,
+  name: "John Feldt",
+  jobTitle: "Editorial Standards Reviewer",
+  url: `${BASE}/ai-disclosure`,
+  sameAs: ["https://www.linkedin.com/in/john-feldt-240838249/"],
+  worksFor: { "@id": ORG_ID },
+};
+Add reviewedBy: REVIEWER_PERSON, to the Review JSON-LD node (next to author:) and the BlogPosting JSON-LD node. (Make sure it's only in the escaped <script type="application/ld+json">, never the body — that was the bug we just fixed.)
+
+B. New static page /ai-disclosure — register it the same way /about and /methodology are (SSR static-page renderer + client route + the App router). Content (accurate to the real pipeline — do not invent specifics):
+
+H1: "AI Disclosure & Editorial Standards"
+Intro: content is AI-drafted from collected evidence, passes automated source-verification gates, and is reviewed by a named human editor before publishing.
+How it's created: evidence first → AI-assisted drafting (no invented facts/figures/sources) → automated quality + source-liveness gates → human editorial review.
+AI-assistance level: "AI-generated with human editorial review (L3 on the L0–L4 scale)." AI images carry IPTC DigitalSourceType: trainedAlgorithmicMedia; scam-ad screenshots are captured evidence, not AI.
+Accountability: John Feldt — Editorial Standards Reviewer, profile https://www.linkedin.com/in/john-feldt-240838249/. Analysts publish under consistent personas for operational security; publisher of record is DEX Algo Technologies Pte Ltd.
+Corrections: corrections@cryptokiller.org.
+C. Footer: add a link { label: "AI Disclosure", href: "/ai-disclosure" } (after "Methodology").
+
+Verify: /ai-disclosure renders; curl …/review/<slug> still shows <body>×1 and balanced <script>; the Rich Results Test shows reviewedBy on the Review.
