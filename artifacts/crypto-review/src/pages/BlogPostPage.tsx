@@ -5,6 +5,7 @@ import { Calendar, Clock, ArrowLeft, ExternalLink, BookOpen, User, List } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import PreferredSourceButton from "@/components/PreferredSourceButton";
 import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
@@ -497,6 +498,7 @@ export default function BlogPostPage() {
 
           </article>
         )}
+        <PreferredSourceButton className="mt-2 mb-10" />
       </main>
 
       <SiteFooter />
