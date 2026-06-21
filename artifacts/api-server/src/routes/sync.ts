@@ -111,6 +111,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         author_persona_id, alternative_headline, target_keyword,
         about_slugs, mention_slugs, speakable_selectors, citations,
         dataset, item_reviewed, item_list, how_to, quotes, claims,
+        ad_evidence,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,
@@ -123,6 +124,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         $31,$32,$33,
         $34,$35,$36,$37,
         $38,$39,$40,$41,$42,$43,
+        $44,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -168,6 +170,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         how_to = EXCLUDED.how_to,
         quotes = EXCLUDED.quotes,
         claims = EXCLUDED.claims,
+        ad_evidence = EXCLUDED.ad_evidence,
         updated_at = NOW()
       RETURNING id`,
       [
@@ -231,6 +234,11 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         review.how_to ? JSON.stringify(review.how_to) : null,
         JSON.stringify(Array.isArray(review.quotes) ? review.quotes : []),
         JSON.stringify(Array.isArray(review.claims) ? review.claims : []),
+        // ad_evidence (migration 0008). Structured fraudulent-ad evidence
+        // grouped by country. Optional jsonb — same pattern as dataset/
+        // item_reviewed: stringify when present, null when absent so legacy
+        // callers and brands without evidence leave the column NULL.
+        review.ad_evidence ? JSON.stringify(review.ad_evidence) : null,
       ]
     );
     const reviewId = reviewResult.rows[0].id;

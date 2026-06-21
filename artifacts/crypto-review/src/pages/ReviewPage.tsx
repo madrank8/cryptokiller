@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useGetReview, useGetRelatedReviews, useGetReviewTranslation } from "@workspace/api-client-react";
-import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated, RecentAd } from "@workspace/api-client-react";
+import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated, RecentAd, AdEvidence } from "@workspace/api-client-react";
 import {
   LOCALE_HREFLANG,
   LOCALE_LANGUAGE_LABEL_EN,
@@ -468,6 +468,98 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
                 )}
               </div>
             </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ─── AdEvidenceSection ─────────────────────────────────────────────────────
+// Renders structured fraudulent-ad evidence (migration 0008): creative
+// screenshots grouped by the country they targeted, with per-country
+// "ads detected" counts from geoCounts. Mirrors the SSR adEvidenceHtml in
+// server/prerender.ts (shared `creative-images` grid hook). Hidden entirely
+// when no evidence is synced or no image survives the http(s) allowlist.
+function AdEvidenceSection({
+  evidence,
+  platformName,
+}: {
+  evidence: AdEvidence | null;
+  platformName: string;
+}) {
+  if (!evidence || !Array.isArray(evidence.images) || evidence.images.length === 0) return null;
+  const valid = evidence.images.filter((img) => img && safeHttpUrl(img.url));
+  if (valid.length === 0) return null;
+  const geoCounts: Record<string, number> =
+    evidence.geoCounts && typeof evidence.geoCounts === "object" ? evidence.geoCounts : {};
+
+  // Group screenshots by target country, preserving first-seen order.
+  const order: string[] = [];
+  const groups = new Map<string, { geo: string; celebrity: string; url: string }[]>();
+  for (const img of valid) {
+    const geo = (img.geo ?? "").toString().trim().toUpperCase() || "—";
+    if (!groups.has(geo)) {
+      groups.set(geo, []);
+      order.push(geo);
+    }
+    groups.get(geo)!.push({ geo, celebrity: (img.celebrity ?? "").toString(), url: img.url });
+  }
+
+  return (
+    <section
+      aria-labelledby="ad-evidence-heading"
+      className="ad-evidence mb-10 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6"
+    >
+      <header className="mb-5">
+        <h2
+          id="ad-evidence-heading"
+          className="text-lg sm:text-xl font-black text-white tracking-tight"
+        >
+          Evidence: Fraudulent Ad Creatives by Country
+        </h2>
+      </header>
+      <div className="space-y-6">
+        {order.map((geo) => {
+          const imgs = groups.get(geo)!;
+          const flag = geoFlag(geo);
+          const count = typeof geoCounts[geo] === "number" ? geoCounts[geo] : imgs.length;
+          return (
+            <div key={geo} className="ad-evidence-geo">
+              <h3 className="ad-evidence-geo-title text-sm font-semibold text-slate-200 mb-3">
+                {flag && <span aria-hidden="true">{flag} </span>}
+                {geo} — {count.toLocaleString()} {count === 1 ? "ad" : "ads"} detected
+              </h3>
+              <div className="creative-images grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {imgs.map((img, i) => {
+                  const safe = safeHttpUrl(img.url);
+                  if (!safe) return null;
+                  const altParts = [`Fraudulent ${platformName} ad creative`];
+                  if (img.celebrity) altParts.push(`impersonating ${img.celebrity}`);
+                  if (geo !== "—") altParts.push(`targeting ${geo}`);
+                  return (
+                    <figure
+                      key={`${geo}-${i}`}
+                      className="creative-image m-0 rounded-lg border border-slate-800 overflow-hidden bg-slate-900/60"
+                    >
+                      <img
+                        src={safe}
+                        alt={altParts.join(" ")}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-auto block"
+                      />
+                      {img.celebrity && (
+                        <figcaption className="text-xs text-slate-400 px-2 py-1.5">
+                          <span aria-hidden="true">🎭 </span>
+                          {img.celebrity}
+                        </figcaption>
+                      )}
+                    </figure>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </div>
@@ -1462,6 +1554,14 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
             first-token of normalized_offer (see getRecentAdsForBrand).
             Silently absent when there are no matching scraped creatives. */}
         <RecentAdsGrid ads={review.recentAds ?? []} />
+
+        {/* FRAUDULENT-AD EVIDENCE — structured creative screenshots grouped by
+            target country with per-country detected counts (migration 0008).
+            Silently absent when no ad_evidence is synced for the review. */}
+        <AdEvidenceSection
+          evidence={review.adEvidence ?? null}
+          platformName={review.platformName}
+        />
 
 
         {/* KEY TAKEAWAYS — sourced from keyFindings (the Supabase

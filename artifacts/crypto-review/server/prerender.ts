@@ -960,6 +960,7 @@ async function renderReview(
       howTo: reviewsTable.howTo,
       quotes: reviewsTable.quotes,
       claims: reviewsTable.claims,
+      adEvidence: reviewsTable.adEvidence,
       platformName: platformsTable.name,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -1463,6 +1464,61 @@ async function renderReview(
       })()
     : "";
 
+  // ── Fraudulent-ad evidence (migration 0008) ──────────────────────────────
+  // Structured evidence synced from the admin: creative screenshots grouped by
+  // the country they targeted, with per-country "ads detected" counts. Mirrors
+  // the CSR AdEvidenceSection in src/pages/ReviewPage.tsx. Inline styles keep
+  // the no-JS/crawler view presentable; the `creative-images` class is the
+  // stable hook used by render verification. Omitted entirely when no evidence
+  // is synced or no image URL survives the http(s) allowlist.
+  const adEvidenceHtml = (() => {
+    const ev = row.adEvidence;
+    if (!ev || !Array.isArray(ev.images) || ev.images.length === 0) return "";
+    const valid = ev.images.filter((i) => i && typeof i.url === "string" && safeHttpUrlSsr(i.url));
+    if (valid.length === 0) return "";
+    const geoCounts: Record<string, number> =
+      ev.geoCounts && typeof ev.geoCounts === "object" ? ev.geoCounts : {};
+    // Group screenshots by target country, preserving first-seen order.
+    const groups = new Map<string, { geo: string; celebrity: string; url: string }[]>();
+    for (const img of valid) {
+      const geo = (img.geo || "").toString().trim().toUpperCase() || "—";
+      if (!groups.has(geo)) groups.set(geo, []);
+      groups.get(geo)!.push({ geo, celebrity: (img.celebrity || "").toString(), url: img.url });
+    }
+    const sections = [...groups.entries()]
+      .map(([geo, imgs]) => {
+        const flag = geoFlagSsr(geo);
+        const count = typeof geoCounts[geo] === "number" ? geoCounts[geo] : imgs.length;
+        const cards = imgs
+          .map((img) => {
+            const safe = safeHttpUrlSsr(img.url);
+            if (!safe) return "";
+            const celeb = img.celebrity ? esc(img.celebrity) : "";
+            const altParts = [`Fraudulent ${esc(platformName)} ad creative`];
+            if (img.celebrity) altParts.push(`impersonating ${esc(img.celebrity)}`);
+            if (geo !== "—") altParts.push(`targeting ${esc(geo)}`);
+            return (
+              `<figure class="creative-image" style="margin:0">` +
+              `<img src="${esc(safe)}" alt="${altParts.join(" ")}" loading="lazy" decoding="async" style="width:100%;height:auto;display:block;border-radius:8px;border:1px solid #1e293b">` +
+              (celeb
+                ? `<figcaption style="font-size:12px;color:#94a3b8;margin-top:6px"><span aria-hidden="true">🎭 </span>${celeb}</figcaption>`
+                : "") +
+              `</figure>`
+            );
+          })
+          .join("");
+        const heading = `${flag ? `<span aria-hidden="true">${flag}</span> ` : ""}${esc(geo)} — ${count.toLocaleString()} ${count === 1 ? "ad" : "ads"} detected`;
+        return (
+          `<div class="ad-evidence-geo" style="margin-bottom:20px">` +
+          `<h3 class="ad-evidence-geo-title" style="font-size:16px;margin:0 0 10px">${heading}</h3>` +
+          `<div class="creative-images" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">${cards}</div>` +
+          `</div>`
+        );
+      })
+      .join("");
+    return `<section aria-labelledby="ad-evidence-heading" class="ad-evidence"><h2 id="ad-evidence-heading">Evidence: Fraudulent Ad Creatives by Country</h2>${sections}</section>`;
+  })();
+
   const celebrityNames = Array.isArray(row.celebrityNames) ? row.celebrityNames.filter(Boolean) : [];
   const celebritiesHtml = celebrityNames.length
     ? `<section aria-labelledby="celebs-heading"><h2 id="celebs-heading">Celebrities impersonated</h2><p>The ${esc(platformName)} campaign fabricates endorsements from ${celebrityNames.length} public figures, including:</p><ul>${celebrityNames
@@ -1753,6 +1809,7 @@ ${fullArticleBylineHtml}
 ${fullArticleBodyHtml}
 </article>
 ${recentAdsHtml}
+${adEvidenceHtml}
 ${preferredSourceHtml()}
 <nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
 </main>${siteFooterHtml()}`
@@ -1778,6 +1835,7 @@ ${redFlagsHtml}
 ${contentImageByPlacement("section-2")}
 ${funnelStagesHtml}
 ${recentAdsHtml}
+${adEvidenceHtml}
 ${visualsHtml}
 ${celebritiesHtml}
 ${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}

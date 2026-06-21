@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./adEvidence";
+export * from "./adEvidenceGeoCounts";
+export * from "./adEvidenceImage";
 export * from "./contentImage";
 export * from "./errorResponse";
 export * from "./faqItem";

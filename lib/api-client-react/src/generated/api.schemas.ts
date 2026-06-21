@@ -61,6 +61,35 @@ export interface GeoTarget {
 }
 
 /**
+ * A single fraudulent ad-creative screenshot used as evidence, tagged with the country it targeted and the celebrity whose likeness was abused.
+
+ */
+export interface AdEvidenceImage {
+  /** ISO-3166-1 alpha-2 country code the creative targeted (e.g. "ES", "IT"). */
+  geo: string;
+  /** Name of the public figure impersonated in the creative. */
+  celebrity: string;
+  /** Image URL of the ad-creative screenshot. */
+  url: string;
+}
+
+/**
+ * Map of ISO-3166-1 alpha-2 country code → number of ads detected there.
+ */
+export type AdEvidenceGeoCounts = { [key: string]: number };
+
+/**
+ * Structured fraudulent-ad evidence for the brand under review: creative screenshots grouped by target country plus per-country detected-ad counts. Synced from the admin and rendered in the "Evidence: Fraudulent Ad Creatives by Country" section.
+
+ */
+export interface AdEvidence {
+  /** Ad-creative screenshots tagged by geo + impersonated celebrity. */
+  images: AdEvidenceImage[];
+  /** Map of ISO-3166-1 alpha-2 country code → number of ads detected there. */
+  geoCounts: AdEvidenceGeoCounts;
+}
+
+/**
  * Inline image placed between review sections. Populated by the admin polish pipeline (Imagen) and referenced from rich content sections on the review page.
 
  */
@@ -266,6 +295,8 @@ export interface ReviewFull {
   frameAsScam: boolean;
   /** When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender). */
   itemReviewed?: ReviewItemReviewed | null;
+  /** Structured fraudulent-ad evidence (creative screenshots grouped by target country plus per-country detected-ad counts). Rendered in the "Evidence: Fraudulent Ad Creatives by Country" section. Null when the admin has not synced ad evidence for this review. */
+  adEvidence?: AdEvidence | null;
   /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
   translations: ReviewTranslationSummary[];
   /** Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */

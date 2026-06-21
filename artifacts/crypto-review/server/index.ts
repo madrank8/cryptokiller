@@ -407,9 +407,19 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
     if (result.lastModified) {
       res.setHeader("Last-Modified", result.lastModified);
     }
+    // Cache freshness — dynamic, DB-backed pages (reviews/blog) carry a
+    // Last-Modified derived from the row's updated_at, so the sync pipeline
+    // can bust them. For those we revalidate on every request (max-age=0,
+    // must-revalidate) so admin edits surface on the next load instead of
+    // being masked by a 5-minute stale-while-revalidate window. Static pages
+    // (no lastModified) keep the longer cached/SWR window.
     res.setHeader(
       "Cache-Control",
-      result.status === 200 ? "public, max-age=300, stale-while-revalidate=600" : "no-store",
+      result.status === 200
+        ? result.lastModified
+          ? "public, max-age=0, must-revalidate"
+          : "public, max-age=300, stale-while-revalidate=600"
+        : "no-store",
     );
     res.setHeader("Content-Type", "text/markdown; charset=utf-8");
     // Crawlability — the Markdown response is an alternate representation of
@@ -461,9 +471,19 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
     if (result.lastModified) {
       res.setHeader("Last-Modified", result.lastModified);
     }
+    // Cache freshness — dynamic, DB-backed pages (reviews/blog) carry a
+    // Last-Modified derived from the row's updated_at, so the sync pipeline
+    // can bust them. For those we revalidate on every request (max-age=0,
+    // must-revalidate) so admin edits surface on the next load instead of
+    // being masked by a 5-minute stale-while-revalidate window. Static pages
+    // (no lastModified) keep the longer cached/SWR window.
     res.setHeader(
       "Cache-Control",
-      result.status === 200 ? "public, max-age=300, stale-while-revalidate=600" : "no-store",
+      result.status === 200
+        ? result.lastModified
+          ? "public, max-age=0, must-revalidate"
+          : "public, max-age=300, stale-while-revalidate=600"
+        : "no-store",
     );
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     // Agent Readiness — advertise the sitemap and the Markdown source variant

@@ -268,6 +268,46 @@ export const GetReviewResponse = zod.object({
     .describe(
       "When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender).",
     ),
+  adEvidence: zod
+    .object({
+      images: zod
+        .array(
+          zod
+            .object({
+              geo: zod
+                .string()
+                .describe(
+                  'ISO-3166-1 alpha-2 country code the creative targeted (e.g. \"ES\", \"IT\").',
+                ),
+              celebrity: zod
+                .string()
+                .describe(
+                  "Name of the public figure impersonated in the creative.",
+                ),
+              url: zod
+                .string()
+                .describe("Image URL of the ad-creative screenshot."),
+            })
+            .describe(
+              "A single fraudulent ad-creative screenshot used as evidence, tagged with the country it targeted and the celebrity whose likeness was abused.\n",
+            ),
+        )
+        .describe(
+          "Ad-creative screenshots tagged by geo + impersonated celebrity.",
+        ),
+      geoCounts: zod
+        .record(zod.string(), zod.number())
+        .describe(
+          "Map of ISO-3166-1 alpha-2 country code → number of ads detected there.",
+        ),
+    })
+    .describe(
+      'Structured fraudulent-ad evidence for the brand under review: creative screenshots grouped by target country plus per-country detected-ad counts. Synced from the admin and rendered in the \"Evidence: Fraudulent Ad Creatives by Country\" section.\n',
+    )
+    .nullish()
+    .describe(
+      'Structured fraudulent-ad evidence (creative screenshots grouped by target country plus per-country detected-ad counts). Rendered in the \"Evidence: Fraudulent Ad Creatives by Country\" section. Null when the admin has not synced ad evidence for this review.',
+    ),
   translations: zod
     .array(
       zod
@@ -690,6 +730,46 @@ export const GetReviewTranslationResponse = zod
         .nullish()
         .describe(
           "When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender).",
+        ),
+      adEvidence: zod
+        .object({
+          images: zod
+            .array(
+              zod
+                .object({
+                  geo: zod
+                    .string()
+                    .describe(
+                      'ISO-3166-1 alpha-2 country code the creative targeted (e.g. \"ES\", \"IT\").',
+                    ),
+                  celebrity: zod
+                    .string()
+                    .describe(
+                      "Name of the public figure impersonated in the creative.",
+                    ),
+                  url: zod
+                    .string()
+                    .describe("Image URL of the ad-creative screenshot."),
+                })
+                .describe(
+                  "A single fraudulent ad-creative screenshot used as evidence, tagged with the country it targeted and the celebrity whose likeness was abused.\n",
+                ),
+            )
+            .describe(
+              "Ad-creative screenshots tagged by geo + impersonated celebrity.",
+            ),
+          geoCounts: zod
+            .record(zod.string(), zod.number())
+            .describe(
+              "Map of ISO-3166-1 alpha-2 country code → number of ads detected there.",
+            ),
+        })
+        .describe(
+          'Structured fraudulent-ad evidence for the brand under review: creative screenshots grouped by target country plus per-country detected-ad counts. Synced from the admin and rendered in the \"Evidence: Fraudulent Ad Creatives by Country\" section.\n',
+        )
+        .nullish()
+        .describe(
+          'Structured fraudulent-ad evidence (creative screenshots grouped by target country plus per-country detected-ad counts). Rendered in the \"Evidence: Fraudulent Ad Creatives by Country\" section. Null when the admin has not synced ad evidence for this review.',
         ),
       translations: zod
         .array(

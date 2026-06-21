@@ -157,6 +157,7 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       threatBadge: reviewsTable.threatBadge,
       frameAsScam: reviewsTable.frameAsScam,
       itemReviewed: reviewsTable.itemReviewed,
+      adEvidence: reviewsTable.adEvidence,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -248,6 +249,9 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     threatBadge: row.threatBadge ?? null,
     frameAsScam: row.frameAsScam ?? false,
     itemReviewed: row.itemReviewed ?? null,
+    // ad_evidence (migration 0008). Null when not synced; the client and SSR
+    // omit the "Fraudulent Ad Creatives by Country" section in that case.
+    adEvidence: row.adEvidence ?? null,
     adCreatives: row.adCreatives ?? 0,
     countriesTargeted: row.countriesTargeted ?? 0,
     daysActive: row.daysActive ?? 0,
@@ -375,6 +379,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
       threatBadge: reviewsTable.threatBadge,
       frameAsScam: reviewsTable.frameAsScam,
       itemReviewed: reviewsTable.itemReviewed,
+      adEvidence: reviewsTable.adEvidence,
       updatedAt: reviewsTable.updatedAt,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -465,6 +470,7 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     threatBadge: masterRow.threatBadge ?? null,
     frameAsScam: masterRow.frameAsScam ?? false,
     itemReviewed: masterRow.itemReviewed ?? null,
+    adEvidence: masterRow.adEvidence ?? null,
     adCreatives: masterRow.adCreatives ?? 0,
     countriesTargeted: masterRow.countriesTargeted ?? 0,
     daysActive: masterRow.daysActive ?? 0,
