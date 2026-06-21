@@ -1,0 +1,41 @@
+Add Google "Preferred Source" badge to every review + blog article (cryptokiller renderer)
+
+The full implementation is in GitHub PR madrank8/cryptokiller#33 — apply it to the live codebase (or just recreate the changes below), then push to GitHub so the repo and live deploy match.
+
+1. Badge asset. Add Google's official light-theme badge to the renderer's public assets as public/google-preferred-source.png. Get it from Google's official ZIP (don't screenshot it):
+
+curl -L "https://services.google.com/fh/files/helpcenter/google_preferred_source_badge_en.zip" -o badge.zip
+unzip badge.zip   # use EN/google_preferred_source_badge_light_en@2x.png
+Copy that PNG to artifacts/crypto-review/public/google-preferred-source.png.
+
+2. Component — artifacts/crypto-review/src/components/PreferredSourceButton.tsx:
+
+export default function PreferredSourceButton({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex flex-col items-center gap-2 ${className}`}>
+      <a href="https://google.com/preferences/source?q=cryptokiller.org"
+         target="_blank" rel="noopener"
+         aria-label="Add CryptoKiller as a preferred source on Google"
+         className="inline-block rounded-lg transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+        <img src="/google-preferred-source.png" alt="Add CryptoKiller as a preferred source on Google"
+             width={152} height={48}
+             style={{ height: 48, width: "auto", display: "block", border: 0 }} loading="lazy" />
+      </a>
+      <p className="text-xs text-slate-500 text-center max-w-xs">
+        Prioritize CryptoKiller&apos;s scam investigations in your Google results.
+      </p>
+    </div>
+  );
+}
+3. Client pages — in src/pages/ReviewPage.tsx and src/pages/BlogPostPage.tsx: import the component and render <PreferredSourceButton className="mt-2 mb-10" /> as the last child of <main> (right before </main> / <SiteFooter />).
+
+4. SSR — in server/prerender.ts, add a helper next to siteFooterHtml():
+
+function preferredSourceHtml(): string {
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin:32px 0"><a href="https://google.com/preferences/source?q=cryptokiller.org" target="_blank" rel="noopener" aria-label="Add CryptoKiller as a preferred source on Google"><img src="/google-preferred-source.png" alt="Add CryptoKiller as a preferred source on Google" height="48" style="height:48px;width:auto;display:block;border:0" loading="lazy"></a><p style="font-size:12px;color:#64748b;text-align:center;margin:0">Prioritize CryptoKiller's scam investigations in your Google results.</p></div>`;
+}
+Then emit ${preferredSourceHtml()} just before the end-of-article footer nav in renderReview (the <nav aria-label="Investigation footer"> line) and renderBlogPost (the <p><a href="/blog">Back to blog</a></p> line).
+
+Spec reference: deeplink is domain-only — https://google.com/preferences/source?q=cryptokiller.org (https://developers.google.com/search/docs/appearance/preferred-sources). cryptokiller.org is domain-eligible.
+
+Verify: build, then curl -s https://cryptokiller.org/review/<slug> | grep -c 'preferences/source' → ≥1, and the badge renders at the end of the article. Push the renderer code to GitHub afterward.

@@ -143,6 +143,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import PreferredSourceButton from "@/components/PreferredSourceButton";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
@@ -2013,6 +2014,8 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
             <p>{review.disclaimerText}</p>
           </div>
         )}
+
+        <PreferredSourceButton className="mt-2 mb-10" />
 
       </main>
 

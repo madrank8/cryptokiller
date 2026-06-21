@@ -291,6 +291,14 @@ function siteFooterHtml(): string {
   return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:corrections@cryptokiller.org">Editorial corrections</a></p></footer>`;
 }
 
+// Google "Preferred Source" badge (https://developers.google.com/search/docs/appearance/preferred-sources).
+// Deeplink is domain-only — cryptokiller.org is domain-eligible. Self-hosted
+// official light-theme badge asset; rendered at the end of every review/blog
+// article. Mirrors the CSR component src/components/PreferredSourceButton.tsx.
+function preferredSourceHtml(): string {
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin:32px 0"><a href="https://google.com/preferences/source?q=cryptokiller.org" target="_blank" rel="noopener" aria-label="Add CryptoKiller as a preferred source on Google"><img src="/google-preferred-source.png" alt="Add CryptoKiller as a preferred source on Google" height="48" style="height:48px;width:auto;display:block;border:0" loading="lazy"></a><p style="font-size:12px;color:#64748b;text-align:center;max-width:20rem;margin:0">Prioritize CryptoKiller&#39;s scam investigations in your Google results.</p></div>`;
+}
+
 /**
  * Crawlable analyst directory for the SSR home + about pages. Mirrors the
  * client ResearchTeam.tsx / AboutPage.tsx "Investigation Team" sections,
@@ -1745,6 +1753,7 @@ ${fullArticleBylineHtml}
 ${fullArticleBodyHtml}
 </article>
 ${recentAdsHtml}
+${preferredSourceHtml()}
 <nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
 </main>${siteFooterHtml()}`
     : // ── Legacy fallback path (pre-Task 7D rows): structured template ──
@@ -1791,6 +1800,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   }
   return esc(row.author || "CryptoKiller Research Team");
 })()}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
+${preferredSourceHtml()}
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
 </main>${siteFooterHtml()}`;
@@ -2281,6 +2291,7 @@ ${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
 ${articleBodyHtml}
 ${faqHtml}
 ${sourcesHtml}
+${preferredSourceHtml()}
 <p><a href="/blog">Back to blog</a></p>
 </article>
 </main>${siteFooterHtml()}`;
