@@ -101,6 +101,7 @@ React + Vite frontend web app — the **CryptoKiller** scam investigation review
 - Routes: `/` → Homepage; `/investigations` → Browse all reviews with search/filters; `/review/:slug` → review by slug; `/report` → Report a Scam; `/about` → About/Team; `/privacy` → Privacy Policy; `/terms` → Terms of Service; `/recovery` → Recovery Guide
 - Deployed at the root path `/` of the Replit preview domain
 - **SEO**: Per-page meta tags (title, description, OG, Twitter) via `usePageMeta` hook (`src/hooks/usePageMeta.ts`). Default fallback meta in `index.html`. JSON-LD structured data on homepage (Organization + WebSite) and review pages (Review schema). `robots.txt` and static `sitemap.xml` in `public/`. Dynamic sitemap at `/api/sitemap.xml` includes all published review slugs with `lastmod` dates.
+- **Preferred Source badge**: Official self-hosted Google "Preferred Source" badge (`public/google-preferred-source.png`) rendered at the end of every review and blog article. Client: `PreferredSourceButton` (`src/components/PreferredSourceButton.tsx`) before `</main>` in `ReviewPage.tsx` + `BlogPostPage.tsx`. SSR: `preferredSourceHtml()` in `server/prerender.ts`, emitted in both review render branches (full_article + legacy fallback) and the blog-post branch.
 
 ### `scripts` (`@workspace/scripts`)
 

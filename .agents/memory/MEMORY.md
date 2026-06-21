@@ -6,3 +6,5 @@
 - [Stale lib .d.ts after a merge](merge-stale-lib-dts.md) — post-merge "Property X does not exist" on generated types is stale composite-lib dist; run `pnpm run typecheck:libs`.
 - [IndexNow ↔ sitemap canonical URLs](indexnow-canonical-urls.md) — pinged URLs must be byte-identical to sitemap; build via shared canonical-urls.ts; INDEXNOW_KEY env must match crypto-review's hosted key file; bulk sync must NOT ping.
 - [crypto-review server/scripts typecheck gap](crypto-review-server-typecheck.md) — package typecheck only covers src/**; server/ & scripts/ are esbuild/tsx type-stripped, verify them with a targeted tsc + runtime smoke.
+- [crypto-review SSR review render paths](crypto-review-ssr-review-paths.md) — reviews SSR via two mutually-exclusive branches (full_article vs legacy); current data uses legacy, so per-review SSR additions must cover BOTH.
+- [crypto-review ↔ GitHub repo sync](crypto-review-github-repo-sync.md) — companion GitHub repo drifts; git writes blocked in main agent; inspect via GitHub API, land features by merging the open PR, not force-push.
