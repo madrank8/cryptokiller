@@ -1,0 +1,89 @@
+The one-time IndexNow backfill is done. Now wire event-driven IndexNow pings so every future review/blog publish or update pushes that URL to Bing/Yandex (and via Bing, ChatGPT Search) for instant recrawl. Only modify artifacts/api-server (where content is created/updated and where the sitemap is generated). Do not touch artifacts/crypto-review - its server already hosts the key file.
+Core principle: the URL you ping MUST be byte-identical to what the sitemap emits. So reuse the sitemap's existing URL-building logic as the single source of truth, never hand-build URLs at the call site.
+Step 1 - Key. Ensure INDEXNOW_KEY is available to the api-server process with the exact same value as the key file already hosted at https://cryptokiller.org/{key}.txt. If api-server is a separate Replit deployment from crypto-review, set the secret on it too. The keys must match or IndexNow rejects every submission.
+Step 2 - Canonical URL helper. Create artifacts/api-server/src/canonical-urls.ts. Look at the existing sitemap generator in src/routes/reviews.ts (around L751/L765/L773 - the /review/${slug}, /${seg}/review/${slug}, /blog/${slug} lines) and extract that exact construction into these functions. Then refactor the sitemap generator to import and use them, so there is one source of truth:
+tsconst HOST = "https://cryptokiller.org";
+const LOCALES = ["it", "es", "de", "fr", "pt-br"];
+
+// Canonical public page URL(s) for a review. `locales` = the locales this
+// review has translations for (the same set the sitemap emits alternates for).
+export function reviewUrls(slug: string, locales: string[] = []): string[] {
+  const urls = [`${HOST}/review/${slug}`];
+  for (const loc of locales) if (LOCALES.includes(loc)) urls.push(`${HOST}/${loc}/review/${slug}`);
+  return urls;
+}
+export function blogUrl(slug: string): string { return `${HOST}/blog/${slug}`; }
+export const INVESTIGATIONS_HUB = `${HOST}/investigations`;
+Step 3 - Submit module. Create artifacts/api-server/src/indexnow.ts:
+tsconst ENDPOINT = "https://api.indexnow.org/indexnow";
+const HOST = "cryptokiller.org";
+
+// Returns the endpoint status (200/202 = accepted), or null if skipped/failed.
+// Swallows all errors internally - safe to call without try/catch.
+export async function submitUrls(urls: string[]): Promise<number | null> {
+  const key = process.env.INDEXNOW_KEY;
+  if (!key) { console.warn("[indexnow] INDEXNOW_KEY not set; skipping"); return null; }
+  const list = Array.from(new Set(urls)).filter((u) => {
+    try { const x = new URL(u); return x.protocol === "https:" && x.host === HOST; } catch { return false; }
+  });
+  if (list.length === 0) return null;
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ host: HOST, key, keyLocation: `https://${HOST}/${key}.txt`, urlList: list }),
+    });
+    console.log(`[indexnow] ${list.length} url(s) -> ${res.status} ${res.statusText}: ${list.join(", ")}`);
+    return res.status;
+  } catch (err) {
+    console.error("[indexnow] submit failed (non-fatal):", err);
+    return null;
+  }
+}
+
+// Fire-and-forget. Never awaited, never blocks or throws into the request lifecycle.
+export function pingIndexNow(urls: string[]): void {
+  if (urls && urls.length) void submitUrls(urls);
+}
+Step 4 - Wire the hooks. Find the review create (POST) and update (PUT/PATCH) handlers and the blog-post create/update handlers in the api-server (check for an admin/content route file). Read the actual schema to learn the slug field, the published/status field, and how a review's translation locales are stored. Then, at the point after the DB write succeeds, add a fire-and-forget ping. Gating rules:
+
+Ping only when the record is published/public. Never ping drafts.
+On a draft → published transition, ping.
+Skip pings for trivial/non-content updates (view counters, analytics fields). Only ping when content changed or publish state became public.
+One call per save - batch a review's locale URLs into the single call.
+Do not ping on delete or unpublish (IndexNow has a removal flow; out of scope here).
+
+Reviews:
+tsimport { pingIndexNow } from "../indexnow";
+import { reviewUrls } from "../canonical-urls";
+// ...after the successful create/update of a PUBLISHED review, before/after res.json():
+pingIndexNow(reviewUrls(review.slug, localesFor(review))); // localesFor = however translations are listed
+Blog:
+tsimport { blogUrl } from "../canonical-urls";
+// ...after a successful create/update of a PUBLISHED post:
+pingIndexNow([blogUrl(post.slug)]);
+pingIndexNow is not awaited and cannot throw, so it will not affect the response or fail the publish even if IndexNow is down.
+Step 5 - Verify. Create artifacts/api-server/scripts/indexnow-verify.ts:
+tsimport { reviewUrls, blogUrl } from "../src/canonical-urls";
+import { submitUrls } from "../src/indexnow";
+
+async function main() {
+  const r = reviewUrls("crest-fundgrove", ["es"]); // adjust to confirmed-live slugs
+  const b = blogUrl("crypto-scam-recovery");
+  console.log("built review URLs:", r);
+  console.log("built blog URL:", b);
+  const status = await submitUrls([...r, b]);
+  console.log("endpoint status:", status);
+  if (status !== 200 && status !== 202) { console.error("FAIL: expected 200/202"); process.exit(1); }
+  console.log("PASS");
+}
+main().catch((e) => { console.error(e); process.exit(1); });
+Run these and paste the output:
+bashecho "--- drift check: every URL the helper builds must already exist in the live sitemap ---"
+SM=$(curl -sS https://cryptokiller.org/api/sitemap.xml)
+for path in "/review/crest-fundgrove<" "/blog/crypto-scam-recovery<"; do
+  echo "$SM" | grep -q "$path" && echo "OK in sitemap: $path" || echo "MISSING (drift!): $path"
+done
+echo "--- run the live verify (submits real live URLs; harmless, just triggers recrawl) ---"
+npx tsx artifacts/api-server/scripts/indexnow-verify.ts
+Expected: both paths report OK in sitemap (proving the helper matches canonical output), and the verify prints endpoint status: 200 (or 202) then PASS. Report the diff, which handlers you wired, the schema fields you used for slug/published/locales, and the command output.

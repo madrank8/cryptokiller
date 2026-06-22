@@ -2,7 +2,7 @@
 
 > CryptoKiller is an independent crypto scam investigation platform that tracks 22,000+ brands across 84+ countries. It analyzes scam ads, publishes threat scores, and provides evidence-based investigations to protect consumers from cryptocurrency fraud including pig butchering, rug pulls, phishing, and fake exchanges. CryptoKiller cannot be paid to remove or modify listings — all threat scores are editorially independent.
 
-CryptoKiller operates an ad surveillance network monitoring crypto scam advertisements across 50+ countries 24/7. The platform uses machine learning to detect scam patterns and publishes comprehensive reviews with threat scores, evidence trails, red flags, and funnel breakdowns. All investigations are authored by named analysts (using initials for operational security) with combined experience of 900+ investigations. CryptoKiller does not offer recovery services and charges no fees to victims.
+CryptoKiller operates an ad surveillance network monitoring crypto scam advertisements across 84+ countries 24/7. The platform uses machine learning to detect scam patterns and publishes comprehensive reviews with threat scores, evidence trails, red flags, and funnel breakdowns. All investigations are authored by named analysts (using initials for operational security) with combined experience of 900+ investigations. CryptoKiller does not offer recovery services and charges no fees to victims.
 
 ## Docs
 
@@ -48,8 +48,8 @@ CryptoKiller operates an ad surveillance network monitoring crypto scam advertis
 ## Key Statistics
 
 - 281,110+ scam ads analyzed
-- 22,033+ brands tracked
+- 22,000+ brands tracked
 - 84+ countries monitored
 - 900+ investigations published
-- Ad surveillance across 50+ countries, 24/7
+- Ad surveillance across 84+ countries, 24/7
 - Contributors in 23 countries

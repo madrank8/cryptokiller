@@ -1,7 +1,130 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
-import { useGetReview, useGetRelatedReviews } from "@workspace/api-client-react";
-import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull } from "@workspace/api-client-react";
+import { useGetReview, useGetRelatedReviews, useGetReviewTranslation } from "@workspace/api-client-react";
+import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated, RecentAd, AdEvidence } from "@workspace/api-client-react";
+import {
+  LOCALE_HREFLANG,
+  LOCALE_LANGUAGE_LABEL_EN,
+  TRANSLATION_METHOD_LABEL,
+  formatLocaleDate,
+} from "@workspace/i18n";
+
+// URL locale segment → BCP-47 canonical case. URLs use lowercase by
+// convention (`/pt-br/...`) but the DB, the API, the `<html lang>`
+// attribute, and the `hreflang`/`inLanguage` JSON-LD all expect canonical
+// case (`pt-BR`). Centralised here so the routing layer and the
+// SSR (server/prerender.ts) stay in lockstep.
+const LOCALE_URL_TO_CANONICAL: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-br": "pt-BR",
+};
+
+// Phase 5 — BCP-47 (DB canonical case) → URL segment (lowercase). Inverse
+// of LOCALE_URL_TO_CANONICAL. Used to build alternate URLs for hreflang.
+const LOCALE_CANONICAL_TO_URL_SEGMENT: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-br",
+};
+
+// Phase 5 — BCP-47 → `<html lang>` long form. Cheat sheet: hreflang uses
+// the bare form (`it`, `es`); `<html lang>` uses the regional form.
+const LOCALE_HTML_LANG: Record<string, string> = {
+  it: "it-IT",
+  es: "es-ES",
+  de: "de-DE",
+  fr: "fr-FR",
+  "pt-BR": "pt-BR",
+};
+
+// i18n constants and helpers (locale hreflang map, language labels,
+// translation method labels, date formatter) live in @workspace/i18n —
+// single source of truth shared by CSR, SSR, and the API. Phase 5
+// hreflangs: NOT `en-US` (we don't target US) and NOT `es-419` (Google
+// rejects).
+
+// Build a ReviewFull-shaped object from a translation response. The
+// translation endpoint returns translated text fields + a `master` shell
+// carrying every structural/identity field; we spread master first, then
+// override text fields where the translation provides a non-null value.
+// `redFlags` / `faq` / `keyTakeaways` JSON arrays from the translation,
+// when populated, replace the master's structured rows so the renderer
+// shows localised content; when null/empty, the master arrays are used as
+// a fallback so the page never has gaps mid-translation.
+function buildTranslatedReview(t: ReviewFullTranslated): ReviewFull {
+  // The master shell on the translated response mirrors the ReviewFull
+  // shape returned by GET /reviews/:slug — see artifacts/api-server/src/
+  // routes/reviews.ts `masterShell` construction. We treat it as such.
+  const m = (t as unknown as { master: ReviewFull }).master;
+
+  const overlaidRedFlags: RedFlag[] = Array.isArray(t.redFlags) && t.redFlags.length > 0
+    ? t.redFlags.map((r, i) => {
+        const item = r as Record<string, unknown>;
+        return {
+          emoji: typeof item.emoji === "string" ? item.emoji : "⚠️",
+          title: typeof item.title === "string"
+            ? item.title
+            : (typeof item.flag === "string" ? item.flag : ""),
+          description: typeof item.description === "string"
+            ? item.description
+            : (typeof item.detail === "string" ? item.detail : ""),
+          orderIndex: i,
+        };
+      })
+    : m.redFlags;
+
+  const overlaidFaq: FaqItem[] = Array.isArray(t.faq) && t.faq.length > 0
+    ? t.faq.map((f, i) => {
+        const item = f as Record<string, unknown>;
+        return {
+          question: typeof item.question === "string" ? item.question : "",
+          answer: typeof item.answer === "string" ? item.answer : "",
+          orderIndex: i,
+        };
+      })
+    : m.faqItems;
+
+  const overlaidKeyFindings: KeyFinding[] = Array.isArray(t.keyTakeaways) && t.keyTakeaways.length > 0
+    ? t.keyTakeaways.map((s, i) => ({ content: s, orderIndex: i }))
+    : m.keyFindings;
+
+  return {
+    ...m,
+    // Text fields — fall back to master when translation column is null
+    // (e.g. methodology/disclaimer often inherit from EN by editorial
+    // policy). The translation's `summary` doubles as the hero subtitle
+    // since translations don't carry a separate heroDescription field.
+    summary: t.summary ?? m.summary,
+    verdict: t.verdict ?? m.verdict,
+    heroDescription: t.summary ?? m.heroDescription,
+    metaDescription: t.metaDescription ?? m.metaDescription,
+    methodologyText: t.methodology ?? m.methodologyText,
+    disclaimerText: t.disclaimer ?? m.disclaimerText,
+    protectionSteps: t.protectionSteps ?? m.protectionSteps,
+    notForYou: t.notForYou ?? m.notForYou,
+    expertiseDepth: t.expertiseDepth ?? m.expertiseDepth,
+    // headline and alternativeHeadline drive the <title> (via pickReviewTitleBase)
+    // and the visible H1. Overlay with translation values so the hydrated CSR
+    // title matches the SSR title that prerender.ts builds with the same logic:
+    //   alternativeHeadline: translationRow.alternativeHeadline ?? row.alternativeHeadline
+    // Without this, locale pages would compute a title from the master's
+    // English alternativeHeadline, overwriting the SSR-rendered translated title.
+    headline: (t as unknown as Record<string, unknown>).headline != null
+      ? String((t as unknown as Record<string, unknown>).headline)
+      : m.headline,
+    alternativeHeadline: (t as unknown as Record<string, unknown>).alternativeHeadline != null
+      ? String((t as unknown as Record<string, unknown>).alternativeHeadline)
+      : m.alternativeHeadline,
+    redFlags: overlaidRedFlags,
+    faqItems: overlaidFaq,
+    keyFindings: overlaidKeyFindings,
+  };
+}
 import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   Shield, AlertTriangle, Flag, X, CheckCircle,
@@ -20,12 +143,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import PreferredSourceButton from "@/components/PreferredSourceButton";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
 import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
-import { resolveReviewTier } from "@/lib/reviewTier";
+import { resolveReviewTier, tierFromScore } from "@/lib/reviewTier";
 import { buildItemReviewedJsonLdNode } from "@/lib/reviewItemReviewedSchema";
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
@@ -102,6 +226,34 @@ const COUNTRY_PATHS: Record<string, string> = {
   PL2: "",
   UA: "M 504,102 l 4,-1 3,2 1,3 -2,2 -3,1 -3,-1 -1,-3 1,-3z",
 };
+
+// Threat-tier language policy: declarative warnings ("Do not deposit any
+// money.", "confirmed scam", "Active Scam") are only permitted for brands
+// scoring >= 60/100. Below that, language must be hedged. These helpers gate
+// every hardcoded declarative string in this file so a low-signal review can
+// never render a banned declarative warning (legal exposure — e.g.
+// crest-fundgrove at 13/100 must not say "do not deposit").
+//
+// depositWarning() (the ThreatGauge caption) follows the admin pipeline's
+// full 5-tier caption scheme with 80/60/40/20 boundaries; statusLabel() and
+// verdictHeadline() use the simpler >=60 / >=40 split.
+function depositWarning(score: number): string {
+  if (score >= 80) return "Confirmed scam. Do not deposit any money.";
+  if (score >= 60) return "Very high risk. Do not deposit any money.";
+  if (score >= 40) return "Multiple serious red flags. Exercise extreme caution.";
+  if (score >= 20) return "Under investigation. Verify independently before depositing.";
+  return "Limited signals in current data. Monitoring ongoing.";
+}
+
+function statusLabel(score: number): string {
+  return score >= 60 ? "Active Scam" : "Active Campaign";
+}
+
+function verdictHeadline(platformName: string, score: number): string {
+  if (score >= 60) return `${platformName} is a confirmed crypto scam.`;
+  if (score >= 40) return `${platformName} shows strong indicators of fraud.`;
+  return `${platformName} shows warning signs that warrant independent verification.`;
+}
 
 function ThreatGauge({ score }: { score: number }) {
   const [animatedScore, setAnimatedScore] = useState(0);
@@ -181,8 +333,237 @@ function ThreatGauge({ score }: { score: number }) {
         <text x="18" y="100" fill="#22c55e" fontSize="7" fontWeight="bold">LOW</text>
         <text x="164" y="100" fill="#ef4444" fontSize="7" fontWeight="bold">HIGH</text>
       </svg>
-      <p className="text-red-400 font-semibold text-sm mt-1">Extreme Risk — Do Not Deposit</p>
+      <p className="text-red-400 font-semibold text-sm mt-1">{depositWarning(score)}</p>
     </div>
+  );
+}
+
+// ─── RecentAdsGrid ─────────────────────────────────────────────────────
+// Renders up to 4 CryptoKiller ad creatives (live-derived in the API server from
+// Supabase `creatives` by brand-name match) as a responsive grid of
+// metadata-only cards. CryptoKiller exposes no image URLs, so the card visual
+// anchor is the offer name + named celebrities + ad copy + landing link
+// (a stronger E-E-A-T signal than a thumbnail). Section hides entirely
+// when the array is empty so brands with no scraped ads don't show a
+// placeholder.
+
+// ISO-3166-1 alpha-2 → Unicode regional-indicator flag emoji. Returns ""
+// for anything that isn't a 2-letter A-Z code.
+function geoFlag(geo: string | null | undefined): string {
+  if (!geo || geo.length !== 2) return "";
+  const code = geo.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  const A = 0x1f1e6;
+  return String.fromCodePoint(A + code.charCodeAt(0) - 65, A + code.charCodeAt(1) - 65);
+}
+
+function relativeDaysAgo(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const days = Math.floor((Date.now() - t) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "1d ago";
+  return `${days}d ago`;
+}
+
+function truncate(text: string, n: number): string {
+  if (text.length <= n) return text;
+  return text.slice(0, n).replace(/\s+\S*$/, "") + "…";
+}
+
+// Protocol allowlist for any URL we render into an <a href>. Upstream data
+// is third-party-sourced (CryptoKiller → Supabase → us); a malicious or malformed
+// payload that smuggles a javascript: URL would otherwise turn the
+// "View archived ad" CTA into a click-to-execute vector. Returns null
+// for anything that isn't a valid http(s) URL.
+function safeHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
+  if (!Array.isArray(ads) || ads.length === 0) return null;
+  const countryCount = new Set(ads.map(a => a.geo).filter(Boolean)).size;
+  return (
+    <section
+      aria-labelledby="recent-ads-heading"
+      className="mb-10 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6"
+    >
+      <header className="mb-5">
+        <h2 id="recent-ads-heading" className="text-lg sm:text-xl font-black text-white tracking-tight">
+          Ads scraped this week
+        </h2>
+        <p className="text-xs text-slate-400 mt-1">
+          {ads.length} ad {ads.length === 1 ? "creative" : "creatives"} detected
+          {countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""} · last 7 days
+        </p>
+      </header>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {ads.map((ad) => {
+          const flag = geoFlag(ad.geo);
+          const fullText = (ad.adCopy ?? "").trim();
+          const cardText = fullText ? truncate(fullText, 140) : "";
+          const target = safeHttpUrl(ad.linkUrl) ?? safeHttpUrl(ad.postUrl);
+          return (
+            <article
+              key={ad.id}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-slate-700 transition-colors flex flex-col gap-3"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                {ad.geo && (
+                  <span className="inline-flex items-center gap-1 text-slate-300">
+                    <span aria-hidden="true">{flag}</span>
+                    <span className="font-semibold">{ad.geo}</span>
+                  </span>
+                )}
+                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wide">
+                  {ad.isVideo ? "Video" : "Image"}
+                </span>
+                {ad.language && (
+                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase tracking-wide">
+                    {ad.language}
+                  </span>
+                )}
+                <time dateTime={ad.lastSeenAt} className="ml-auto text-slate-500">
+                  {relativeDaysAgo(ad.lastSeenAt)}
+                </time>
+              </div>
+              <h3 className="text-sm font-semibold text-white leading-snug line-clamp-2">
+                {truncate(ad.offer, 60)}
+              </h3>
+              {ad.celebrity && (
+                <div className="text-xs font-semibold text-amber-300">
+                  <span aria-hidden="true">🎭 </span>{ad.celebrity}
+                </div>
+              )}
+              {cardText && (
+                <p
+                  className="text-xs text-slate-300 leading-relaxed italic line-clamp-3"
+                  title={fullText}
+                >
+                  &ldquo;{cardText}&rdquo;
+                </p>
+              )}
+              <div className="mt-auto pt-2 border-t border-slate-800/70 flex items-center justify-between gap-2 text-xs">
+                {target ? (
+                  <a
+                    href={target}
+                    target="_blank"
+                    rel="nofollow ugc noopener"
+                    className="text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1"
+                  >
+                    View archived ad <span aria-hidden="true">→</span>
+                  </a>
+                ) : <span />}
+                {ad.scrapeCount >= 5 && (
+                  <span className="text-slate-500 text-[10px] uppercase tracking-wide">
+                    Scraped {ad.scrapeCount}×
+                  </span>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ─── AdEvidenceSection ─────────────────────────────────────────────────────
+// Renders structured fraudulent-ad evidence (migration 0008): creative
+// screenshots grouped by the country they targeted, with per-country
+// "ads detected" counts from geoCounts. Mirrors the SSR adEvidenceHtml in
+// server/prerender.ts (shared `creative-images` grid hook). Hidden entirely
+// when no evidence is synced or no image survives the http(s) allowlist.
+function AdEvidenceSection({
+  evidence,
+  platformName,
+}: {
+  evidence: AdEvidence | null;
+  platformName: string;
+}) {
+  if (!evidence || !Array.isArray(evidence.images) || evidence.images.length === 0) return null;
+  const valid = evidence.images.filter((img) => img && safeHttpUrl(img.url));
+  if (valid.length === 0) return null;
+  const geoCounts: Record<string, number> =
+    evidence.geoCounts && typeof evidence.geoCounts === "object" ? evidence.geoCounts : {};
+
+  // Group screenshots by target country, preserving first-seen order.
+  const order: string[] = [];
+  const groups = new Map<string, { geo: string; celebrity: string; url: string }[]>();
+  for (const img of valid) {
+    const geo = (img.geo ?? "").toString().trim().toUpperCase() || "—";
+    if (!groups.has(geo)) {
+      groups.set(geo, []);
+      order.push(geo);
+    }
+    groups.get(geo)!.push({ geo, celebrity: (img.celebrity ?? "").toString(), url: img.url });
+  }
+
+  return (
+    <section
+      aria-labelledby="ad-evidence-heading"
+      className="ad-evidence mb-10 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6"
+    >
+      <header className="mb-5">
+        <h2
+          id="ad-evidence-heading"
+          className="text-lg sm:text-xl font-black text-white tracking-tight"
+        >
+          Evidence: Fraudulent Ad Creatives by Country
+        </h2>
+      </header>
+      <div className="space-y-6">
+        {order.map((geo) => {
+          const imgs = groups.get(geo)!;
+          const flag = geoFlag(geo);
+          const count = typeof geoCounts[geo] === "number" ? geoCounts[geo] : imgs.length;
+          return (
+            <div key={geo} className="ad-evidence-geo">
+              <h3 className="ad-evidence-geo-title text-sm font-semibold text-slate-200 mb-3">
+                {flag && <span aria-hidden="true">{flag} </span>}
+                {geo} — {count.toLocaleString()} {count === 1 ? "ad" : "ads"} detected
+              </h3>
+              <div className="creative-images grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {imgs.map((img, i) => {
+                  const safe = safeHttpUrl(img.url);
+                  if (!safe) return null;
+                  const altParts = [`Fraudulent ${platformName} ad creative`];
+                  if (img.celebrity) altParts.push(`impersonating ${img.celebrity}`);
+                  if (geo !== "—") altParts.push(`targeting ${geo}`);
+                  return (
+                    <figure
+                      key={`${geo}-${i}`}
+                      className="creative-image m-0 rounded-lg border border-slate-800 overflow-hidden bg-slate-900/60"
+                    >
+                      <img
+                        src={safe}
+                        alt={altParts.join(" ")}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-auto block"
+                      />
+                      {img.celebrity && (
+                        <figcaption className="text-xs text-slate-400 px-2 py-1.5">
+                          <span aria-hidden="true">🎭 </span>
+                          {img.celebrity}
+                        </figcaption>
+                      )}
+                    </figure>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -528,9 +909,54 @@ function NotFoundPage({ slug }: { slug: string }) {
   );
 }
 
-function ReviewContent({ slug }: { slug: string }) {
-  const { data: rawReview, isLoading, error } = useGetReview(slug);
+function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
+  // Dual data path: master review (no locale) vs translation overlay (locale
+  // present). Only one query is enabled at a time so we don't double-fetch.
+  // The translation hook hits GET /reviews/translations/:locale/:slug which
+  // returns the translated content + a full master shell in one response —
+  // we merge them into a ReviewFull-shaped object via buildTranslatedReview
+  // so the rest of this component renders identically regardless of source.
+  // React Query v5 types insist on `queryKey` in options, but orval-generated
+  // hooks compute and merge their own queryKey downstream — we only want to
+  // toggle `enabled`. A direct cast satisfies the strict type without
+  // perturbing the hook's return-type inference.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const masterQuery = useGetReview(slug, { query: { enabled: !locale } as any });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const translationQuery = useGetReviewTranslation(locale ?? "it", slug, { query: { enabled: !!locale } as any });
+
+  const rawReview = useMemo<ReviewFull | undefined>(() => {
+    if (locale) {
+      return translationQuery.data ? buildTranslatedReview(translationQuery.data) : undefined;
+    }
+    return masterQuery.data;
+  }, [locale, masterQuery.data, translationQuery.data]);
+
+  const isLoading = locale ? translationQuery.isLoading : masterQuery.isLoading;
+  const error = locale ? translationQuery.error : masterQuery.error;
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Phase 7/8 — Extract disclosure + stale metadata from the raw
+  // translation payload (buildTranslatedReview drops these fields when
+  // collapsing to ReviewFull). All values pre-formatted with the page's
+  // BCP-47 locale so the React tree just reads strings.
+  const translationMeta = useMemo(() => {
+    if (!locale || !translationQuery.data) return null;
+    const t = translationQuery.data;
+    const bcp47 = LOCALE_HREFLANG[locale] ?? locale;
+    const methodKey = t.translationMethod ?? "";
+    return {
+      languageLabel: LOCALE_LANGUAGE_LABEL_EN[locale] ?? locale,
+      translatorName: t.translatorName ?? null,
+      methodLabel: methodKey ? (TRANSLATION_METHOD_LABEL[methodKey] ?? null) : null,
+      sourceFormatted: formatLocaleDate(t.sourceReviewUpdatedAt, bcp47),
+      reviewedFormatted: formatLocaleDate(t.reviewedAt ?? t.publishedAt ?? null, bcp47),
+      // Phase 8 — server-computed flag; CSR doesn't recompute (avoids
+      // CSR/SSR divergence if the threshold changes server-side).
+      stale: Boolean(t.stale),
+      masterUpdatedAt: t.masterUpdatedAt ?? null,
+    };
+  }, [locale, translationQuery.data]);
 
   // Replace `{{stat:KEY}}` tokens in prose with live values from
   // review_stats so the visible body matches the JSON-LD @graph (which
@@ -565,10 +991,22 @@ function ReviewContent({ slug }: { slug: string }) {
   const bylineHref = authorPersona ? `/author/${authorPersona.slug}` : "/methodology";
   const bylineLinkLabel = authorPersona ? "View profile ↗" : "Methodology ↗";
 
+  // Phase 5 — locale-aware URLs and language tags. When rendering a locale
+  // page, `slug` is the per-locale translation slug and `review.slug`
+  // (inherited from the master shell) is the EN master slug. We need BOTH
+  // to build the canonical (self) and the master @id for `translationOfWork`.
+  const masterSlug = review?.slug ?? slug;
+  const masterUrl = `https://cryptokiller.org/review/${masterSlug}`;
+  const localeUrlSegment = locale ? LOCALE_CANONICAL_TO_URL_SEGMENT[locale] : undefined;
+  const pageUrlForLocale = locale && localeUrlSegment
+    ? `https://cryptokiller.org/${localeUrlSegment}/review/${slug}`
+    : masterUrl;
+  const pageInLanguage = locale ? (LOCALE_HREFLANG[locale] ?? locale) : "en";
+
   const jsonLd = useMemo(() => {
     if (!review) return undefined;
 
-    const pageUrl = `https://cryptokiller.org/review/${slug}`;
+    const pageUrl = pageUrlForLocale;
 
     const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
     const orgRefId = orgRef();
@@ -593,7 +1031,7 @@ function ReviewContent({ slug }: { slug: string }) {
     const itemRef = itemReviewedGraphNode
       ? { "@id": `${pageUrl}#item-reviewed` }
       : {
-          "@type": "Service",
+          "@type": "Organization",
           name: review.platformName,
           description: `Platform under investigation by CryptoKiller. Threat score ${review.threatScore ?? "?"}/100 (${tier.label}).`,
         };
@@ -622,7 +1060,7 @@ function ReviewContent({ slug }: { slug: string }) {
         description: desc,
         isPartOf: { "@id": "https://cryptokiller.org/#website" },
         mainEntity: { "@id": `${pageUrl}#review` },
-        inLanguage: "en",
+        inLanguage: pageInLanguage,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
       },
@@ -638,7 +1076,7 @@ function ReviewContent({ slug }: { slug: string }) {
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
-        inLanguage: "en",
+        inLanguage: pageInLanguage,
         itemReviewed: itemRef,
         reviewRating: {
           "@type": "Rating",
@@ -662,7 +1100,7 @@ function ReviewContent({ slug }: { slug: string }) {
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
         isPartOf: { "@id": "https://cryptokiller.org/#website" },
         about: itemRef,
-        inLanguage: "en",
+        inLanguage: pageInLanguage,
         wordCount: review.wordCount || undefined,
         timeRequired: review.readingMinutes ? `PT${review.readingMinutes}M` : undefined,
       },
@@ -676,8 +1114,8 @@ function ReviewContent({ slug }: { slug: string }) {
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
-        mainEntityOfPage: `https://cryptokiller.org/review/${slug}`,
-        inLanguage: "en",
+        mainEntityOfPage: pageUrl,
+        inLanguage: pageInLanguage,
       },
     ];
 
@@ -692,6 +1130,7 @@ function ReviewContent({ slug }: { slug: string }) {
         "@type": "FAQPage",
         "@id": `${pageUrl}#faq`,
         url: pageUrl,
+        inLanguage: pageInLanguage,
         mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
         mainEntity: review.faqItems.map((faq: { question: string; answer: string }) => ({
           "@type": "Question",
@@ -741,16 +1180,103 @@ function ReviewContent({ slug }: { slug: string }) {
         }));
     }
 
+    // Phase 5 — i18n graph links. EN master Review gets workTranslation[]
+    // pointing at each locale Review's @id; each locale Review gets
+    // translationOfWork → master + a translator Organization node. Mirrors
+    // the SSR implementation in server/prerender.ts; see comments there.
+    if (reviewNode) {
+      const siblings = (review.translations ?? []).filter(
+        (t) => !!t && typeof t.locale === "string" && typeof t.slug === "string",
+      );
+      if (!locale && siblings.length > 0) {
+        reviewNode.workTranslation = siblings
+          .map((t) => {
+            const seg = LOCALE_CANONICAL_TO_URL_SEGMENT[t.locale];
+            if (!seg) return null;
+            return { "@id": `https://cryptokiller.org/${seg}/review/${t.slug}#review` };
+          })
+          .filter((x): x is { "@id": string } => x !== null);
+      } else if (locale) {
+        reviewNode.translationOfWork = { "@id": `${masterUrl}#review` };
+        const current = siblings.find((t) => t.locale === locale);
+        const translatorName = (current?.translatorName?.trim()) || "CryptoKiller Editorial Team";
+        const method = current?.translationMethod || "ai_assisted";
+        const methodDesc =
+          method === "ai_full"
+            ? "AI translation"
+            : method === "human_only"
+              ? "Human translation, editorially reviewed"
+              : "AI-assisted human-reviewed translation team";
+        reviewNode.translator = {
+          "@type": "Organization",
+          name: translatorName,
+          description: methodDesc,
+        };
+      }
+    }
+
     return {
       "@context": "https://schema.org",
       "@graph": graph,
     };
-  }, [review, slug]);
+  }, [review, slug, locale, pageUrlForLocale, pageInLanguage, masterUrl]);
 
+  // OG locale map — same keys as LOCALE_HTML_LANG, output uses underscores
+  // (Facebook / Open Graph convention). `en_US` is the default for the English master.
+  const LOCALE_OG: Record<string, string> = {
+    it: "it_IT",
+    es: "es_ES",
+    de: "de_DE",
+    fr: "fr_FR",
+    "pt-BR": "pt_BR",
+  };
+
+  // pickReviewTitleBase — exact port of the SSR function in prerender.ts.
+  // Must stay in parity so hydration never overwrites the prerendered <title>
+  // with a differently-worded string that confuses crawler title-change signals.
+  //
+  // Rules (match prerender.ts pickReviewTitleBase exactly):
+  //   1. alternativeHeadline present and ≤55 chars → use as-is.
+  //   2. alternativeHeadline present but >55 chars → word-boundary truncate
+  //      at last space before char 55 (min cut at char 30); strip trailing
+  //      connectors and punctuation. NEVER append ellipsis on SEO titles.
+  //   3. No alternativeHeadline → "{name} {headlineLabel}{scoreSuffix}"
+  //      headlineLabel = frameAsScam ? "Scam Review" : "Investigation"
+  //      scoreSuffix   = score > 0 ? " — Threat Score N/100" : ""
+  function pickReviewTitleBase(r: NonNullable<typeof review>): string {
+    const tier = resolveReviewTier({
+      threatScore: r.threatScore ?? null,
+      threatTier: r.threatTier ?? null,
+      threatLabel: r.threatLabel ?? null,
+      threatBadge: r.threatBadge ?? null,
+      frameAsScam: r.frameAsScam ?? null,
+    });
+    const headlineLabel = tier.frameAsScam ? "Scam Review" : "Investigation";
+    const scoreSuffix = r.threatScore && r.threatScore > 0
+      ? ` — Threat Score ${r.threatScore}/100`
+      : "";
+    const altHeadline = String(r.alternativeHeadline || "").trim();
+    if (altHeadline) {
+      if (altHeadline.length <= 55) return altHeadline;
+      const candidate = altHeadline.slice(0, 55);
+      const lastSpace = candidate.lastIndexOf(" ");
+      const cut = lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate;
+      return cut
+        .replace(/[\s—\-:,]+$/, "")
+        .replace(/\b(and|or|of|to|for|the|a|an)\s*$/i, "")
+        .trim();
+    }
+    return `${r.platformName} ${headlineLabel}${scoreSuffix}`;
+  }
+
+  const REVIEW_BRAND_SUFFIX = " | CryptoKiller";
   const seoTitle = review
-    ? (`${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`.length <= 60
-        ? `${review.platformName} Scam Review — Threat Score ${review.threatScore}/100 | CryptoKiller`
-        : `${review.platformName} Scam Review | CryptoKiller`)
+    ? (() => {
+        const base = pickReviewTitleBase(review);
+        return base.length + REVIEW_BRAND_SUFFIX.length <= 70
+          ? `${base}${REVIEW_BRAND_SUFFIX}`
+          : base;
+      })()
     : error
       ? "Investigation Not Found | CryptoKiller"
       : "Loading Investigation | CryptoKiller";
@@ -761,18 +1287,97 @@ function ReviewContent({ slug }: { slug: string }) {
       ? `No investigation data found for "${slug}". Browse all crypto scam investigations on CryptoKiller.`
       : "Loading crypto scam investigation...";
 
+  // Phase 5 — compute alternates from the master + sibling translations.
+  // EVERY page in the cluster (EN master and each locale) emits the SAME
+  // alternate set so Google sees reciprocal pairs. `x-default` points at
+  // the EN master (Google's recommended convention for English originals).
+  const alternates = useMemo(() => {
+    if (!review) return undefined;
+    const siblings = (review.translations ?? []).filter(
+      (t) => !!t && typeof t.locale === "string" && typeof t.slug === "string",
+    );
+    if (siblings.length === 0 && !locale) return undefined;
+    const out: Array<{ hreflang: string; href: string }> = [
+      { hreflang: "en", href: masterUrl },
+    ];
+    for (const t of siblings) {
+      const seg = LOCALE_CANONICAL_TO_URL_SEGMENT[t.locale];
+      const hl = LOCALE_HREFLANG[t.locale];
+      if (!seg || !hl) continue;
+      out.push({ hreflang: hl, href: `https://cryptokiller.org/${seg}/review/${t.slug}` });
+    }
+    out.push({ hreflang: "x-default", href: masterUrl });
+    return out;
+  }, [review, locale, masterUrl]);
+
+  const htmlLang = locale ? (LOCALE_HTML_LANG[locale] ?? "en") : undefined;
+  const hasTranslations = (review?.translations?.length ?? 0) > 0;
+  // notranslate goes on the EN master only when ≥1 editorial translation
+  // exists — locale pages should remain translatable by Google for users
+  // whose target language we don't yet cover editorially.
+  const noTranslate = !locale && hasTranslations;
+
+  // og:locale — set for all review pages.  Translated locale pages carry
+  // their own locale; the EN master defaults to en_US.
+  const ogLocale = locale ? (LOCALE_OG[locale] ?? locale.replace("-", "_")) : "en_US";
+  // og:locale:alternate — every other locale in the cluster (excludes current).
+  const ogLocaleAlternate = useMemo(() => {
+    if (!review) return undefined;
+    const siblings = (review.translations ?? []).filter(
+      (t) => !!t && typeof t.locale === "string",
+    );
+    if (locale) {
+      // Translated page: include en_US + other sibling locales except self
+      return [
+        "en_US",
+        ...siblings
+          .filter((t) => t.locale !== locale)
+          .map((t) => LOCALE_OG[t.locale] ?? t.locale.replace("-", "_")),
+      ];
+    }
+    // EN master: include all translated locales
+    return siblings.length > 0
+      ? siblings.map((t) => LOCALE_OG[t.locale] ?? t.locale.replace("-", "_"))
+      : undefined;
+  }, [review, locale]);
+
   usePageMeta({
     title: seoTitle,
     description: seoDescription,
-    canonical: `https://cryptokiller.org/review/${slug}`,
+    canonical: pageUrlForLocale,
     ogType: "article",
+    ogImage: review?.heroImageUrl ?? undefined,
     jsonLd,
     author: authorPersona ? `${authorPersona.name} — cryptokiller.org` : "CryptoKiller Research Team — cryptokiller.org",
+    htmlLang,
+    alternates,
+    noTranslate,
+    ogLocale,
+    ogLocaleAlternate,
+    // Preserve SSR-prerendered head while the review data is still loading.
+    // Without this, crawlers executing JS would briefly see "Loading Investigation"
+    // instead of the correct platform title and description.
+    skip: isLoading,
   });
 
 
   if (isLoading) return <ReviewSkeleton />;
   if (error || !review) return <NotFoundPage slug={slug} />;
+
+  // Score-based tier for the hero badge, consistent with the deposit/status/
+  // verdict thresholds above (declarative framing only at score >= 60). We use
+  // tierFromScore rather than resolveReviewTier here because pre-migration-0003
+  // rows persist frameAsScam=false explicitly (not null), which would suppress
+  // the red declarative badge even on a confirmed-tier (90/100) review. Gating
+  // on score keeps a low-signal brand from ever being labelled a confirmed scam
+  // (legal exposure — see crest-fundgrove) while preserving the red "Confirmed
+  // Scam" badge for genuine high scores.
+  const heroTier = tierFromScore(review.threatScore ?? 0);
+  const heroBadgeColor = heroTier.frameAsScam
+    ? "bg-red-600"
+    : heroTier.tier === "elevated"
+      ? "bg-amber-600"
+      : "bg-slate-600";
 
   const formattedDate = new Date(review.investigationDate).toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
@@ -795,10 +1400,10 @@ function ReviewContent({ slug }: { slug: string }) {
         {/* HERO */}
         <div className="mb-10">
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white">{review.platformName}</h1>
-            <Badge className="bg-red-600 text-white text-sm px-3 py-1.5 uppercase tracking-widest border-0 flex items-center gap-1.5 shrink-0">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white">{review.headline || review.platformName}</h1>
+            <Badge className={`${heroBadgeColor} text-white text-sm px-3 py-1.5 uppercase tracking-widest border-0 flex items-center gap-1.5 shrink-0`}>
               <ShieldAlert className="h-4 w-4" />
-              CONFIRMED SCAM
+              {heroTier.label}
             </Badge>
           </div>
 
@@ -816,6 +1421,11 @@ function ReviewContent({ slug }: { slug: string }) {
                 fetchPriority="high"
                 className="w-full h-auto"
               />
+              {review.heroImageCredit && (
+                <figcaption className="px-4 py-2 text-xs italic text-slate-500">
+                  Credit: {review.heroImageCredit}
+                </figcaption>
+              )}
             </figure>
           )}
 
@@ -857,6 +1467,47 @@ function ReviewContent({ slug }: { slug: string }) {
             </div>
           </div>
 
+          {/* Phase 7 — Translation disclosure block. Renders only on
+              locale pages (master EN page is silent). Visible below the
+              byline / above the body, per Google's AI-content
+              disclosure recommendation + E-E-A-T transparency norms for
+              YMYL. translationMeta is hoisted from translationQuery.data
+              so we get translator/method/dates without relying on
+              buildTranslatedReview to plumb them through ReviewFull.
+              Phase 8 — when API marks the translation stale (source
+              snapshot lags live master.updatedAt by >1h), prepend a
+              yellow advisory so the reader knows a refresh is queued.
+              Stale page still serves (not 404'd) per brief. */}
+          {locale && translationMeta && (
+            <div className="mb-6 space-y-3" data-translation-disclosure>
+              {translationMeta.stale && (
+                <div
+                  role="status"
+                  className="rounded-lg border border-amber-600/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-100"
+                  data-translation-stale
+                >
+                  <strong className="font-semibold text-amber-200">Heads up:</strong>{" "}
+                  This article may be slightly out of date — the original English version was updated{" "}
+                  <strong className="text-amber-200">
+                    {formatLocaleDate(translationMeta.masterUpdatedAt, pageInLanguage) || "recently"}
+                  </strong>
+                  . A refreshed translation is in progress.
+                </div>
+              )}
+              <p className="text-xs text-slate-400 leading-relaxed border-l-2 border-slate-700 pl-3">
+                <em>
+                  This article was originally published in English
+                  {translationMeta.sourceFormatted ? <> on <strong className="text-slate-300">{translationMeta.sourceFormatted}</strong></> : null}
+                  {" "}and translated into <strong className="text-slate-300">{translationMeta.languageLabel}</strong>
+                  {translationMeta.translatorName ? <> by <strong className="text-slate-300">{translationMeta.translatorName}</strong></> : null}
+                  {translationMeta.reviewedFormatted ? <> on <strong className="text-slate-300">{translationMeta.reviewedFormatted}</strong></> : null}
+                  {translationMeta.methodLabel ? <>. Translation method: <strong className="text-slate-300">{translationMeta.methodLabel}</strong></> : null}
+                  .
+                </em>
+              </p>
+            </div>
+          )}
+
           <div className="mb-8 space-y-1.5">
             <p className="text-xs text-slate-500">
               Reviewed by our editorial team · Methodology:{" "}
@@ -897,6 +1548,21 @@ function ReviewContent({ slug }: { slug: string }) {
         <div className="mb-8">
           <VelocityWidget velocity={review.weeklyVelocity} platformName={review.platformName} />
         </div>
+
+        {/* RECENT ADS — first-hand investigation evidence (E-E-A-T).
+            Live-derived per request from Supabase creatives matched by
+            first-token of normalized_offer (see getRecentAdsForBrand).
+            Silently absent when there are no matching scraped creatives. */}
+        <RecentAdsGrid ads={review.recentAds ?? []} />
+
+        {/* FRAUDULENT-AD EVIDENCE — structured creative screenshots grouped by
+            target country with per-country detected counts (migration 0008).
+            Silently absent when no ad_evidence is synced for the review. */}
+        <AdEvidenceSection
+          evidence={review.adEvidence ?? null}
+          platformName={review.platformName}
+        />
+
 
         {/* KEY TAKEAWAYS — sourced from keyFindings (the Supabase
             key_takeaways jsonb array, mapped on the Vercel shaper to
@@ -961,7 +1627,7 @@ function ReviewContent({ slug }: { slug: string }) {
                         <figure className="my-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
                           <img
                             src={img.url}
-                            alt={img.alt || ""}
+                            alt={img.alt || `Screenshot from ${review.platformName} investigation`}
                             loading="lazy"
                             className="w-full h-auto"
                           />
@@ -1105,7 +1771,7 @@ function ReviewContent({ slug }: { slug: string }) {
                       >
                         <img
                           src={v.url!}
-                          alt={v.altText || v.description || ""}
+                          alt={v.altText || v.description || `Evidence visual from ${review.platformName} investigation`}
                           loading="lazy"
                           className="w-full h-auto"
                         />
@@ -1139,17 +1805,6 @@ function ReviewContent({ slug }: { slug: string }) {
             {/* WHAT TO DO */}
             <section>
               <SectionTitle icon={<CheckCircle className="h-6 w-6" />}>What To Do If You've Been Scammed</SectionTitle>
-              {/* PROTECTION STEPS — narrative next-steps content from the
-                  polish pipeline. When populated, precedes the generic action
-                  grid below with victim-specific guidance (time-sensitive
-                  chargeback windows, locale-specific reporting bodies, etc.). */}
-              {review.protectionSteps && (
-                <div className="mb-6 space-y-4">
-                  {review.protectionSteps.split("\n\n").map((para: string, i: number) => (
-                    <p key={i} className="text-slate-300 text-sm leading-relaxed">{para}</p>
-                  ))}
-                </div>
-              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { icon: <FileText className="h-5 w-5 text-blue-400" />, title: "Report to the FBI IC3", sub: "ic3.gov", bg: "bg-blue-500/10", border: "border-blue-900/30" },
@@ -1170,6 +1825,26 @@ function ReviewContent({ slug }: { slug: string }) {
                 ))}
               </div>
             </section>
+
+            {/* PROTECTION STEPS — dedicated section with narrative next-steps
+                content from the polish pipeline (victim-specific guidance:
+                chargeback windows, locale-specific reporting bodies, etc.).
+                Mirrors the SSR section in server/prerender.ts so hydration
+                produces an identical tree. Skipped when null/empty. */}
+            {review.protectionSteps && (
+              <section aria-labelledby="protection-heading">
+                <SectionTitle icon={<CheckCircle className="h-6 w-6" />}>
+                  <span id="protection-heading">If you've been targeted by {review.platformName}</span>
+                </SectionTitle>
+                {review.protectionSteps
+                  .split(/\n+/)
+                  .map((p: string) => p.trim())
+                  .filter(Boolean)
+                  .map((para: string, i: number) => (
+                    <p key={i} className="text-slate-300 text-sm leading-relaxed mb-4">{para}</p>
+                  ))}
+              </section>
+            )}
 
             {/* FAQ */}
             {review.faqItems.length > 0 && (
@@ -1288,7 +1963,7 @@ function ReviewContent({ slug }: { slug: string }) {
                       value: (
                         <span className="text-red-400 font-bold flex items-center gap-1 justify-end">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-                          Active Scam
+                          {statusLabel(review.threatScore)}
                         </span>
                       )
                     },
@@ -1344,7 +2019,7 @@ function ReviewContent({ slug }: { slug: string }) {
                   <AlertOctagon className="h-5 w-5 text-red-400" />
                   <span className="text-red-400 font-bold text-sm uppercase tracking-wide">Final Verdict</span>
                 </div>
-                <p className="text-white font-semibold text-base mb-1">{review.platformName} is a confirmed crypto scam.</p>
+                <p className="text-white font-semibold text-base mb-1">{verdictHeadline(review.platformName, review.threatScore)}</p>
                 <p className="text-red-300 font-bold">{review.verdict}</p>
                 <Separator className="bg-red-900/40 my-3" />
                 <p className="text-slate-400 text-xs">Based on analysis of {review.adCreatives.toLocaleString()} ad creatives across {review.countriesTargeted} countries.</p>
@@ -1440,6 +2115,8 @@ function ReviewContent({ slug }: { slug: string }) {
           </div>
         )}
 
+        <PreferredSourceButton className="mt-2 mb-10" />
+
       </main>
 
       <SiteFooter />
@@ -1449,7 +2126,32 @@ function ReviewContent({ slug }: { slug: string }) {
 }
 
 export default function ReviewPage() {
-  const params = useParams<{ slug?: string }>();
+  // Both routes (/review/:slug and /:locale/review/:slug) land here. The
+  // locale param is only present on the second route; when absent we render
+  // the EN master path. When present we validate against the allowlist and
+  // 404 unknown locales rather than silently rendering them — bad locale
+  // URLs should never be indexable.
+  const params = useParams<{ slug?: string; locale?: string }>();
   const slug = params.slug ?? "quantum-ai";
+  const urlLocale = params.locale?.toLowerCase();
+
+  if (urlLocale) {
+    const canonicalLocale = LOCALE_URL_TO_CANONICAL[urlLocale];
+    if (!canonicalLocale) {
+      // Unsupported locale segment — render the same in-page 404 used for
+      // missing review slugs.
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="text-center">
+            <AlertOctagon className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-white mb-2">Page Not Found</h1>
+            <p className="text-slate-400">Unsupported locale "{urlLocale}".</p>
+          </div>
+        </div>
+      );
+    }
+    return <ReviewContent slug={slug} locale={canonicalLocale} />;
+  }
+
   return <ReviewContent slug={slug} />;
 }

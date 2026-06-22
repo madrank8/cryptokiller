@@ -1,0 +1,49 @@
+The protection_steps render task is NOT done. I just verified with curl:
+
+  $ curl -sS https://cryptokiller.org/api/reviews/senvix | jq '.protectionSteps | length'
+  952
+
+So the field is present in your API response. But the rendered page is missing it:
+
+  $ curl -sS "https://cryptokiller.org/review/senvix?nocache=1" > page.html
+  $ grep -c "deposited funds with Senvix or a similar platform" page.html
+  0
+
+The exact 952-char prose starting "If you deposited funds with Senvix or a similar
+platform, take these steps immediately. First, contact your bank..." appears
+NOWHERE on the rendered HTML. The page byte count is identical to what it was
+before your last change — strong evidence the template wasn't actually modified
+or wasn't deployed.
+
+PLEASE DO ALL OF THE FOLLOWING, IN ORDER:
+
+1. Show me the current contents of the file that renders /review/[slug] —
+   paste the actual code, not a summary.
+
+2. Show me the diff of the change you made for the previous task. If there is
+   no diff, you didn't actually change the file.
+
+3. Add a section that renders `protectionSteps` (from your API field) or
+   `protection_steps` (from your DB column — whichever name your storage uses).
+   Place it after the Methodology section, before the FAQ.
+
+4. Render the field as paragraphs. The string contains plain prose. Render each
+   sentence-group as a <p> tag, OR just one <div> containing the prose with
+   white-space: pre-line CSS — either is fine, but it MUST appear as visible
+   readable text.
+
+5. Deploy the change. Confirm the deploy completed (not just saved to dev).
+
+6. After deploy, run this verification yourself and report the output:
+
+     curl -sS "https://cryptokiller.org/review/senvix?nocache=$(date +%s)" \
+       -H "Cache-Control: no-cache" | grep -c "deposited funds with Senvix"
+
+   This should output 1 (or higher). If it outputs 0, the change isn't live.
+
+7. Report back:
+   - Which file you changed
+   - The diff
+   - The verification command output
+
+Do not say "done" until step 6 outputs a non-zero count.

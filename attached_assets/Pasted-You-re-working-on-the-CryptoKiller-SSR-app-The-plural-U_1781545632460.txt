@@ -1,0 +1,32 @@
+You're working on the CryptoKiller SSR app. The plural-URL migration validation is complete and confirmed: legacy plural page URLs (/reviews, /reviews/:slug, /reviews/translations/:locale/:slug) hard-404 with no redirect, wasting crawl budget. Add permanent 301 redirects to the live singular equivalents. Only touch artifacts/crypto-review/server/index.ts. Do not modify artifacts/api-server - its /api/reviews/* JSON routes are separate and must keep working.
+Placement: add the middleware in artifacts/crypto-review/server/index.ts before the HTML handler block at L334-374 (the one that calls renderPage and does res.status(result.status)), and after the existing /sitemap.xml redirect near L243. It must intercept before renderPage/renderNotFound so plural URLs 301 instead of 404.
+Rules: status 301 only; preserve query strings; strip one trailing slash before matching; never treat translations as a review slug; only redirect locales in the known set it|es|de|fr|pt-br; do not add a blanket /blog/:slug rule (most are live) - use an explicit dead-slug map seeded with the one confirmed-dead post.
+Use exactly this logic:
+js// === Legacy plural-URL redirects (301). Must run before the HTML renderPage handler. ===
+const LOCALES = ['it', 'es', 'de', 'fr', 'pt-br'];
+const DEAD_BLOG = {
+  '/blog/ai-deepfake-crypto-scam': '/blog',
+  // add other confirmed-removed blog slugs here -> target
+};
+
+app.use((req, res, next) => {
+  const [pathOnly, ...rest] = req.originalUrl.split('?');
+  const qs = rest.length ? '?' + rest.join('?') : '';
+  const p = pathOnly.replace(/\/+$/, '') || '/';
+  let target = null;
+
+  if (DEAD_BLOG[p]) target = DEAD_BLOG[p];
+
+  if (!target) {
+    const m = p.match(/^\/reviews\/translations\/([^/]+)\/([^/]+)$/);
+    if (m && LOCALES.includes(m[1])) target = `/${m[1]}/review/${m[2]}`;
+  }
+  if (!target) {
+    const m = p.match(/^\/reviews\/([^/]+)(?:\/.*)?$/);
+    if (m && m[1] !== 'translations') target = `/review/${m[1]}`;
+  }
+  if (!target && p === '/reviews') target = '/investigations';
+
+  if (target && target !== p) return res.redirect(301, target + qs);
+  next();
+});

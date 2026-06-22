@@ -35,12 +35,31 @@ function clean(s: string | null | undefined): string {
   return (s ?? "").replace(/\s+/g, " ").trim();
 }
 
+// Google review-snippet rich results accept only a fixed set of itemReviewed
+// @types (no subclass inference). FinancialProduct and Service are NOT on
+// Google's list — they trigger the Rich Results error "Invalid object type
+// for field itemReviewed". So: accept Google-valid types pass-through, remap
+// the two invalid types we historically emitted to their nearest valid
+// equivalent (FinancialProduct → Product, Service → Organization), and fall
+// back to Organization for anything unrecognized. Vercel already remaps these
+// before sync; this mapping is defense in depth.
 const VALID_TYPES = new Set([
-  "FinancialProduct",
-  "Service",
-  "SoftwareApplication",
+  "Product",
+  "LocalBusiness",
   "Organization",
+  "SoftwareApplication",
 ]);
+
+const TYPE_REMAP: Record<string, string> = {
+  FinancialProduct: "Product",
+  Service: "Organization",
+};
+
+function resolveValidItemType(rawType: unknown): string {
+  if (typeof rawType !== "string") return "Organization";
+  if (VALID_TYPES.has(rawType)) return rawType;
+  return TYPE_REMAP[rawType] ?? "Organization";
+}
 
 /**
  * Harvest scam-infrastructure URLs from the review's claims array.
@@ -133,10 +152,7 @@ export function buildItemReviewedJsonLdNode(
     ? (rawItemReviewed as Record<string, unknown>)
     : null;
 
-  const rawType = input?.type;
-  const type = typeof rawType === "string" && VALID_TYPES.has(rawType)
-    ? rawType
-    : "Service";
+  const type = resolveValidItemType(input?.type);
 
   const rawName = typeof input?.name === "string" ? input.name.trim() : "";
   const name = rawName || platformName;

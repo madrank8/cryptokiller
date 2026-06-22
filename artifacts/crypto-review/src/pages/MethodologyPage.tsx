@@ -198,19 +198,44 @@ export default function MethodologyPage() {
         breadcrumbJsonLd(crumbs),
         {
           "@type": "WebPage",
-          name: "Investigation Methodology",
-          description: "How CryptoKiller investigates crypto scams: our evidence-based scoring system, data sources, investigation process, and editorial standards.",
+          "@id": "https://cryptokiller.org/methodology#webpage",
           url: "https://cryptokiller.org/methodology",
-          publisher: {
-            "@type": "Organization",
-            name: "CryptoKiller",
-            url: "https://cryptokiller.org",
-          },
-          isPartOf: {
-            "@type": "WebSite",
-            name: "CryptoKiller",
-            url: "https://cryptokiller.org",
-          },
+          name: "Investigation Methodology — CryptoKiller",
+          description: "How CryptoKiller investigates crypto scams: our evidence-based scoring system, data sources, investigation process, and editorial standards. Every threat score is backed by verifiable public data.",
+          isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          publisher: { "@type": "Organization", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          inLanguage: "en",
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://cryptokiller.org/methodology#faq",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Can a brand pay to have its threat score lowered?",
+              acceptedAnswer: { "@type": "Answer", text: "No. Threat scores are calculated from evidence. The only way to change a score is to change the underlying evidence — for example, by ceasing the advertising campaign we are tracking, or by becoming licensed in the jurisdictions where we documented regulatory violations. A brand asking to pay for score changes would be logged as part of the investigation and published." },
+            },
+            {
+              "@type": "Question",
+              name: "Why do some investigations have scores and others don't?",
+              acceptedAnswer: { "@type": "Answer", text: "We only assign a threat score when we have enough evidence across multiple categories to make it meaningful. Brands with very limited signal are not scored — we publish them as watchlist entries with the available evidence but no numeric score, because a score based on insufficient evidence is worse than no score at all." },
+            },
+            {
+              "@type": "Question",
+              name: "Who decides which regulators you cite?",
+              acceptedAnswer: { "@type": "Answer", text: "We cite the regulator or law-enforcement agency with jurisdiction over the advertising or victim location for each specific fact. If the brand advertises to UK consumers, we cite the FCA. If it advertises to U.S. consumers, the SEC, FTC, and CFTC as applicable. If it advertises to Australian consumers, ASIC. The choice of regulator follows the jurisdiction, not our editorial preference." },
+            },
+            {
+              "@type": "Question",
+              name: "How do you handle a brand that changes its domain or rebrands?",
+              acceptedAnswer: { "@type": "Answer", text: "We track brand identity through advertising creative, funnel infrastructure, and payment processing — not just domain names. When a known scam operation rebrands or moves to a new domain, we typically detect the continuation through CryptoKiller ad-creative similarity and publish a new investigation with a cross-reference to the previous entity." },
+            },
+            {
+              "@type": "Question",
+              name: "Are your investigations peer-reviewed?",
+              acceptedAnswer: { "@type": "Answer", text: "Every investigation goes through internal peer review: a second analyst independently verifies evidence and scoring before publication. We also publish the full evidence base alongside every investigation, so external peer review is possible. Academic researchers studying crypto fraud can contact us for archive access." },
+            },
+          ],
         },
       ],
     },
@@ -335,6 +360,20 @@ export default function MethodologyPage() {
             We do not rely on private intelligence, insider information, or unverifiable claims.
             Every data point cited in our investigations can be independently verified.
           </p>
+
+          <div className="bg-slate-900/60 border-l-2 border-blue-500/60 rounded-r-xl p-5 mb-8 max-w-3xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="h-4 w-4 text-blue-400" />
+              <h4 className="text-white font-bold text-sm">Regulator Cross-Checks</h4>
+            </div>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Every investigated platform is cross-checked against official regulator data:
+              the FCA Financial Services Register, the FCA Warning List of unauthorised firms,
+              and SEC EDGAR full-text search. Where a regulator has published a warning naming
+              the platform, we cite it directly. We never imply endorsement by any regulator;
+              absence from a register is reported as a factual finding, not a verdict.
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {dataSources.map((source) => (

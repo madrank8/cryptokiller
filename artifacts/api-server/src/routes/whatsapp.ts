@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, ilike } from "drizzle-orm";
+import twilio from "twilio";
 import { db } from "@workspace/db";
 import {
   platformsTable,
@@ -50,6 +51,29 @@ function twiml(body: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escaped}</Message></Response>`;
+}
+
+function verifyTwilioSignature(req: Request): boolean {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    log.error("TWILIO_AUTH_TOKEN is not set; rejecting WhatsApp request");
+    return false;
+  }
+
+  const signature = req.headers["x-twilio-signature"] as string | undefined;
+  if (!signature) {
+    return false;
+  }
+
+  const proto =
+    (req.headers["x-forwarded-proto"] as string | undefined) ?? req.protocol;
+  const host =
+    (req.headers["x-forwarded-host"] as string | undefined) ??
+    (req.headers["host"] as string | undefined) ??
+    "";
+  const webhookUrl = `${proto}://${host}${req.originalUrl}`;
+
+  return twilio.validateRequest(authToken, signature, webhookUrl, req.body as Record<string, string>);
 }
 
 async function lookupPlatform(name: string) {
@@ -169,6 +193,12 @@ async function alertsResponse(): Promise<string> {
 }
 
 router.post("/whatsapp", async (req: Request, res: Response): Promise<void> => {
+  if (!verifyTwilioSignature(req)) {
+    log.warn({ ip: req.ip }, "WhatsApp request rejected: invalid Twilio signature");
+    res.status(403).send("Forbidden");
+    return;
+  }
+
   const from: string = req.body?.From ?? "";
   const rawBody: string = req.body?.Body ?? "";
   const body = sanitize(rawBody);

@@ -22,13 +22,22 @@ function clean(value: string | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+// This module is imported by BOTH the browser bundle (Vite/CSR) and the
+// SSR prerender (Node). `process` only exists in Node, so we read env
+// vars defensively. In the browser there are no env overrides — we fall
+// back to the canonical hardcoded URLs below, which is the desired
+// behavior because the same Organization JSON-LD is also emitted by SSR
+// with overrides applied (single source of truth, dual runtime).
+const env: Record<string, string | undefined> =
+  typeof process !== "undefined" && process.env ? process.env : {};
+
 export function organizationSameAs(): string[] {
   const envUrls = [
-    process.env.CRYPTOKILLER_LINKEDIN_URL,
-    process.env.CRYPTOKILLER_TWITTER_URL,
-    process.env.CRYPTOKILLER_CRUNCHBASE_URL,
-    process.env.CRYPTOKILLER_GITHUB_URL,
-    process.env.CRYPTOKILLER_WIKIDATA_URL,
+    env.CRYPTOKILLER_LINKEDIN_URL,
+    env.CRYPTOKILLER_TWITTER_URL,
+    env.CRYPTOKILLER_CRUNCHBASE_URL,
+    env.CRYPTOKILLER_GITHUB_URL,
+    env.CRYPTOKILLER_WIKIDATA_URL,
   ]
     .map(clean)
     .filter((u) => u.startsWith("https://"));

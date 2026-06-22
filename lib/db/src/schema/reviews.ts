@@ -12,6 +12,16 @@ type ContentImage = {
   placement?: string | null;
 };
 
+// ad_evidence: structured fraudulent-ad evidence synced from the admin.
+// `images` are creative screenshots tagged by target country (geo) and the
+// impersonated celebrity; `geoCounts` maps an ISO country code to the number
+// of ads detected there. Rendered in the "Evidence: Fraudulent Ad Creatives
+// by Country" section. Null when the admin has not synced ad evidence.
+type AdEvidence = {
+  images: { geo: string; celebrity: string; url: string }[];
+  geoCounts: Record<string, number>;
+};
+
 // visual_meta: polish-pipeline visual placeholders (charts/diagrams/infographics).
 // Each entry reports whether the generation succeeded and carries the resolved
 // asset URL when it did. Items where succeeded=false are skipped by the SSR.
@@ -136,6 +146,8 @@ export const reviewsTable = pgTable("reviews", {
   // this migration these were dropped silently by the sync webhook.
   heroImageUrl: text("hero_image_url"),
   heroImageAlt: text("hero_image_alt"),
+  heroImageCredit: text("hero_image_credit"),
+  headline: text("headline"),
   contentImages: jsonb("content_images").$type<ContentImage[]>().notNull().default([]),
   visualMeta: jsonb("visual_meta").$type<VisualMeta[]>().notNull().default([]),
   protectionSteps: text("protection_steps").notNull().default(""),
@@ -178,6 +190,12 @@ export const reviewsTable = pgTable("reviews", {
   howTo: jsonb("how_to").$type<HowTo | null>(),
   quotes: jsonb("quotes").$type<Quote[]>().notNull().default([]),
   claims: jsonb("claims").$type<Claim[]>().notNull().default([]),
+
+  // ── Fraudulent-ad evidence (added 2026-06-21, migration 0008) ──
+  // Synced from the admin as { images: [{geo, celebrity, url}], geoCounts }.
+  // Nullable: legacy rows and brands without scraped evidence stay null and
+  // the evidence section is omitted at render time.
+  adEvidence: jsonb("ad_evidence").$type<AdEvidence | null>(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

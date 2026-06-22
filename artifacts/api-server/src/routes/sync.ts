@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
-import { submitToIndexNow } from "../lib/indexnow";
+import { pingIndexNow } from "../indexnow";
+import { reviewUrls } from "../canonical-urls";
 import { upsertVercelSyncRow, type VercelSyncPayload } from "../lib/platform-aggregates";
 import { createHash } from "crypto";
 
@@ -104,24 +105,26 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         hero_description, warning_callout, investigation_date,
         methodology_text, disclaimer_text, meta_description,
         word_count, reading_minutes, author,
-        hero_image_url, hero_image_alt, content_images, visual_meta,
+        hero_image_url, hero_image_alt, hero_image_credit, headline, content_images, visual_meta,
         protection_steps, sources, not_for_you, expertise_depth, full_article,
         threat_tier, threat_label, threat_badge, frame_as_scam,
         author_persona_id, alternative_headline, target_keyword,
         about_slugs, mention_slugs, speakable_selectors, citations,
         dataset, item_reviewed, item_list, how_to, quotes, claims,
+        ad_evidence,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,
         $7,$8,$9,
         $10,$11,$12,
         $13,$14,$15,
-        $16,$17,$18,$19,
-        $20,$21,$22,$23,$24,
-        $25,$26,$27,$28,
-        $29,$30,$31,
-        $32,$33,$34,$35,
-        $36,$37,$38,$39,$40,$41,
+        $16,$17,$18,$19,$20,$21,
+        $22,$23,$24,$25,$26,
+        $27,$28,$29,$30,
+        $31,$32,$33,
+        $34,$35,$36,$37,
+        $38,$39,$40,$41,$42,$43,
+        $44,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -141,6 +144,8 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         author = EXCLUDED.author,
         hero_image_url = EXCLUDED.hero_image_url,
         hero_image_alt = EXCLUDED.hero_image_alt,
+        hero_image_credit = EXCLUDED.hero_image_credit,
+        headline = EXCLUDED.headline,
         content_images = EXCLUDED.content_images,
         visual_meta = EXCLUDED.visual_meta,
         protection_steps = EXCLUDED.protection_steps,
@@ -165,6 +170,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         how_to = EXCLUDED.how_to,
         quotes = EXCLUDED.quotes,
         claims = EXCLUDED.claims,
+        ad_evidence = EXCLUDED.ad_evidence,
         updated_at = NOW()
       RETURNING id`,
       [
@@ -189,6 +195,8 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         // the old Vercel shaper while the new one is rolling out.
         review.hero_image_url ?? null,
         review.hero_image_alt ?? null,
+        review.hero_image_credit ?? null,
+        review.headline ?? null,
         JSON.stringify(Array.isArray(review.content_images) ? review.content_images : []),
         JSON.stringify(Array.isArray(review.visual_meta) ? review.visual_meta : []),
         review.protection_steps ?? "",
@@ -226,6 +234,11 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         review.how_to ? JSON.stringify(review.how_to) : null,
         JSON.stringify(Array.isArray(review.quotes) ? review.quotes : []),
         JSON.stringify(Array.isArray(review.claims) ? review.claims : []),
+        // ad_evidence (migration 0008). Structured fraudulent-ad evidence
+        // grouped by country. Optional jsonb — same pattern as dataset/
+        // item_reviewed: stringify when present, null when absent so legacy
+        // callers and brands without evidence leave the column NULL.
+        review.ad_evidence ? JSON.stringify(review.ad_evidence) : null,
       ]
     );
     const reviewId = reviewResult.rows[0].id;
@@ -280,6 +293,17 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     await client.query("DELETE FROM funnel_stages WHERE review_id = $1", [reviewId]);
     if (Array.isArray(review.funnel_stages)) {
       for (const fs of review.funnel_stages) {
+        // Reject out-of-range stage numbers at ingestion — valid funnels have
+        // exactly stages 1–4. Complements the read-path dedupe/cap guard in
+        // routes/reviews.ts (defense-in-depth against corrupted payloads).
+        const stageNumber = Number(fs.stage_number);
+        if (!Number.isInteger(stageNumber) || stageNumber < 1 || stageNumber > 4) {
+          req.log.warn(
+            { reviewId, stageNumber: fs.stage_number },
+            "skipping funnel stage with out-of-range stage_number"
+          );
+          continue;
+        }
         await client.query(
           `INSERT INTO funnel_stages (
             review_id, stage_number, title, description,
@@ -287,7 +311,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
           [
             reviewId,
-            fs.stage_number,
+            stageNumber,
             fs.title,
             fs.description ?? "",
             fs.stat_value ?? "",
@@ -310,6 +334,11 @@ router.post("/sync/review", async (req, res): Promise<void> => {
       }
     }
 
+    // recent_ads_sample from the Vercel payload is intentionally ignored —
+    // recentAds are now live-derived from Supabase (creatives +
+    // creatives_with_text) in getRecentAdsForBrand() at read time. The
+    // legacy review_recent_ads table has been dropped.
+
     await client.query("DELETE FROM key_findings WHERE review_id = $1", [reviewId]);
     if (Array.isArray(review.key_findings)) {
       for (let i = 0; i < review.key_findings.length; i++) {
@@ -319,6 +348,97 @@ router.post("/sync/review", async (req, res): Promise<void> => {
            VALUES ($1,$2,$3,NOW())`,
           [reviewId, kf.content, kf.order_index ?? i]
         );
+      }
+    }
+
+    // ─── review_translations (Phase 3 — multilingual) ───
+    // Vercel ships the full set of currently-published translations on every
+    // sync. Delete-then-insert keeps Replit in lockstep — translations that
+    // disappear from the payload (unpublished on the admin side) disappear
+    // here too.
+    //
+    // Locale is stored in BCP-47 canonical case ('pt-BR' not 'pt-br'); URL
+    // routing lowercases the segment and re-normalises before the lookup,
+    // so the value stored here is directly usable as the `hreflang` /
+    // `inLanguage` attribute when rendering.
+    //
+    // We do NOT verify a per-translation `full_article` hash in V1 — the
+    // master integrity check above is the contract boundary with Vercel.
+    // If translation drift becomes an operational issue, add an
+    // `expected_full_article_hash` field per translation entry.
+    const ALLOWED_TRANSLATION_LOCALES = new Set(["it", "es", "de", "fr", "pt-BR"]);
+    const translationRefs: { locale: string; slug: string }[] = [];
+    await client.query("DELETE FROM review_translations WHERE review_id = $1", [reviewId]);
+    if (Array.isArray(review.translations)) {
+      for (const t of review.translations) {
+        if (!t || typeof t !== "object") continue;
+        const locale = typeof t.locale === "string" ? t.locale.trim() : "";
+        const tSlug = typeof t.slug === "string" ? t.slug.trim() : "";
+        const status = typeof t.status === "string" ? t.status : "published";
+        // Skip drafts and anything outside the allowlist — Vercel SHOULD only
+        // send published translations in the allowed locale set, but we
+        // defence-in-depth here so a single bad row can't poison the table or
+        // surface a /xx/ URL we don't support.
+        if (!locale || !tSlug || status !== "published") continue;
+        if (!ALLOWED_TRANSLATION_LOCALES.has(locale)) continue;
+
+        await client.query(
+          `INSERT INTO review_translations (
+            review_id, locale, slug, status,
+            title, meta_description, headline, alternative_headline,
+            summary, verdict, how_it_works, full_article,
+            red_flags, faq, key_takeaways,
+            not_for_you, protection_steps, methodology, disclaimer, expertise_depth,
+            translation_method, translator_name, translator_credentials,
+            ai_model, ai_prompt_version,
+            reviewed_at, word_count, published_at, source_review_updated_at, updated_at
+          ) VALUES (
+            $1,$2,$3,$4,
+            $5,$6,$7,$8,
+            $9,$10,$11,$12,
+            $13,$14,$15,
+            $16,$17,$18,$19,$20,
+            $21,$22,$23,
+            $24,$25,
+            $26,$27,$28,$29,NOW()
+          )`,
+          [
+            reviewId,
+            locale,
+            tSlug,
+            status,
+            t.title ?? null,
+            t.meta_description ?? null,
+            t.headline ?? null,
+            t.alternative_headline ?? null,
+            t.summary ?? null,
+            t.verdict ?? null,
+            t.how_it_works ?? null,
+            typeof t.full_article === "string"
+              ? normalizeFullArticleForIntegrity(t.full_article)
+              : null,
+            t.red_flags ? JSON.stringify(t.red_flags) : null,
+            t.faq ? JSON.stringify(t.faq) : null,
+            t.key_takeaways ? JSON.stringify(t.key_takeaways) : null,
+            t.not_for_you ?? null,
+            t.protection_steps ?? null,
+            t.methodology ?? null,
+            t.disclaimer ?? null,
+            t.expertise_depth ?? null,
+            t.translation_method ?? null,
+            t.translator_name ?? null,
+            t.translator_credentials ?? null,
+            t.ai_model ?? null,
+            t.ai_prompt_version ?? null,
+            t.reviewed_at ?? null,
+            typeof t.word_count === "number" ? t.word_count : null,
+            t.published_at ?? null,
+            t.source_review_updated_at ?? null,
+          ]
+        );
+        // Collect locale + translation slug; canonical-urls builds the actual
+        // URL (the same builder the sitemap uses) so the ping can't drift.
+        translationRefs.push({ locale, slug: tSlug });
       }
     }
 
@@ -357,7 +477,14 @@ router.post("/sync/review", async (req, res): Promise<void> => {
 
     await client.query("COMMIT");
 
-    submitToIndexNow([`https://cryptokiller.org/review/${review.slug}`]).catch(() => {});
+    // Fire-and-forget IndexNow ping — published reviews only, never drafts.
+    // Batches the master URL + every published-translation URL into one
+    // submission. URLs come from canonical-urls (the single source of truth
+    // shared with the sitemap), so a pinged URL is byte-identical to the
+    // indexed URL. Never awaited / never throws into the request lifecycle.
+    if ((review.status ?? "published") === "published") {
+      pingIndexNow(reviewUrls(review.slug, translationRefs));
+    }
 
     res.json({
       ok: true,

@@ -5,14 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AdEvidence } from "./adEvidence";
 import type { ContentImage } from "./contentImage";
 import type { FaqItem } from "./faqItem";
 import type { FunnelStage } from "./funnelStage";
 import type { GeoTarget } from "./geoTarget";
 import type { KeyFinding } from "./keyFinding";
+import type { RecentAd } from "./recentAd";
 import type { RedFlag } from "./redFlag";
 import type { ReviewFullThreatTier } from "./reviewFullThreatTier";
+import type { ReviewItemReviewed } from "./reviewItemReviewed";
 import type { ReviewSource } from "./reviewSource";
+import type { ReviewTranslationSummary } from "./reviewTranslationSummary";
 import type { VisualMeta } from "./visualMeta";
 
 export interface ReviewFull {
@@ -32,6 +36,8 @@ export interface ReviewFull {
   wordCount: number;
   readingMinutes: number;
   author: string;
+  /** Writer persona ID (e.g. "webb", "nair", "ortiz"). Resolves to a WRITER_PERSONAS entry on the client to render the byline and JSON-LD Person node from the same source. Null on pre-migration rows; client falls back to the legacy author field or the corporate default. */
+  authorPersonaId?: string | null;
   adCreatives: number;
   countriesTargeted: number;
   daysActive: number;
@@ -50,6 +56,12 @@ export interface ReviewFull {
   heroImageUrl?: string | null;
   /** Accessibility text for the hero image. */
   heroImageAlt?: string | null;
+  /** Attribution string rendered as a small caption below the hero image. Null when no credit was supplied. */
+  heroImageCredit?: string | null;
+  /** Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty. */
+  headline?: string | null;
+  /** Writer-supplied SEO title override (≤55 chars). When present, the client and SSR use this instead of the generic "{platformName} Scam Review — Threat Score N/100" formula. Mirrors `alternative_headline` in the Vercel CMS schema. Null for reviews that have not been through the Polish pipeline. */
+  alternativeHeadline?: string | null;
   /** Inline section images placed between content blocks. */
   contentImages: ContentImage[];
   /** Chart/diagram/infographic metadata. Only succeeded=true entries are rendered. */
@@ -70,4 +82,12 @@ export interface ReviewFull {
   threatBadge?: string | null;
   /** True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share/embed/copy strings must use hedged language when this is false. */
   frameAsScam: boolean;
+  /** When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender). */
+  itemReviewed?: ReviewItemReviewed | null;
+  /** Structured fraudulent-ad evidence (creative screenshots grouped by target country plus per-country detected-ad counts). Rendered in the "Evidence: Fraudulent Ad Creatives by Country" section. Null when the admin has not synced ad evidence for this review. */
+  adEvidence?: AdEvidence | null;
+  /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
+  translations: ReviewTranslationSummary[];
+  /** Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
+  recentAds: RecentAd[];
 }

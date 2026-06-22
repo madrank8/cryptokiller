@@ -19,9 +19,55 @@ export default function AboutPage() {
 
   usePageMeta({
     title: "About CryptoKiller — Crypto Scam Intelligence Platform",
-    description: "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 1,000 fraudulent brands across 84+ countries.",
+    description: "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 22,000 fraudulent brands across 84+ countries.",
     canonical: "https://cryptokiller.org/about",
-    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        breadcrumbJsonLd(crumbs),
+        {
+          "@type": "WebPage",
+          "@id": "https://cryptokiller.org/about#webpage",
+          url: "https://cryptokiller.org/about",
+          name: "About CryptoKiller — Crypto Scam Intelligence Platform",
+          description: "CryptoKiller is a crypto scam intelligence platform built by investigators who got tired of watching people lose money to the same recycled scams. We track over 22,000 fraudulent brands across 84+ countries.",
+          isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          about: { "@type": "Organization", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          inLanguage: "en",
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://cryptokiller.org/about#faq",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Does CryptoKiller accept payment to remove reviews?",
+              acceptedAnswer: { "@type": "Answer", text: "No. No brand has ever paid us to remove, alter, or soften an investigation, and no brand ever will. The only way to change a published investigation is to provide new evidence that changes the factual basis. If a brand offers payment for removal, we log it and it becomes part of the public record on the investigation page." },
+            },
+            {
+              "@type": "Question",
+              name: "How do you decide which brands to investigate?",
+              acceptedAnswer: { "@type": "Answer", text: "Our CryptoKiller ad-surveillance platform continuously scans paid advertising in 84+ countries. When a brand exceeds our threshold signals (ad volume, celebrity impersonation, jurisdictional targeting pattern, consumer-harm complaints), it enters our investigation queue. We also investigate brands reported to us directly through our reporting form." },
+            },
+            {
+              "@type": "Question",
+              name: "Are your threat scores objective?",
+              acceptedAnswer: { "@type": "Answer", text: "Threat scores are calculated from six categories of evidence using a documented scoring function (see our methodology page). The inputs are objective — ad volume, number of celebrities impersonated, jurisdictional reach, regulatory warnings, funnel signals, and infrastructure red flags. Two analysts scoring the same brand from the same evidence will arrive at the same score. Human editorial review happens on top of the calculated score to catch edge cases." },
+            },
+            {
+              "@type": "Question",
+              name: "What jurisdiction is CryptoKiller based in?",
+              acceptedAnswer: { "@type": "Answer", text: "CryptoKiller is operated by DEX Algo Technologies Pte Ltd., registered in Singapore. Investigations cover brands advertising globally and cite the regulators relevant to each jurisdiction where a scam is active." },
+            },
+            {
+              "@type": "Question",
+              name: "Can I submit a scam for investigation?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Use the reporting form at /report. Reports are confidential — your identity is never shared publicly. We cross-reference submissions with our CryptoKiller intelligence and open investigations when the evidence threshold is met." },
+            },
+          ],
+        },
+      ],
+    },
   });
 
   return (
@@ -63,7 +109,7 @@ export default function AboutPage() {
               icon: <Eye className="h-6 w-6" />,
               color: "text-red-400",
               bg: "bg-red-500/10 border-red-900/30",
-              stat: "1,000+",
+              stat: "22,000+",
               label: "Scam Brands Tracked",
             },
             {

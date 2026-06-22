@@ -1,3 +1,4 @@
+import "@/styles/blog-post.css";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -5,6 +6,7 @@ import { Calendar, Clock, ArrowLeft, ExternalLink, BookOpen, User, List } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import PreferredSourceButton from "@/components/PreferredSourceButton";
 import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
@@ -137,6 +139,35 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+/**
+ * Exact port of `pickTitleBase()` from server/prerender.ts `renderBlogPost`.
+ * Must stay in parity so the hydrated <title> never differs from the
+ * SSR-prerendered value and triggers crawler title-change signals.
+ *
+ * Rules (mirror prerender.ts exactly):
+ *  1. `title` present and ≤55 chars → use as-is.
+ *  2. `headline` present and ≤55 chars → use as-is.
+ *  3. Both too long → word-boundary truncate (t || h) before char 55
+ *     (min cut at char 30); strip trailing connectors/punctuation.
+ * Then append " | CryptoKiller" only when total length fits ≤70 chars.
+ */
+const BLOG_BRAND_SUFFIX = " | CryptoKiller";
+function pickBlogPostTitle(post: BlogPost): string {
+  const t = String(post.title || "").trim();
+  const h = String(post.headline || "").trim();
+  let base: string;
+  if (t && t.length <= 55) {
+    base = t;
+  } else if (h && h.length <= 55) {
+    base = h;
+  } else {
+    const candidate = (t || h).slice(0, 55);
+    const lastSpace = candidate.lastIndexOf(" ");
+    base = (lastSpace > 30 ? candidate.slice(0, lastSpace) : candidate).replace(/[\s—\-:,]+$/, "");
+  }
+  return base.length + BLOG_BRAND_SUFFIX.length <= 70 ? `${base}${BLOG_BRAND_SUFFIX}` : base;
 }
 
 function TableOfContents({ sections }: { sections: { heading: string }[] }) {
@@ -273,9 +304,9 @@ export default function BlogPostPage() {
       ...(aboutNodes.length ? { about: aboutNodes } : {}),
       ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
       ...(citationNodes.length ? { citation: citationNodes } : {}),
-      // Tie the Article to its evidence base (SpyOwl Dataset) when present.
+      // Tie the Article to its evidence base (CryptoKiller Dataset) when present.
       // Use the same @id suffix buildDataset emits; do not drift.
-      ...(datasetNode ? { isBasedOn: { "@id": `${pageUrl}#spyowl-dataset` } } : {}),
+      ...(datasetNode ? { isBasedOn: { "@id": `${pageUrl}#cryptokiller-dataset` } } : {}),
       speakable: buildSpeakable(post.speakableSelectors),
     };
     graph.push(articleSchema);
@@ -302,11 +333,16 @@ export default function BlogPostPage() {
   }, [post, persona, heroImage, slug, crumbs]);
 
   usePageMeta({
-    title: post ? `${post.title} | CryptoKiller` : "Blog | CryptoKiller",
+    title: post ? pickBlogPostTitle(post) : "Blog | CryptoKiller",
     description: post?.metaDescription || post?.summary || "CryptoKiller blog — crypto safety insights and guides.",
     canonical: `${BASE}/blog/${slug}`,
+    ogType: post ? "article" : undefined,
     ogImage: heroImage?.url ?? undefined,
     jsonLd,
+    // Preserve SSR-prerendered head while the post is still loading.
+    // Without this, crawlers executing JS see the generic "Blog | CryptoKiller"
+    // placeholder and og:type=website instead of the article-specific metadata.
+    skip: isLoading || !post,
   });
 
   const readingMinutes = post ? Math.max(1, Math.ceil(post.wordCount / 250)) : 0;
@@ -497,6 +533,7 @@ export default function BlogPostPage() {
 
           </article>
         )}
+        <PreferredSourceButton className="mt-2 mb-10" />
       </main>
 
       <SiteFooter />

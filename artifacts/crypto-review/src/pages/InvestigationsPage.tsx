@@ -36,11 +36,14 @@ function canonicalUrl(page: number): string {
   return page <= 1 ? `${BASE}/investigations` : `${BASE}/investigations?page=${page}`;
 }
 
-function getThreatLevel(score: number): { label: string; color: string; bg: string; border: string } {
-  if (score >= 90) return { label: "Critical", color: "text-red-400", bg: "bg-red-600", border: "border-red-600/30" };
-  if (score >= 70) return { label: "High", color: "text-orange-400", bg: "bg-orange-500", border: "border-orange-600/30" };
-  if (score >= 50) return { label: "Medium", color: "text-amber-400", bg: "bg-amber-500", border: "border-amber-600/30" };
-  return { label: "Low", color: "text-green-400", bg: "bg-green-600", border: "border-green-600/30" };
+function getThreatLevel(score: number): { label: string; color: string; bg: string; border: string; text: string } {
+  // `text` is the foreground used inside the solid `bg` score chip. White meets
+  // WCAG 4.5:1 on the dark red-600; the lighter orange/amber/green need
+  // near-black (slate-950) text to clear 4.5:1.
+  if (score >= 90) return { label: "Critical", color: "text-red-400", bg: "bg-red-600", border: "border-red-600/30", text: "text-white" };
+  if (score >= 70) return { label: "High", color: "text-orange-400", bg: "bg-orange-500", border: "border-orange-600/30", text: "text-slate-950" };
+  if (score >= 50) return { label: "Medium", color: "text-amber-400", bg: "bg-amber-500", border: "border-amber-600/30", text: "text-slate-950" };
+  return { label: "Low", color: "text-green-400", bg: "bg-green-600", border: "border-green-600/30", text: "text-slate-950" };
 }
 
 function StatsBar({ reviews }: { reviews: ReviewSummary[] }) {
@@ -69,11 +72,11 @@ function StatsBar({ reviews }: { reviews: ReviewSummary[] }) {
 }
 
 function ScoreBox({ score }: { score: number }) {
-  const { bg } = getThreatLevel(score);
+  const { bg, text } = getThreatLevel(score);
   return (
     <div className={`${bg} w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 shadow-lg`}>
-      <span className="text-white text-lg font-black leading-none">{score}</span>
-      <span className="text-white/60 text-[8px] font-bold">/100</span>
+      <span className={`${text} text-lg font-black leading-none`}>{score}</span>
+      <span className={`${text} text-[8px] font-bold`}>/100</span>
     </div>
   );
 }
@@ -277,9 +280,9 @@ export default function InvestigationsPage() {
       name:
         clampedPage > 1
           ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-          : "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
+          : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller",
       description:
-        "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
+        "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.",
       isPartOf: { "@id": `${BASE}/#website` },
       inLanguage: "en",
     };
@@ -310,8 +313,8 @@ export default function InvestigationsPage() {
   usePageMeta({
     title: clampedPage > 1
       ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-      : "Crypto Scam Investigations Database — 1,000+ Platforms | CryptoKiller",
-    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.",
+      : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller",
+    description: "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.",
     canonical: canonicalUrl(clampedPage),
     jsonLd: investigationsJsonLd,
     prevPage: prevHref,

@@ -1,0 +1,24 @@
+Fix: review/blog pages render the page 3× and dump JSON-LD as visible text
+
+Symptom (live): https://cryptokiller.org/review/quantum-ai — scroll down and you'll see a large block of raw JSON/structured-data rendered as visible body text, e.g. …accelerating deployment rate. The ope…","about":[{"@type":"Thing","name":"Celebrity endorsement scam","description":"…"},{"@type":"Thing","name":"Deepfake",…}]. The page also renders far more than it should.
+
+Hard evidence from the served HTML:
+
+The full document is emitted three times — there are three <body> tags in a single response (byte offsets ~10,333 / 76,086 / 149,521). Segment 1 starts <div id="root"><!--SSR-BODY-START--><header…> (the real review); segments 2 & 3 start <div id="root"><!--SSR-BODY-START--><div style="bac…>.
+The legitimate JSON-LD <script type="application/ld+json"> is present and correctly closed (one block, offsets ~2,607–10,071). The visible JSON dump at offset ~49,343 is the same @graph content rendered a second time as plain body text — i.e. the structured-data graph is being injected into the DOM body, not only into the script tag.
+<script> open/close tags are imbalanced (4 opens vs 5 </script>).
+What is NOT the cause (already ruled out):
+
+Stored data is clean. In Supabase (reviews table), full_article for quantum-ai and all 21 review rows contains zero "@type", zero "about":[, zero <body>/<html> tags. The corruption is introduced at render time, not in the data.
+GitHub main (e2ae236) does not reproduce this. There, server/index.ts does a single <!--SSR-BODY-START-->…<!--SSR-BODY-END--> replace (one body) and emits JSON-LD only via safeJsonLd (escapes <→\u003c) inside one <script>. So the deployed build differs from main — please diagnose against the code actually running.
+Likely root causes to check (in artifacts/crypto-review/server/ and the SSR entry):
+
+Document tripling — the SSR shell/index.html injection is running 2–3× or concatenating instead of replacing, OR renderReview()/renderBlogPost() bodyHtml now contains a full document. Verify only one <!--SSR-BODY-START-->…END--> region is replaced and bodyHtml has no <html>/<head>/<body>.
+JSON-LD leaking into the body — the schema @graph (the about/Thing/Person/Deepfake nodes built from schema_enrichment) is being rendered into visible HTML in addition to the JSON-LD <script>. It should appear only inside the escaped <script type="application/ld+json">. Find where the structured-data object is stringified into the body and remove it.
+Confirm JSON-LD is escaped (<→\u003c) before injection so it can't break the <script>.
+Acceptance / verify:
+
+curl -s https://cryptokiller.org/review/quantum-ai | grep -c '<body'          # must be 1
+curl -s https://cryptokiller.org/review/quantum-ai | grep -c '<script'         # opens == </script> closers
+# After fix: no visible '{"@type"' text in the rendered body; JSON-LD only inside the ld+json <script>.
+Apply the same fix to blog post pages (same render path). Also fix senvix, blackrose-finbitnex, primeaura, trade-vector-ai etc. if they share the template (they will).

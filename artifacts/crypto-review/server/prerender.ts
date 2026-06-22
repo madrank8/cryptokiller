@@ -1,3 +1,4 @@
+// build-cache-bust: 2026-05-19T11:40Z
 import { eq, and, desc, sql, asc, count } from "drizzle-orm";
 import {
   db,
@@ -10,7 +11,15 @@ import {
   keyFindingsTable,
   funnelStagesTable,
   platformAggregatesTable,
+  reviewTranslationsTable,
 } from "@workspace/db";
+import {
+  LOCALE_HREFLANG as TRANSLATION_LOCALE_HREFLANG,
+  LOCALE_LANGUAGE_LABEL_EN,
+  TRANSLATION_METHOD_LABEL,
+  formatLocaleDate,
+  STALE_TRANSLATION_THRESHOLD_MS,
+} from "@workspace/i18n";
 import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
 import { stripMarkdownLinks, stripMarkdownLinksDeep } from "../src/lib/markdownLinks.js";
@@ -41,6 +50,8 @@ import {
   substitutePlatformStatTokensDeep,
   type PlatformAggregatesForTokens,
 } from "../src/lib/platformStatTokens.js";
+import { sanitizeRichHtml } from "./html-sanitizer.js";
+import { getRecentAdsForBrand } from "./supabase-recent-ads.js";
 
 // Fetch the combined platform-aggregate snapshot used to substitute
 // {{platform_stat:KEY}} tokens on blog renders. Vercel-synced fields come
@@ -175,6 +186,24 @@ export interface RenderResult {
   lastModified?: string;
   prevPage?: string;
   nextPage?: string;
+  // When set, the server should issue a redirect to this URL instead of
+  // rendering HTML. `status` carries the redirect code (301).
+  redirectTo?: string;
+  // Phase 5 — SEO localization. `htmlLang` overrides the `<html lang>` attr
+  // (default `en` in index.html). `alternates` emits one
+  // `<link rel="alternate" hreflang>` per entry plus an `x-default`. When
+  // `noTranslate` is true we emit `<meta name="googlebot" content="notranslate">`
+  // — used on the EN master review page when ≥1 translation exists so
+  // Google's Translated Results doesn't ship a machine translation that
+  // competes with our editorial one.
+  htmlLang?: string;
+  alternates?: Array<{ hreflang: string; href: string }>;
+  noTranslate?: boolean;
+  // Open Graph locale. OG locale format uses underscores (`en_US`, `it_IT`,
+  // `pt_BR`). `ogLocale` sets `og:locale`; `ogLocaleAlternates` emits one
+  // `og:locale:alternate` per sibling locale in a translated cluster.
+  ogLocale?: string;
+  ogLocaleAlternates?: string[];
 }
 
 function esc(s: string | null | undefined): string {
@@ -246,12 +275,55 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
   return { ref, node };
 }
 
+// Named human reviewer for YMYL E-E-A-T. Emitted as `reviewedBy` on the Review
+// and BlogPosting JSON-LD nodes so Google sees a real, accountable person who
+// signed off on the content (distinct from the persona who authored it). The
+// @id is stable and the url points at the public /ai-disclosure page that
+// documents our editorial standards. Only ever serialized inside the escaped
+// <script type="application/ld+json"> — never rendered into the page body.
+const REVIEWER_PERSON = {
+  "@type": "Person",
+  "@id": `${BASE}/#reviewer-john-feldt`,
+  name: "John Feldt",
+  jobTitle: "Editorial Standards Reviewer",
+  url: `${BASE}/ai-disclosure`,
+  sameAs: ["https://www.linkedin.com/in/john-feldt-240838249/"],
+  worksFor: { "@id": ORG_ID },
+};
+
 function siteHeaderHtml(): string {
   return `<header role="banner"><nav aria-label="Primary"><a href="/">CryptoKiller</a> · <a href="/investigations">Investigations</a> · <a href="/blog">Blog</a> · <a href="/methodology">Methodology</a> · <a href="/recovery">Recovery</a> · <a href="/report">Report a Scam</a> · <a href="/about">About</a></nav></header>`;
 }
 
 function siteFooterHtml(): string {
   return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:corrections@cryptokiller.org">Editorial corrections</a></p></footer>`;
+}
+
+// Google "Preferred Source" badge (https://developers.google.com/search/docs/appearance/preferred-sources).
+// Deeplink is domain-only — cryptokiller.org is domain-eligible. Self-hosted
+// official light-theme badge asset; rendered at the end of every review/blog
+// article. Mirrors the CSR component src/components/PreferredSourceButton.tsx.
+function preferredSourceHtml(): string {
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin:32px 0"><a href="https://google.com/preferences/source?q=cryptokiller.org" target="_blank" rel="noopener" aria-label="Add CryptoKiller as a preferred source on Google"><img src="/google-preferred-source.png" alt="Add CryptoKiller as a preferred source on Google" height="48" style="height:48px;width:auto;display:block;border:0" loading="lazy"></a><p style="font-size:12px;color:#64748b;text-align:center;max-width:20rem;margin:0">Prioritize CryptoKiller&#39;s scam investigations in your Google results.</p></div>`;
+}
+
+/**
+ * Crawlable analyst directory for the SSR home + about pages. Mirrors the
+ * client ResearchTeam.tsx / AboutPage.tsx "Investigation Team" sections,
+ * sourced from the same WRITER_PERSONAS registry. Emits one internal link
+ * per analyst to /author/:slug so crawlers and AI bots see the author hub
+ * (E-E-A-T + internal linking) in the pre-hydration HTML, not only in the
+ * JS-rendered client tree. Plain anchors (no rel="author") — these list the
+ * team, they are not the author of the listing page.
+ */
+function analystDirectoryHtml(headingId = "analysts-heading"): string {
+  const items = Object.values(WRITER_PERSONAS)
+    .map(
+      (a) =>
+        `<li><a href="/author/${a.slug}"><strong>${esc(a.name)}</strong></a> — ${esc(a.role)}. ${esc(a.credentials)}. ${esc(a.bio)}</li>`,
+    )
+    .join("");
+  return `<section aria-labelledby="${headingId}"><h2 id="${headingId}">Our analysts</h2><p>Every CryptoKiller investigation is authored by a named analyst — never anonymous AI output. Each profile links to that analyst's full background and published investigations.</p><ul>${items}</ul></section>`;
 }
 
 interface StaticSection {
@@ -275,6 +347,8 @@ interface StaticPageInput {
   faq?: StaticFaq[];
   ogType?: string;
   jsonLd?: Record<string, unknown>;
+  /** When true, inject the crawlable analyst directory before the FAQ. */
+  analystDirectory?: boolean;
 }
 
 function renderStaticPage(p: StaticPageInput): RenderResult {
@@ -305,6 +379,7 @@ function renderStaticPage(p: StaticPageInput): RenderResult {
 <h1>${esc(p.h1)}</h1>
 <p>${esc(p.intro)}</p>
 ${sectionsHtml}
+${p.analystDirectory ? analystDirectoryHtml() : ""}
 ${faqHtml}
 <p><a href="/">Back to home</a> · <a href="/investigations">Browse investigations</a> · <a href="/blog">Read the blog</a></p>
 </article>
@@ -383,7 +458,7 @@ async function renderHome(): Promise<RenderResult> {
 
   const title = "CryptoKiller — Crypto Scam Checker & Investigations";
   const description =
-    "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.";
+    "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.";
 
   const recentList = recent
     .map(
@@ -399,6 +474,7 @@ async function renderHome(): Promise<RenderResult> {
 <p>Each investigation combines real-time ad surveillance, blockchain forensics, and OSINT to produce an evidence-based threat score from 0 to 100. Every score is auditable and links to the underlying ad creatives, registration patterns, and red flags.</p>
 <h2>Recently published investigations</h2>
 <ul>${recentList}</ul>
+${analystDirectoryHtml()}
 <p><a href="/investigations">Browse all investigations</a> · <a href="/methodology">Read our methodology</a> · <a href="/report">Report a scam</a></p>
 </main>${siteFooterHtml()}`;
 
@@ -439,9 +515,39 @@ async function renderHome(): Promise<RenderResult> {
 }
 
 async function renderInvestigationsList(query: URLSearchParams): Promise<RenderResult> {
-  const pageNum = Math.max(1, Number(query.get("page")) || 1);
+  const rawPage = query.get("page");
+  const parsedNum = rawPage !== null ? Number(rawPage) : NaN;
   const PER_PAGE = 20;
-  const offset = (pageNum - 1) * PER_PAGE;
+
+  // Malformed or zero/negative page param → 301 to /investigations
+  if (rawPage !== null && (Number.isNaN(parsedNum) || !Number.isFinite(parsedNum) || parsedNum < 1 || !Number.isInteger(parsedNum))) {
+    return {
+      status: 301,
+      redirectTo: `${BASE}/investigations`,
+      title: "",
+      description: "",
+      canonical: `${BASE}/investigations`,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml: "",
+    };
+  }
+
+  // Explicit ?page=1 → 301 to /investigations (canonical form)
+  if (rawPage !== null && parsedNum === 1) {
+    return {
+      status: 301,
+      redirectTo: `${BASE}/investigations`,
+      title: "",
+      description: "",
+      canonical: `${BASE}/investigations`,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml: "",
+    };
+  }
+
+  const pageNum = rawPage === null ? 1 : parsedNum;
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -449,7 +555,21 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     .where(eq(reviewsTable.status, "published"));
 
   const totalPages = Math.max(1, Math.ceil(count / PER_PAGE));
-  const clampedPage = Math.min(pageNum, totalPages);
+
+  // Out-of-range page → 301 to the last valid page
+  if (pageNum > totalPages) {
+    const target = totalPages > 1 ? `${BASE}/investigations?page=${totalPages}` : `${BASE}/investigations`;
+    return {
+      status: 301,
+      redirectTo: target,
+      title: "",
+      description: "",
+      canonical: target,
+      ogType: "website",
+      ogImage: DEFAULT_OG_IMAGE,
+      bodyHtml: "",
+    };
+  }
 
   const rows = await db
     .select({
@@ -464,16 +584,16 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     .where(eq(reviewsTable.status, "published"))
     .orderBy(desc(reviewsTable.updatedAt))
     .limit(PER_PAGE)
-    .offset((clampedPage - 1) * PER_PAGE);
+    .offset((pageNum - 1) * PER_PAGE);
 
   const title =
-    clampedPage > 1
-      ? `Crypto Scam Investigations — Page ${clampedPage} | CryptoKiller`
-      : "Crypto Scam Investigations — 1,000+ Platforms | CryptoKiller";
+    pageNum > 1
+      ? `Crypto Scam Investigations — Page ${pageNum} | CryptoKiller`
+      : "Crypto Scam Investigations — 22,000+ Platforms | CryptoKiller";
   const description =
-    "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 1,000+ tracked platforms with evidence-based reviews.";
+    "Browse all active crypto scam investigations. Filter by threat level, sort by threat score, and search 22,000+ tracked platforms with evidence-based reviews.";
 
-  const canonical = clampedPage > 1 ? `${BASE}/investigations?page=${clampedPage}` : `${BASE}/investigations`;
+  const canonical = pageNum > 1 ? `${BASE}/investigations?page=${pageNum}` : `${BASE}/investigations`;
 
   const lastModified = rows[0]?.updatedAt ? new Date(rows[0].updatedAt).toUTCString() : undefined;
 
@@ -484,13 +604,13 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     )
     .join("");
 
-  const prevPage = clampedPage > 1 ? `${BASE}/investigations${clampedPage - 1 > 1 ? `?page=${clampedPage - 1}` : ""}` : undefined;
-  const nextPage = clampedPage < totalPages ? `${BASE}/investigations?page=${clampedPage + 1}` : undefined;
+  const prevPage = pageNum > 1 ? `${BASE}/investigations${pageNum - 1 > 1 ? `?page=${pageNum - 1}` : ""}` : undefined;
+  const nextPage = pageNum < totalPages ? `${BASE}/investigations?page=${pageNum + 1}` : undefined;
 
   const bodyHtml = `${siteHeaderHtml()}<main>
 <h1>Crypto Scam Investigations</h1>
-<p>${count.toLocaleString()} published investigations. Showing page ${clampedPage} of ${totalPages}.</p>
-<ol start="${(clampedPage - 1) * PER_PAGE + 1}">${itemsHtml}</ol>
+<p>${count.toLocaleString()} published investigations. Showing page ${pageNum} of ${totalPages}.</p>
+<ol start="${(pageNum - 1) * PER_PAGE + 1}">${itemsHtml}</ol>
 <nav aria-label="Pagination">${prevPage ? `<a rel="prev" href="${esc(prevPage)}">Previous</a> · ` : ""}${nextPage ? `<a rel="next" href="${esc(nextPage)}">Next</a>` : ""}</nav>
 </main>${siteFooterHtml()}`;
 
@@ -543,6 +663,8 @@ async function renderBlogList(): Promise<RenderResult> {
         summary: blogPostsTable.summary,
         metaDescription: blogPostsTable.metaDescription,
         updatedAt: blogPostsTable.updatedAt,
+        authorPersonaId: blogPostsTable.authorPersonaId,
+        publishedAt: blogPostsTable.publishedAt,
       })
       .from(blogPostsTable)
       .where(eq(blogPostsTable.status, "published"))
@@ -561,10 +683,13 @@ async function renderBlogList(): Promise<RenderResult> {
   const lastModified = rows[0]?.updatedAt ? new Date(rows[0].updatedAt).toUTCString() : undefined;
 
   const itemsHtml = rows
-    .map(
-      (b) =>
-        `<li><h3><a href="/blog/${esc(b.slug)}">${esc(b.headline || b.title)}</a></h3><p>${esc(truncate(b.metaDescription || b.summary || "", 220))}</p></li>`,
-    )
+    .map((b) => {
+      const persona = b.authorPersonaId ? WRITER_PERSONAS[b.authorPersonaId] : undefined;
+      const bylineHtml = persona
+        ? `<p class="byline">By <a href="/author/${esc(persona.slug)}" rel="author">${esc(persona.name)}</a>, ${esc(persona.role)}</p>`
+        : "";
+      return `<li><h3><a href="/blog/${esc(b.slug)}">${esc(b.headline || b.title)}</a></h3>${bylineHtml}<p>${esc(truncate(b.metaDescription || b.summary || "", 220))}</p></li>`;
+    })
     .join("");
 
   const bodyHtml = `${siteHeaderHtml()}<main>
@@ -572,6 +697,29 @@ async function renderBlogList(): Promise<RenderResult> {
 <p>${description}</p>
 <ul>${itemsHtml}</ul>
 </main>${siteFooterHtml()}`;
+
+  const pageNode: Record<string, unknown> = {
+    "@type": "CollectionPage",
+    "@id": `${BASE}/blog#webpage`,
+    url: `${BASE}/blog`,
+    name: title,
+    description,
+    isPartOf: { "@id": WEBSITE_ID },
+    inLanguage: "en",
+  };
+
+  if (rows.length > 0) {
+    pageNode.mainEntity = {
+      "@type": "ItemList",
+      numberOfItems: rows.length,
+      itemListElement: rows.slice(0, 10).map((b, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${BASE}/blog/${b.slug}`,
+        name: b.headline || b.title,
+      })),
+    };
+  }
 
   return {
     status: 200,
@@ -592,15 +740,7 @@ async function renderBlogList(): Promise<RenderResult> {
           { label: "Home", href: `${BASE}/` },
           { label: "Blog", href: `${BASE}/blog` },
         ]),
-        {
-          "@type": "CollectionPage",
-          "@id": `${BASE}/blog#webpage`,
-          url: `${BASE}/blog`,
-          name: title,
-          description,
-          isPartOf: { "@id": WEBSITE_ID },
-          inLanguage: "en",
-        },
+        pageNode,
       ],
     },
   };
@@ -633,13 +773,13 @@ function datasetJsonAlignedWithReviewStats(
   if (!dataset || typeof dataset !== "object") return dataset;
   const d = { ...(dataset as Record<string, unknown>) };
   const name = params.platformName.trim() || "this platform";
-  d.name = `SpyOwl ${name} Scam Intelligence Dataset`;
+  d.name = `CryptoKiller ${name} Scam Intelligence Dataset`;
   const ads = Number(params.adCreatives ?? 0) || 0;
   const countries = Number(params.countriesTargeted ?? 0) || 0;
   const days = Number(params.daysActive ?? 0) || 0;
   if (ads > 0 || countries > 0 || days > 0) {
     d.description =
-      `SpyOwl surveillance dataset for ${name}: ${ads} ad creatives across ${countries} countries over ${days} days.`;
+      `CryptoKiller surveillance dataset for ${name}: ${ads} ad creatives across ${countries} countries over ${days} days.`;
   }
   const start = toDatasetIsoDay(params.firstDetected);
   const end = toDatasetIsoDay(params.lastActive);
@@ -651,7 +791,124 @@ function datasetJsonAlignedWithReviewStats(
   return d;
 }
 
-async function renderReview(slug: string): Promise<RenderResult> {
+// Locale allowlist for translation rendering. Must stay in lockstep with
+// the sync handler (api-server/src/routes/sync.ts), the API endpoint
+// (api-server/src/routes/reviews.ts), and the SPA router (src/App.tsx +
+// src/pages/ReviewPage.tsx). Values are BCP-47 canonical case — the URL
+// matcher below lowercases the segment and normalises pt-br → pt-BR.
+const TRANSLATION_LOCALE_CANONICAL: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-br": "pt-BR",
+};
+
+// BCP-47 (DB canonical case, the value stored in review_translations.locale)
+// → URL segment (always lowercase). Inverse of TRANSLATION_LOCALE_CANONICAL.
+const TRANSLATION_LOCALE_URL_SEGMENT: Record<string, string> = {
+  it: "it",
+  es: "es",
+  de: "de",
+  fr: "fr",
+  "pt-BR": "pt-br",
+};
+
+// BCP-47 → `<html lang>` long form. Per Phase 5 cheat sheet: the URL/hreflang
+// value is bare (`it`, `es`, `de`, `fr`) but `<html lang>` carries the
+// regional variant (`it-IT`, `es-ES`, `de-DE`, `fr-FR`). pt-BR is the same
+// in both contexts because it's already a regional form.
+const TRANSLATION_LOCALE_HTML_LANG: Record<string, string> = {
+  it: "it-IT",
+  es: "es-ES",
+  de: "de-DE",
+  fr: "fr-FR",
+  "pt-BR": "pt-BR",
+};
+
+// BCP-47 → hreflang attribute value. Per the brief's cheat sheet:
+// `en` (NOT en-US) for the master, bare `it`/`es`/`de`/`fr` for European
+// locales, canonical `pt-BR` for Brazilian Portuguese. Google rejects
+// `es-419` and treats `en-US` as a US-only target when we don't want that.
+// TRANSLATION_LOCALE_HREFLANG, LOCALE_LANGUAGE_LABEL_EN,
+// TRANSLATION_METHOD_LABEL — see @workspace/i18n (imported at top).
+
+// Build the full set of hreflang alternates for a review (master + every
+// published translation + x-default → master). Identical set is emitted
+// on the EN master AND every locale page — bidirectional reciprocity is
+// required or Google silently ignores the whole hreflang cluster.
+function buildReviewAlternates(args: {
+  masterSlug: string;
+  siblings: Array<{ locale: string; slug: string }>;
+}): Array<{ hreflang: string; href: string }> {
+  const masterUrl = `${BASE}/review/${args.masterSlug}`;
+  const out: Array<{ hreflang: string; href: string }> = [
+    { hreflang: "en", href: masterUrl },
+  ];
+  for (const t of args.siblings) {
+    const seg = TRANSLATION_LOCALE_URL_SEGMENT[t.locale];
+    const hl = TRANSLATION_LOCALE_HREFLANG[t.locale];
+    if (!seg || !hl) continue;
+    out.push({ hreflang: hl, href: `${BASE}/${seg}/review/${t.slug}` });
+  }
+  out.push({ hreflang: "x-default", href: masterUrl });
+  return out;
+}
+
+async function renderReview(
+  slug: string,
+  opts?: { locale?: string },
+): Promise<RenderResult> {
+  // When `opts.locale` is set, `slug` is the **per-locale** translation
+  // slug (e.g. `quantum-ai-it`), NOT the master slug. We resolve the
+  // translation row first by (locale, per-locale slug); that gives us
+  // the master `review_id` which we then use to load the structural row
+  // below. Looking up the master by the URL slug here would be wrong on
+  // two axes:
+  //   (a) The per-locale slug usually doesn't exist as a master slug,
+  //       so the master fetch would 404 even though the translation
+  //       exists.
+  //   (b) If it accidentally did exist as a master slug (slug collision
+  //       across the two tables), we'd render the wrong review with
+  //       translated overlay on top — silent content corruption.
+  // The translation row is also captured here so the overlay block
+  // further down doesn't need to re-fetch it.
+  let translationRow:
+    | typeof reviewTranslationsTable.$inferSelect
+    | null = null;
+  let masterSlug = slug;
+  if (opts?.locale) {
+    const [tx] = await db
+      .select()
+      .from(reviewTranslationsTable)
+      .where(
+        and(
+          eq(reviewTranslationsTable.locale, opts.locale),
+          eq(reviewTranslationsTable.slug, slug),
+          eq(reviewTranslationsTable.status, "published"),
+        ),
+      )
+      .limit(1);
+    if (!tx) {
+      const urlLocale = opts.locale.toLowerCase();
+      return renderNotFound(`/${urlLocale}/review/${slug}`);
+    }
+    translationRow = tx;
+    const [masterRef] = await db
+      .select({ slug: reviewsTable.slug })
+      .from(reviewsTable)
+      .where(eq(reviewsTable.id, tx.reviewId))
+      .limit(1);
+    if (!masterRef) {
+      // Orphan translation — master deleted between syncs. Should be
+      // impossible under normal sync (translations are wiped when the
+      // master is re-synced) but defend against it.
+      const urlLocale = opts.locale.toLowerCase();
+      return renderNotFound(`/${urlLocale}/review/${slug}`);
+    }
+    masterSlug = masterRef.slug;
+  }
+
   // `row` and the child-table arrays are reassigned below to substituted
   // copies after stat-token replacement; declared `let` for that reason.
   // eslint-disable-next-line prefer-const
@@ -679,6 +936,8 @@ async function renderReview(slug: string): Promise<RenderResult> {
       // expertise-depth sections without extra round-trips.
       heroImageUrl: reviewsTable.heroImageUrl,
       heroImageAlt: reviewsTable.heroImageAlt,
+      heroImageCredit: reviewsTable.heroImageCredit,
+      headline: reviewsTable.headline,
       contentImages: reviewsTable.contentImages,
       visualMeta: reviewsTable.visualMeta,
       protectionSteps: reviewsTable.protectionSteps,
@@ -709,6 +968,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
       howTo: reviewsTable.howTo,
       quotes: reviewsTable.quotes,
       claims: reviewsTable.claims,
+      adEvidence: reviewsTable.adEvidence,
       platformName: platformsTable.name,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -722,17 +982,22 @@ async function renderReview(slug: string): Promise<RenderResult> {
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
-    .where(eq(reviewsTable.slug, slug))
+    .where(eq(reviewsTable.slug, masterSlug))
     .limit(1);
 
-  if (!row || row.status !== "published") return renderNotFound(`/review/${slug}`);
+  if (!row || row.status !== "published") {
+    // 404 URL string differs per dispatch so logs stay accurate.
+    const urlLocale = opts?.locale?.toLowerCase();
+    const notFoundPath = urlLocale ? `/${urlLocale}/review/${slug}` : `/review/${slug}`;
+    return renderNotFound(notFoundPath);
+  }
 
   // ── Fetch all narrative child tables in parallel. Each is an ordered
   //    list keyed by review_id. Prior to this change none of these were
   //    rendered into the server HTML, so Google saw ~10% of the actual
   //    investigation content.
   // eslint-disable-next-line prefer-const
-  let [redFlags, faqItems, keyFindings, funnelStages] = await Promise.all([
+  let [redFlags, faqItems, keyFindings, funnelStages, recentAds] = await Promise.all([
     db
       .select({
         emoji: redFlagsTable.emoji,
@@ -767,6 +1032,12 @@ async function renderReview(slug: string): Promise<RenderResult> {
       .from(funnelStagesTable)
       .where(eq(funnelStagesTable.reviewId, row.id))
       .orderBy(asc(funnelStagesTable.stageNumber)),
+    // recentAds — live-derived from Supabase by brand name match. Up to 4
+    // CryptoKiller ad creatives in the trailing 7d (all-time fallback if empty).
+    // Rendered SSR so the evidence text (named celebrities, ad copy in
+    // original language, landing URL) is in the HTML Google and AI
+    // Overviews crawl. Empty array → section omitted.
+    getRecentAdsForBrand(row.platformName),
   ]);
 
   // ── Defensive funnel_stages dedup ─────────────────────────────────────
@@ -799,6 +1070,70 @@ async function renderReview(slug: string): Promise<RenderResult> {
   let dedupedFunnelStages = [..._funnelStagesByNumber.entries()]
     .sort(([a], [b]) => a - b)
     .map(([, fs]) => fs);
+
+  // ── Translation overlay ============================================
+  // Apply translated text fields onto `row` + the child arrays. The
+  // translation row itself was already fetched at the top of this
+  // function (so we could resolve the master slug from review_id) — we
+  // just use it here. Overlay runs BEFORE stat-token substitution so
+  // `{{stat:KEY}}` tokens embedded in translated prose get substituted on
+  // the same pass as English. Master structural fields (threatScore,
+  // dates, hero image, stats, geo, persona, schema enrichment) are left
+  // untouched — only user-visible text swaps.
+  //
+  // hreflang link tags, canonical URL, <html lang>, and JSON-LD
+  // inLanguage/workTranslation/translationOfWork are NOT updated in this
+  // phase — they remain pointed at the EN master. Phase 5 adds the SEO
+  // localisation pass.
+  if (translationRow) {
+    row = {
+      ...row,
+      summary: translationRow.summary ?? row.summary,
+      verdict: translationRow.verdict ?? row.verdict,
+      // Translations don't carry a separate heroDescription column — the
+      // translated `summary` doubles as the hero subtitle. Mirrors the
+      // CSR mapping in src/pages/ReviewPage.tsx::buildTranslatedReview.
+      heroDescription: translationRow.summary ?? row.heroDescription,
+      metaDescription: translationRow.metaDescription ?? row.metaDescription,
+      methodologyText: translationRow.methodology ?? row.methodologyText,
+      disclaimerText: translationRow.disclaimer ?? row.disclaimerText,
+      protectionSteps: translationRow.protectionSteps ?? row.protectionSteps,
+      notForYou: translationRow.notForYou ?? row.notForYou,
+      expertiseDepth: translationRow.expertiseDepth ?? row.expertiseDepth,
+      fullArticle: translationRow.fullArticle ?? row.fullArticle,
+      alternativeHeadline: translationRow.alternativeHeadline ?? row.alternativeHeadline,
+    };
+
+    // Translator-supplied JSON arrays override master structured rows
+    // when populated. Items may use either {flag, detail} or
+    // {title, description} keys — the OpenAPI contract allows both.
+    if (Array.isArray(translationRow.redFlags) && translationRow.redFlags.length > 0) {
+      redFlags = translationRow.redFlags.map((r) => {
+        const item = r as Record<string, unknown>;
+        return {
+          emoji: typeof item.emoji === "string" ? item.emoji : "⚠️",
+          title: typeof item.title === "string"
+            ? item.title
+            : (typeof item.flag === "string" ? item.flag : ""),
+          description: typeof item.description === "string"
+            ? item.description
+            : (typeof item.detail === "string" ? item.detail : ""),
+        };
+      });
+    }
+    if (Array.isArray(translationRow.faq) && translationRow.faq.length > 0) {
+      faqItems = translationRow.faq.map((f) => {
+        const item = f as Record<string, unknown>;
+        return {
+          question: typeof item.question === "string" ? item.question : "",
+          answer: typeof item.answer === "string" ? item.answer : "",
+        };
+      });
+    }
+    if (Array.isArray(translationRow.keyTakeaways) && translationRow.keyTakeaways.length > 0) {
+      keyFindings = translationRow.keyTakeaways.map((s) => ({ content: String(s) }));
+    }
+  }
 
   // ── Stat-token substitution =========================================
   // Producer side (Vercel writer pipeline) is being migrated to emit
@@ -945,7 +1280,80 @@ async function renderReview(slug: string): Promise<RenderResult> {
     row.metaDescription || row.heroDescription || row.summary || `${platformName} crypto scam investigation. Threat score ${row.threatScore}/100. Evidence, red flags, ad surveillance, and verdict from the CryptoKiller research team.`,
     160,
   );
-  const canonical = `${BASE}/review/${slug}`;
+  // ─── Phase 5: SEO localisation primitives ──────────────────────────
+  // Load all published sibling translations for this master review (always,
+  // not just when rendering a locale page). Needed for:
+  //   • hreflang reciprocity — every page in the cluster (EN + each locale)
+  //     emits the SAME alternate set.
+  //   • workTranslation[] on the EN master's Review JSON-LD node.
+  //   • notranslate meta on EN master when ≥1 translation exists.
+  //
+  // The translator_name comes along so the locale page's Review.translator
+  // node has a real attribution. Status is filtered to 'published' here —
+  // drafts MUST NOT leak into hreflang/sitemap/JSON-LD or Google will index
+  // 404s and disable the cluster.
+  const siblings = await db
+    .select({
+      locale: reviewTranslationsTable.locale,
+      slug: reviewTranslationsTable.slug,
+      translatorName: reviewTranslationsTable.translatorName,
+      translationMethod: reviewTranslationsTable.translationMethod,
+    })
+    .from(reviewTranslationsTable)
+    .where(
+      and(
+        eq(reviewTranslationsTable.reviewId, row.id),
+        eq(reviewTranslationsTable.status, "published"),
+      ),
+    )
+    .orderBy(asc(reviewTranslationsTable.locale));
+
+  const isLocale = !!opts?.locale && !!translationRow;
+  const inLanguage = isLocale
+    ? (TRANSLATION_LOCALE_HREFLANG[opts!.locale!] ?? opts!.locale!)
+    : "en";
+  const htmlLang = isLocale
+    ? (TRANSLATION_LOCALE_HTML_LANG[opts!.locale!] ?? opts!.locale!)
+    : "en";
+  // Self-canonical per page. NEVER point a translation at the EN master —
+  // Google will then ignore the translation and dedupe it under the master.
+  const canonical = isLocale
+    ? `${BASE}/${TRANSLATION_LOCALE_URL_SEGMENT[opts!.locale!]}/review/${translationRow!.slug}`
+    : `${BASE}/review/${slug}`;
+  // Identical alternates set is emitted on EN master AND every locale page
+  // (bidirectional reciprocity). Includes self.
+  const alternates = buildReviewAlternates({
+    masterSlug: row.slug,
+    siblings,
+  });
+  // googlebot=notranslate on the EN master ONLY — and only when at least
+  // one editorial translation exists. Without this, Google's Translated
+  // Results feature serves a machine translation of the EN page that
+  // competes with our manual one. Translation pages never get notranslate.
+  const noTranslate = !isLocale && siblings.length > 0;
+
+  // og:locale — Open Graph locale uses underscore format (`en_US`, `it_IT`).
+  // The OG locale map converts from our internal BCP-47 locale keys → OG format.
+  // `ogLocaleAlternates` lists the OTHER locales in the cluster so crawlers
+  // can discover related translated pages via <meta property="og:locale:alternate">.
+  const OG_LOCALE_MAP: Record<string, string> = {
+    it: "it_IT",
+    es: "es_ES",
+    de: "de_DE",
+    fr: "fr_FR",
+    "pt-BR": "pt_BR",
+  };
+  const currentOgLocale = isLocale
+    ? (OG_LOCALE_MAP[opts!.locale!] ?? opts!.locale!.replace("-", "_"))
+    : "en_US";
+  // Build alternates list — every locale in the cluster EXCEPT the current one.
+  const siblingLocales = siblings.map((s) => s.locale);
+  const ogLocaleAlternates: string[] = isLocale
+    // Current page is a translated locale — include en_US + other siblings
+    ? ["en_US", ...siblingLocales.filter((l) => l !== opts!.locale!).map((l) => OG_LOCALE_MAP[l] ?? l.replace("-", "_"))]
+    // Current page is the EN master — list all translated locales
+    : siblingLocales.map((l) => OG_LOCALE_MAP[l] ?? l.replace("-", "_"));
+
   const lastModified = row.updatedAt ? new Date(row.updatedAt).toUTCString() : undefined;
   const datePublished = row.investigationDate ? new Date(row.investigationDate).toISOString() : undefined;
   const dateModified = row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined;
@@ -1005,6 +1413,127 @@ async function renderReview(slug: string): Promise<RenderResult> {
         .join("")}</section>`
     : "";
 
+  // ── Recent ads grid (SSR mirror of <RecentAdsGrid> in ReviewPage.tsx) ──
+  // Consumes the new live-derived RecentAd shape from supabase-recent-ads.ts.
+  // Section omitted entirely when no ads matched the brand.
+  const geoFlagSsr = (geo: string | null): string => {
+    if (!geo || geo.length !== 2) return "";
+    const code = geo.toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return "";
+    return String.fromCodePoint(0x1f1e6 + code.charCodeAt(0) - 65, 0x1f1e6 + code.charCodeAt(1) - 65);
+  };
+  const daysAgoSsr = (iso: string | null): string => {
+    if (!iso) return "";
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return "";
+    const days = Math.floor((Date.now() - t) / 86400000);
+    if (days <= 0) return "today";
+    if (days === 1) return "1d ago";
+    return `${days}d ago`;
+  };
+  const truncateSsr = (txt: string, n: number): string =>
+    txt.length <= n ? txt : txt.slice(0, n).replace(/\s+\S*$/, "") + "…";
+  // Same protocol allowlist as the CSR component (safeHttpUrl in ReviewPage.tsx).
+  // Defends against a malicious upstream payload smuggling a javascript: URL into
+  // any outbound CTA. Returns null when the href isn't safe http(s).
+  const safeHttpUrlSsr = (raw: string | null): string | null => {
+    if (!raw) return null;
+    try {
+      const u = new URL(raw);
+      return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const recentAdsHtml = recentAds.length
+    ? (() => {
+        const countryCount = new Set(recentAds.map((a) => a.geo).filter(Boolean)).size;
+        const cards = recentAds
+          .map((ad) => {
+            const flag = geoFlagSsr(ad.geo);
+            const fullText = (ad.adCopy ?? "").trim();
+            const cardText = fullText ? truncateSsr(fullText, 120) : "";
+            const parts: string[] = [];
+            const meta: string[] = [];
+            if (ad.geo) meta.push(`<span class="ra-geo"><span aria-hidden="true">${flag}</span> <strong>${esc(ad.geo)}</strong></span>`);
+            meta.push(`<span class="ra-badge">${ad.isVideo ? "Video" : "Image"}</span>`);
+            if (ad.language) meta.push(`<span class="ra-badge ra-lang">${esc(ad.language)}</span>`);
+            meta.push(`<time datetime="${esc(ad.lastSeenAt)}" class="ra-date">${esc(daysAgoSsr(ad.lastSeenAt))}</time>`);
+            parts.push(`<div class="ra-meta">${meta.join("")}</div>`);
+            parts.push(`<h3 class="ra-offer">${esc(truncateSsr(ad.offer, 60))}</h3>`);
+            if (ad.celebrity) parts.push(`<div class="ra-celeb"><span aria-hidden="true">🎭 </span>${esc(ad.celebrity)}</div>`);
+            if (cardText) parts.push(`<p class="ra-copy" title="${esc(fullText)}">&ldquo;${esc(cardText)}&rdquo;</p>`);
+            const foot: string[] = [];
+            if (ad.scrapeCount >= 5) foot.push(`<span class="ra-scrapes">Scraped ${ad.scrapeCount}×</span>`);
+            const target = safeHttpUrlSsr(ad.linkUrl) ?? safeHttpUrlSsr(ad.postUrl);
+            if (target) foot.push(`<a href="${esc(target)}" target="_blank" rel="nofollow ugc noopener" class="ra-cta">View archived ad <span aria-hidden="true">→</span></a>`);
+            if (foot.length) parts.push(`<div class="ra-foot">${foot.join("")}</div>`);
+            return `<article class="recent-ad">${parts.join("")}</article>`;
+          })
+          .join("");
+        const subtitle = `${recentAds.length} ad ${recentAds.length === 1 ? "creative" : "creatives"} detected${
+          countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""
+        } · last 7 days`;
+        return `<section aria-labelledby="recent-ads-heading" class="recent-ads"><header><h2 id="recent-ads-heading">Ads scraped this week</h2><p class="ra-sub">${esc(subtitle)}</p></header><div class="recent-ads-grid">${cards}</div></section>`;
+      })()
+    : "";
+
+  // ── Fraudulent-ad evidence (migration 0008) ──────────────────────────────
+  // Structured evidence synced from the admin: creative screenshots grouped by
+  // the country they targeted, with per-country "ads detected" counts. Mirrors
+  // the CSR AdEvidenceSection in src/pages/ReviewPage.tsx. Inline styles keep
+  // the no-JS/crawler view presentable; the `creative-images` class is the
+  // stable hook used by render verification. Omitted entirely when no evidence
+  // is synced or no image URL survives the http(s) allowlist.
+  const adEvidenceHtml = (() => {
+    const ev = row.adEvidence;
+    if (!ev || !Array.isArray(ev.images) || ev.images.length === 0) return "";
+    const valid = ev.images.filter((i) => i && typeof i.url === "string" && safeHttpUrlSsr(i.url));
+    if (valid.length === 0) return "";
+    const geoCounts: Record<string, number> =
+      ev.geoCounts && typeof ev.geoCounts === "object" ? ev.geoCounts : {};
+    // Group screenshots by target country, preserving first-seen order.
+    const groups = new Map<string, { geo: string; celebrity: string; url: string }[]>();
+    for (const img of valid) {
+      const geo = (img.geo || "").toString().trim().toUpperCase() || "—";
+      if (!groups.has(geo)) groups.set(geo, []);
+      groups.get(geo)!.push({ geo, celebrity: (img.celebrity || "").toString(), url: img.url });
+    }
+    const sections = [...groups.entries()]
+      .map(([geo, imgs]) => {
+        const flag = geoFlagSsr(geo);
+        const count = typeof geoCounts[geo] === "number" ? geoCounts[geo] : imgs.length;
+        const cards = imgs
+          .map((img) => {
+            const safe = safeHttpUrlSsr(img.url);
+            if (!safe) return "";
+            const celeb = img.celebrity ? esc(img.celebrity) : "";
+            const altParts = [`Fraudulent ${esc(platformName)} ad creative`];
+            if (img.celebrity) altParts.push(`impersonating ${esc(img.celebrity)}`);
+            if (geo !== "—") altParts.push(`targeting ${esc(geo)}`);
+            return (
+              `<figure class="creative-image" style="margin:0">` +
+              `<img src="${esc(safe)}" alt="${altParts.join(" ")}" loading="lazy" decoding="async" style="width:100%;height:auto;display:block;border-radius:8px;border:1px solid #1e293b">` +
+              (celeb
+                ? `<figcaption style="font-size:12px;color:#94a3b8;margin-top:6px"><span aria-hidden="true">🎭 </span>${celeb}</figcaption>`
+                : "") +
+              `</figure>`
+            );
+          })
+          .join("");
+        const heading = `${flag ? `<span aria-hidden="true">${flag}</span> ` : ""}${esc(geo)} — ${count.toLocaleString()} ${count === 1 ? "ad" : "ads"} detected`;
+        return (
+          `<div class="ad-evidence-geo" style="margin-bottom:20px">` +
+          `<h3 class="ad-evidence-geo-title" style="font-size:16px;margin:0 0 10px">${heading}</h3>` +
+          `<div class="creative-images" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">${cards}</div>` +
+          `</div>`
+        );
+      })
+      .join("");
+    return `<section aria-labelledby="ad-evidence-heading" class="ad-evidence"><h2 id="ad-evidence-heading">Evidence: Fraudulent Ad Creatives by Country</h2>${sections}</section>`;
+  })();
+
   const celebrityNames = Array.isArray(row.celebrityNames) ? row.celebrityNames.filter(Boolean) : [];
   const celebritiesHtml = celebrityNames.length
     ? `<section aria-labelledby="celebs-heading"><h2 id="celebs-heading">Celebrities impersonated</h2><p>The ${esc(platformName)} campaign fabricates endorsements from ${celebrityNames.length} public figures, including:</p><ul>${celebrityNames
@@ -1027,7 +1556,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
   // HTML stays clean for legacy reviews that haven't been re-synced yet.
 
   const heroImageHtml = row.heroImageUrl
-    ? `<figure class="review-hero"><img src="${esc(row.heroImageUrl)}" alt="${esc(row.heroImageAlt || platformName + ' scam investigation')}" loading="eager" fetchpriority="high" width="1200" height="630" /></figure>`
+    ? `<figure class="review-hero"><img src="${esc(row.heroImageUrl)}" alt="${esc(row.heroImageAlt || platformName + ' scam investigation')}" loading="eager" fetchpriority="high" width="1200" height="630" />${row.heroImageCredit ? `<figcaption class="review-hero-credit" style="font-size:12px;font-style:italic;color:#64748b;margin-top:6px">Credit: ${esc(row.heroImageCredit)}</figcaption>` : ""}</figure>`
     : "";
 
   const contentImages = Array.isArray(row.contentImages) ? row.contentImages : [];
@@ -1039,7 +1568,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
     const credit = found.credit
       ? `<figcaption>${esc(found.credit)}${found.creditUrl ? ` — <a href="${esc(found.creditUrl)}" rel="nofollow">source</a>` : ""}</figcaption>`
       : "";
-    return `<figure class="review-content-image"><img src="${esc(found.url)}" alt="${esc(found.alt || "")}" loading="lazy" />${credit}</figure>`;
+    return `<figure class="review-content-image"><img src="${esc(found.url)}" alt="${esc(found.alt || `Screenshot from ${platformName} investigation`)}" loading="lazy" />${credit}</figure>`;
   };
 
   // visual_meta entries are chart/diagram/infographic metadata with a
@@ -1052,7 +1581,7 @@ async function renderReview(slug: string): Promise<RenderResult> {
   const visualsHtml = succeededVisuals.length
     ? `<section aria-labelledby="visuals-heading"><h2 id="visuals-heading">Evidence visuals</h2>${succeededVisuals
         .map(
-          (v) => `<figure class="review-visual review-visual-${v.type.toLowerCase()}"><img src="${esc(v.url!)}" alt="${esc(v.altText || v.description || "")}" loading="lazy" />${v.description ? `<figcaption>${esc(v.description)}</figcaption>` : ""}</figure>`,
+          (v) => `<figure class="review-visual review-visual-${v.type.toLowerCase()}"><img src="${esc(v.url!)}" alt="${esc(v.altText || v.description || `Evidence visual from ${platformName} investigation`)}" loading="lazy" />${v.description ? `<figcaption>${esc(v.description)}</figcaption>` : ""}</figure>`,
         )
         .join("")}</section>`
     : "";
@@ -1206,11 +1735,79 @@ async function renderReview(slug: string): Promise<RenderResult> {
       ? dedupeDuplicateStageCardsInFullArticle(
           wrapSpeakableTargets(
             relabelDisclaimerInsideBlockquote(
-              row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""),
+              sanitizeRichHtml(row.fullArticle),
             ),
           ),
         )
       : "";
+
+  // ── Phase 7/8 — translation disclosure + stale banner (SSR) ──
+  // Mirrors the React block in src/pages/ReviewPage.tsx. Renders ONLY
+  // when serving a locale URL (translationRow set). Disclosure HTML is
+  // injected before <article> in the full-article path AND before <h1>
+  // in the legacy structured path so both branches satisfy E-E-A-T
+  // transparency for YMYL. Stale = source_review_updated_at lags
+  // row.updatedAt by >1h (server-of-truth — same threshold as the API).
+  // Locale label, method label, date formatter, and stale threshold all
+  // imported at top of file from @workspace/i18n — single source of
+  // truth shared with CSR and API.
+  let translationDisclosureHtml = "";
+  if (translationRow) {
+    const locale = translationRow.locale;
+    const bcp47 = TRANSLATION_LOCALE_HREFLANG[locale] ?? locale;
+    const sourceMs = translationRow.sourceReviewUpdatedAt?.getTime() ?? null;
+    const isStale =
+      sourceMs !== null && sourceMs < row.updatedAt.getTime() - STALE_TRANSLATION_THRESHOLD_MS;
+    const languageLabel = LOCALE_LANGUAGE_LABEL_EN[locale] ?? locale;
+    const translatorName = translationRow.translatorName ?? "";
+    const methodKey = translationRow.translationMethod ?? "";
+    const methodLabel = methodKey ? (TRANSLATION_METHOD_LABEL[methodKey] ?? "") : "";
+    const sourceFormatted = formatLocaleDate(translationRow.sourceReviewUpdatedAt, bcp47);
+    const reviewedFormatted = formatLocaleDate(
+      translationRow.reviewedAt ?? translationRow.publishedAt ?? null,
+      bcp47,
+    );
+    const masterUpdatedFormatted =
+      formatLocaleDate(row.updatedAt, bcp47) || "recently";
+
+    const staleBanner = isStale
+      ? `<div role="status" data-translation-stale style="border:1px solid rgba(217,119,6,0.4);background:rgba(120,53,15,0.2);color:#fef3c7;padding:0.75rem 1rem;border-radius:0.5rem;margin-bottom:0.75rem;font-size:0.875rem;line-height:1.5"><strong style="color:#fde68a;font-weight:600">Heads up:</strong> This article may be slightly out of date — the original English version was updated <strong style="color:#fde68a">${esc(masterUpdatedFormatted)}</strong>. A refreshed translation is in progress.</div>`
+      : "";
+
+    // Build the disclosure prose by concatenating optional clauses so
+    // missing translator/method/dates collapse cleanly instead of
+    // surfacing "translated into Italian by ." with awkward punctuation.
+    const parts: string[] = ["This article was originally published in English"];
+    if (sourceFormatted) parts.push(` on <strong>${esc(sourceFormatted)}</strong>`);
+    parts.push(` and translated into <strong>${esc(languageLabel)}</strong>`);
+    if (translatorName) parts.push(` by <strong>${esc(translatorName)}</strong>`);
+    if (reviewedFormatted) parts.push(` on <strong>${esc(reviewedFormatted)}</strong>`);
+    if (methodLabel) parts.push(`. Translation method: <strong>${esc(methodLabel)}</strong>`);
+    parts.push(".");
+
+    translationDisclosureHtml = `<aside data-translation-disclosure aria-label="Translation information" style="margin:0 0 1.5rem 0;padding:0">${staleBanner}<p style="border-left:2px solid #334155;padding:0 0 0 0.75rem;margin:0;color:#94a3b8;font-size:0.75rem;line-height:1.6"><em>${parts.join("")}</em></p></aside>`;
+  }
+
+  // ── Byline + trust metadata for the modern full-article path ──
+  // The writer-emitted full_article HTML carries no CryptoKiller byline, so
+  // this branch previously shipped no visible author attribution or author-
+  // profile link in SSR — author identity was schema-only, invisible to non-JS
+  // crawlers on YMYL review pages. Mirror the legacy branch byline (~line 1700)
+  // and the client byline in src/pages/ReviewPage.tsx: resolved persona,
+  // rel="author" link to /author/:slug, published + updated dates, read time,
+  // and a crawlable link to the methodology page.
+  const bylinePersona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
+  const bylineAuthorHtml = bylinePersona
+    ? `<a href="/author/${bylinePersona.slug}" rel="author">${esc(bylinePersona.name)}</a>, ${esc(bylinePersona.role)}`
+    : esc(row.author || "CryptoKiller Research Team");
+  const bylinePublished = datePublished ? new Date(datePublished).toISOString().split("T")[0] : "";
+  const bylineUpdated = dateModified ? new Date(dateModified).toISOString().split("T")[0] : "";
+  const showBylineUpdated = bylineUpdated !== "" && bylineUpdated !== bylinePublished;
+  // Trust block mirrors the client review page's crawlable editorial/
+  // methodology copy (src/pages/ReviewPage.tsx ~lines 1324-1337) so non-JS
+  // crawlers see the same E-E-A-T signals on the modern full-article path.
+  const fullArticleBylineHtml = `<p data-review-byline><strong>Investigation by:</strong> ${bylineAuthorHtml}${bylinePublished ? ` · Published ${bylinePublished}` : ""}${showBylineUpdated ? ` · Updated ${bylineUpdated}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""} · <a href="/methodology">How we score scams</a></p>
+<div data-review-trust><p>Reviewed by our editorial team · Methodology: <a href="/methodology">cryptokiller.org/methodology</a></p><p>All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency. <a href="/methodology">How we investigate →</a></p></div>`;
 
   const bodyHtml = fullArticleBodyHtml
     ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
@@ -1218,10 +1815,17 @@ async function renderReview(slug: string): Promise<RenderResult> {
       // and disclaimer. We render it inside <article> with the site chrome and
       // append a small navigation footer for crawl-graph signal. No structured
       // sections are emitted here — they live in JSON-LD via the Task 7B graph.
+      // Phase 7: translationDisclosureHtml renders before <article> on locale
+      // pages so the disclosure sits above the writer-emitted H1 (we can't
+      // inject after the H1 without parsing the writer's HTML).
       `${siteHeaderHtml()}<main>
-<article id="article-body">
+${translationDisclosureHtml}<article id="article-body">
+${fullArticleBylineHtml}
 ${fullArticleBodyHtml}
 </article>
+${recentAdsHtml}
+${adEvidenceHtml}
+${preferredSourceHtml()}
 <nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
 </main>${siteFooterHtml()}`
     : // ── Legacy fallback path (pre-Task 7D rows): structured template ──
@@ -1232,7 +1836,8 @@ ${fullArticleBodyHtml}
       `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/investigations">Investigations</a> · ${esc(platformName)}</nav>
 <article>
-<h1>${esc(platformName)} ${headlineLabel}${scoreSuffix}</h1>
+<h1>${esc(row.headline || `${platformName} ${headlineLabel}${scoreSuffix}`)}</h1>
+${translationDisclosureHtml}
 ${heroImageHtml}
 <p><strong>Verdict:</strong> ${esc(row.verdict || `${platformName} ${tier.frameAsScam ? "shows evidence consistent with confirmed scam patterns." : "is currently under investigation pending further evidence."}`)}</p>
 ${warningText ? `<p role="alert"><strong>Warning:</strong> ${esc(warningText)}</p>` : ""}
@@ -1244,6 +1849,8 @@ ${contentImageByPlacement("section-1")}
 ${redFlagsHtml}
 ${contentImageByPlacement("section-2")}
 ${funnelStagesHtml}
+${recentAdsHtml}
+${adEvidenceHtml}
 ${visualsHtml}
 ${celebritiesHtml}
 ${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
@@ -1256,6 +1863,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
 <p><strong>Investigation by:</strong> ${reviewPersona
   ? `<a href="/author/${reviewPersona.slug}" rel="author">${esc(reviewPersona.name)}</a>`
   : esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
+${preferredSourceHtml()}
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
 </main>${siteFooterHtml()}`;
@@ -1282,7 +1890,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
   // Vercel sync-shape populates from the writer's item_reviewed field
   // (Task 7A) and Replit's /sync/review persists via migration 0004.
   // Pre-migration rows (null) fall through to the helper's synthetic
-  // Service fallback.
+  // Organization fallback.
   const itemReviewed = buildItemReviewedJsonLdNode(
     row.itemReviewed,
     canonical,
@@ -1337,10 +1945,11 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
       // significantLink, primaryImageOfPage, etc.) downstream.
       mainEntityOfPage: { "@type": "WebPage", "@id": `${canonical}#webpage` },
       description,
-      inLanguage: "en",
+      inLanguage,
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
       author: authorRef,
+      reviewedBy: REVIEWER_PERSON,
       ...(datePublished ? { datePublished } : {}),
       ...(dateModified ? { dateModified } : {}),
       ...(row.wordCount ? { wordCount: row.wordCount } : {}),
@@ -1383,12 +1992,13 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
         : {}),
       // itemReviewed: reference to the typed entity node above (not inline).
       // When the helper synthesized a usable node we emit a bare @id ref —
-      // otherwise fall back to an inline Service node so Rich Results has
-      // something valid to parse.
+      // otherwise fall back to an inline Organization node so Rich Results has
+      // something valid to parse. Organization (not Service) because Service
+      // is not a Google-accepted itemReviewed type.
       itemReviewed: itemReviewed
         ? { "@id": `${canonical}#item-reviewed` }
         : {
-            "@type": "Service",
+            "@type": "Organization",
             name: platformName,
             description: `Platform under investigation by CryptoKiller. Threat score ${row.threatScore ?? "?"}/100 (${tier.label}).`,
           },
@@ -1419,7 +2029,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     graph.push({
       "@type": "FAQPage",
       "@id": `${canonical}#faq`,
-      inLanguage: "en",
+      inLanguage,
       // Backreferences to the Review + WebPage. Pre-2026-04-28 the FAQPage
       // node stood alone in the @graph — orphaned FAQ subgraphs are still
       // valid JSON-LD but Google reads connected graphs as stronger entity
@@ -1509,9 +2119,53 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     // when datasetNode actually rendered, so we never ship a dangling
     // isBasedOn pointing at a node the @graph doesn't contain.
     if (datasetNode) {
-      reviewNode.isBasedOn = { "@id": `${canonical}#spyowl-dataset` };
+      reviewNode.isBasedOn = { "@id": `${canonical}#cryptokiller-dataset` };
     }
     reviewNode.speakable = speakableSpec;
+
+    // ─── Phase 5: i18n graph links (workTranslation / translationOfWork) ───
+    // The EN master Review carries `workTranslation: [<each locale review @id>]`
+    // so AI consumers (Gemini / Perplexity / Google AI Overviews) and Google
+    // Search can unify the entity across the language graph. Each locale
+    // Review carries the inverse edge: `translationOfWork: {@id: <master>}`
+    // plus a `translator` Organization (or named individual when supplied).
+    //
+    // The locale Review's @id uses its OWN canonical URL — so e.g. the IT
+    // Review is `https://cryptokiller.org/it/review/<it-slug>#review`, NOT
+    // the EN master URL. This is what makes the cross-language graph
+    // reciprocal at the JSON-LD level (matching the hreflang reciprocity at
+    // the HTML link level).
+    if (!isLocale && siblings.length > 0) {
+      reviewNode.workTranslation = siblings
+        .map((t) => {
+          const seg = TRANSLATION_LOCALE_URL_SEGMENT[t.locale];
+          if (!seg) return null;
+          return { "@id": `${BASE}/${seg}/review/${t.slug}#review` };
+        })
+        .filter((x): x is { "@id": string } => x !== null);
+    } else if (isLocale) {
+      reviewNode.translationOfWork = {
+        "@id": `${BASE}/review/${row.slug}#review`,
+      };
+      // Translator attribution. `translator_name` is editorially supplied
+      // — when blank, fall back to a generic Organization name so the
+      // node still validates. `translation_method` informs the description
+      // (Google's AI content guidance asks how content was produced).
+      const translatorName = clean(translationRow!.translatorName || "")
+        || "CryptoKiller Editorial Team";
+      const method = translationRow!.translationMethod || "ai_assisted";
+      const methodDesc =
+        method === "ai_full"
+          ? "AI translation"
+          : method === "human_only"
+            ? "Human translation, editorially reviewed"
+            : "AI-assisted human-reviewed translation team";
+      reviewNode.translator = {
+        "@type": "Organization",
+        name: translatorName,
+        description: methodDesc,
+      };
+    }
   }
 
   // Push the standalone enrichment nodes as siblings in the graph.
@@ -1527,7 +2181,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     description,
     canonical,
     ogType: "article",
-    ogImage: DEFAULT_OG_IMAGE,
+    ogImage: row.heroImageUrl || DEFAULT_OG_IMAGE,
     // SSR <meta name="author"> matches usePageMeta's CSR value (see
     // src/pages/ReviewPage.tsx line ~770) so crawlers see the persona on
     // first byte instead of the corporate fallback baked into index.html.
@@ -1537,6 +2191,11 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
     bodyHtml,
     jsonLd: { "@context": "https://schema.org", "@graph": graph },
     lastModified,
+    htmlLang,
+    alternates,
+    noTranslate,
+    ogLocale: currentOgLocale,
+    ogLocaleAlternates: ogLocaleAlternates.length > 0 ? ogLocaleAlternates : undefined,
   };
 }
 
@@ -1623,11 +2282,11 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 
   let articleBodyHtml = "";
   if (row.fullArticle && row.fullArticle.trim().length > 0) {
-    // Strip any <script> tags (esp. embedded JSON-LD) baked into article content.
-    // Duplicate schema blocks in the body downgrade structured-data trust signals
-    // and are better emitted by the SSR jsonLd pipeline only. Mirrors the same
-    // strip performed in artifacts/api-server/src/routes/blog.ts::processContentBody.
-    articleBodyHtml = row.fullArticle.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+    // Sanitize HTML from the article body. This removes dangerous elements and
+    // attributes (event handlers, javascript: URIs, etc.) while preserving all
+    // safe structural and styling markup. Mirrors the same sanitization performed
+    // in artifacts/api-server/src/routes/blog.ts::processContentBody.
+    articleBodyHtml = sanitizeRichHtml(row.fullArticle);
   } else if (sections.length > 0) {
     articleBodyHtml = sections
       .map((s) => `${s.heading ? `<h2>${esc(s.heading)}</h2>` : ""}${s.body ? `<p>${esc(s.body)}</p>` : ""}`)
@@ -1701,6 +2360,7 @@ ${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
 ${articleBodyHtml}
 ${faqHtml}
 ${sourcesHtml}
+${preferredSourceHtml()}
 <p><a href="/blog">Back to blog</a></p>
 </article>
 </main>${siteFooterHtml()}`;
@@ -1750,6 +2410,7 @@ ${sourcesHtml}
     isPartOf: { "@id": WEBSITE_ID },
     publisher: { "@id": ORG_ID },
     author: persona ? personRef(persona) : authorNode,
+    reviewedBy: REVIEWER_PERSON,
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
@@ -1760,10 +2421,10 @@ ${sourcesHtml}
     ...(aboutNodes.length ? { about: aboutNodes } : {}),
     ...(mentionNodes.length ? { mentions: mentionNodes } : {}),
     ...(citationNodes.length ? { citation: citationNodes } : {}),
-    // Tie the Article to its evidence base (SpyOwl Dataset) when present.
+    // Tie the Article to its evidence base (CryptoKiller Dataset) when present.
     // Use the same @id suffix as buildDataset emits; do not drift — the
     // isBasedOn edge becomes dangling otherwise.
-    ...(datasetNode ? { isBasedOn: { "@id": `${canonical}#spyowl-dataset` } } : {}),
+    ...(datasetNode ? { isBasedOn: { "@id": `${canonical}#cryptokiller-dataset` } } : {}),
     speakable: buildSpeakable(row.speakableSelectors),
   };
 
@@ -1826,13 +2487,74 @@ ${sourcesHtml}
   };
 }
 
-function renderAuthor(slug: string): RenderResult {
+async function renderAuthor(slug: string): Promise<RenderResult> {
   const persona: WriterPersona | undefined = WRITER_PERSONAS[slug];
   if (!persona) return renderNotFound(`/author/${slug}`);
 
   const title = `${persona.name} — ${persona.role} | CryptoKiller`;
   const description = truncate(persona.fullBio || persona.bio, 160);
   const canonical = `${BASE}/author/${persona.slug}`;
+
+  // Fetch authored reviews and blog posts from the DB so the prerendered HTML
+  // includes crawlable links — this is the path search engines index, so the
+  // author-to-content hub must be present here, not only in the React render.
+  const MAX_AUTHOR_ITEMS = 6;
+  const [authoredReviewRows, authoredPostRows] = await Promise.all([
+    db
+      .select({
+        slug: reviewsTable.slug,
+        platformName: platformsTable.name,
+        threatScore: reviewsTable.threatScore,
+        verdict: reviewsTable.verdict,
+        investigationDate: reviewsTable.investigationDate,
+      })
+      .from(reviewsTable)
+      .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+      .where(and(
+        eq(reviewsTable.status, "published"),
+        eq(reviewsTable.authorPersonaId, slug),
+      ))
+      .orderBy(desc(reviewsTable.investigationDate))
+      .limit(MAX_AUTHOR_ITEMS),
+    db
+      .select({
+        slug: blogPostsTable.slug,
+        title: blogPostsTable.title,
+        headline: blogPostsTable.headline,
+        publishedAt: blogPostsTable.publishedAt,
+      })
+      .from(blogPostsTable)
+      .where(and(
+        eq(blogPostsTable.status, "published"),
+        eq(blogPostsTable.authorPersonaId, slug),
+      ))
+      .orderBy(desc(blogPostsTable.publishedAt))
+      .limit(MAX_AUTHOR_ITEMS),
+  ]);
+
+  const investigationsSection = authoredReviewRows.length > 0
+    ? `<section>
+<h2>Latest investigations by ${esc(persona.name)}</h2>
+<ul>
+${authoredReviewRows.map(r =>
+  `<li><a href="/review/${encodeURIComponent(r.slug)}">${esc(r.platformName)} Review</a> — threat score ${r.threatScore}/100, verdict: ${esc(r.verdict ?? "")}</li>`
+).join("\n")}
+</ul>
+<p><a href="/investigations">Browse all investigations</a></p>
+</section>`
+    : "";
+
+  const articlesSection = authoredPostRows.length > 0
+    ? `<section>
+<h2>Recent articles by ${esc(persona.name)}</h2>
+<ul>
+${authoredPostRows.map(p =>
+  `<li><a href="/blog/${encodeURIComponent(p.slug)}">${esc(p.headline ?? p.title ?? p.slug)}</a></li>`
+).join("\n")}
+</ul>
+<p><a href="/blog">Read all articles</a></p>
+</section>`
+    : "";
 
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · ${esc(persona.name)}</nav>
@@ -1843,7 +2565,18 @@ function renderAuthor(slug: string): RenderResult {
 <p><strong>Specialties:</strong> ${persona.specialties.map(esc).join(", ")}</p>
 <p>${esc(persona.published)} · ${esc(persona.yearsExperience)} of experience</p>
 </article>
+${investigationsSection}
+${articlesSection}
 </main>${siteFooterHtml()}`;
+
+  // Build JSON-LD: if we have authored reviews, surface the top ones as
+  // mainEntityOfPage on the Person node to give crawlers a machine-readable
+  // connection between the analyst and their published investigations.
+  const authoredWorkRefs = authoredReviewRows.slice(0, 3).map(r => ({
+    "@type": "Article",
+    url: `${BASE}/review/${r.slug}`,
+    name: `${r.platformName} Review`,
+  }));
 
   return {
     status: 200,
@@ -1866,7 +2599,12 @@ function renderAuthor(slug: string): RenderResult {
         // the dedicated /author/{slug} profile page (uses fullBio when
         // available, and the page itself is the canonical url for the
         // Person — not the slug-derived path personNode defaults to).
-        { ...personNode(persona), description: persona.fullBio || persona.bio, url: canonical },
+        {
+          ...personNode(persona),
+          description: persona.fullBio || persona.bio,
+          url: canonical,
+          ...(authoredWorkRefs.length > 0 && { mainEntityOfPage: authoredWorkRefs }),
+        },
         {
           "@type": "ProfilePage",
           url: canonical,
@@ -1911,10 +2649,11 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
       path: "/about",
       title: "About CryptoKiller — Crypto Scam Intelligence Platform",
       description:
-        "CryptoKiller is an independent crypto scam intelligence platform tracking 1,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
+        "CryptoKiller is an independent crypto scam intelligence platform tracking 22,000+ fraudulent brands across 84+ countries with evidence-based investigations.",
       h1: "About CryptoKiller",
+      analystDirectory: true,
       intro:
-        "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. in Singapore. We track over 1,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
+        "CryptoKiller is an independent crypto scam intelligence platform operated by DEX Algo Technologies Pte Ltd. in Singapore. We track over 22,000 fraudulent crypto brands across 84+ countries through real-time ad surveillance and evidence-based investigation. Our team combines blockchain forensics, OSINT, financial-crime research, and digital forensics to publish auditable threat assessments — never pay-to-remove, always evidence first.",
       sections: [
         {
           heading: "What we do",
@@ -1936,7 +2675,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           heading: "Our investigation approach",
           paragraphs: [
             "Every threat score is built from evidence that is either publicly observable (paid ads, landing pages, domain registration records, regulator bulletins) or directly submitted by victims under our reporting process. We do not include unverifiable rumours, unattributed forum posts, or competitor-sourced claims in any published investigation.",
-            "When we cite a regulator, we link to the specific bulletin — not a general warning page. When we quote an ad creative, we show the screenshot. When we cite a statistic about geographic reach or campaign duration, the number comes from our SpyOwl ad-surveillance platform, which scans paid advertising in 84+ countries continuously.",
+            "When we cite a regulator, we link to the specific bulletin — not a general warning page. When we quote an ad creative, we show the screenshot. When we cite a statistic about geographic reach or campaign duration, the number comes from our CryptoKiller ad-surveillance platform, which scans paid advertising in 84+ countries continuously.",
             "We publish under a model we call \"evidence-first, pay-to-remove-never\". If a brand disputes our findings, the only path to a correction is new evidence — which we will evaluate and publish a correction or full retraction for, if warranted. No brand has ever paid to have a review altered or removed, and no brand ever will.",
           ],
         },
@@ -1965,7 +2704,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "How do you decide which brands to investigate?",
           answer:
-            "Our SpyOwl ad-surveillance platform continuously scans paid advertising in 84+ countries. When a brand exceeds our threshold signals (ad volume, celebrity impersonation, jurisdictional targeting pattern, consumer-harm complaints), it enters our investigation queue. We also investigate brands reported to us directly through our reporting form.",
+            "Our CryptoKiller ad-surveillance platform continuously scans paid advertising in 84+ countries. When a brand exceeds our threshold signals (ad volume, celebrity impersonation, jurisdictional targeting pattern, consumer-harm complaints), it enters our investigation queue. We also investigate brands reported to us directly through our reporting form.",
         },
         {
           question: "Are your threat scores objective?",
@@ -1980,7 +2719,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "Can I submit a scam for investigation?",
           answer:
-            "Yes. Use the reporting form at /report. Reports are confidential — your identity is never shared publicly. We cross-reference submissions with our SpyOwl intelligence and open investigations when the evidence threshold is met.",
+            "Yes. Use the reporting form at /report. Reports are confidential — your identity is never shared publicly. We cross-reference submissions with our CryptoKiller intelligence and open investigations when the evidence threshold is met.",
         },
       ],
     }),
@@ -2012,7 +2751,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Where the evidence comes from",
           paragraphs: [
-            "The ad-creative evidence comes from SpyOwl, our proprietary ad-surveillance platform. SpyOwl continuously scans paid advertising on major ad networks in 84+ countries, capturing creative assets, landing-page destinations, and geographic targeting. SpyOwl data is collected from publicly visible advertising — we do not access private ad dashboards and we do not pay for data we are not entitled to see.",
+            "The ad-creative evidence comes from CryptoKiller, our proprietary ad-surveillance platform. CryptoKiller continuously scans paid advertising on major ad networks in 84+ countries, capturing creative assets, landing-page destinations, and geographic targeting. CryptoKiller data is collected from publicly visible advertising — we do not access private ad dashboards and we do not pay for data we are not entitled to see.",
             "Regulatory evidence comes directly from regulator bulletin pages. When we cite a regulator warning, we link to the specific bulletin. We do not cite \"the regulator said\" without linking the exact source.",
             "Funnel evidence is collected by our analysts through manual inspection of landing pages, deposit flows, and withdrawal processes — without depositing real funds. When real-money interaction is required to establish a finding (for example, documenting a withdrawal-block), we note that explicitly and limit our claims to what can be established without participation.",
             "Victim reports submitted through our /report form are cross-referenced with ad-surveillance data. We only incorporate a submitted claim into a published investigation when it is independently corroborated by at least one other evidence source.",
@@ -2029,7 +2768,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Editorial process",
           paragraphs: [
-            "Every investigation moves through five stages: automated detection (SpyOwl flags the brand), evidence collection (analyst gathers ad creatives, funnel screenshots, domain records, regulator bulletins), analysis and scoring (evidence is weighed against the six-category framework), human editorial review (a second analyst independently verifies the evidence and scoring), and publication (the investigation is published with a named byline).",
+            "Every investigation moves through five stages: automated detection (CryptoKiller flags the brand), evidence collection (analyst gathers ad creatives, funnel screenshots, domain records, regulator bulletins), analysis and scoring (evidence is weighed against the six-category framework), human editorial review (a second analyst independently verifies the evidence and scoring), and publication (the investigation is published with a named byline).",
             "Investigations are revisited when new evidence emerges — a new regulator warning, a domain change, a payment-processor update, or a victim report. When an update changes the threat score by more than 10 points, we republish with a change-log entry.",
             "No investigation is ever published without passing human editorial review. No investigation is ever unpublished without a documented reason. The full edit history of every published investigation is available on request.",
           ],
@@ -2061,12 +2800,58 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "How do you handle a brand that changes its domain or rebrands?",
           answer:
-            "We track brand identity through advertising creative, funnel infrastructure, and payment processing — not just domain names. When a known scam operation rebrands or moves to a new domain, we typically detect the continuation through SpyOwl ad-creative similarity and publish a new investigation with a cross-reference to the previous entity.",
+            "We track brand identity through advertising creative, funnel infrastructure, and payment processing — not just domain names. When a known scam operation rebrands or moves to a new domain, we typically detect the continuation through CryptoKiller ad-creative similarity and publish a new investigation with a cross-reference to the previous entity.",
         },
         {
           question: "Are your investigations peer-reviewed?",
           answer:
             "Every investigation goes through internal peer review: a second analyst independently verifies evidence and scoring before publication. We also publish the full evidence base alongside every investigation, so external peer review is possible. Academic researchers studying crypto fraud can contact us for archive access.",
+        },
+      ],
+    }),
+
+  "/ai-disclosure": () =>
+    renderStaticPage({
+      path: "/ai-disclosure",
+      title: "AI Disclosure & Editorial Standards — CryptoKiller",
+      description:
+        "How CryptoKiller uses AI: investigations are AI-drafted from collected evidence, pass automated source-verification gates, and are reviewed by a named human editor before publishing.",
+      h1: "AI Disclosure & Editorial Standards",
+      ogType: "article",
+      intro:
+        "CryptoKiller is transparent about how its investigations are produced. Our content is AI-drafted from collected evidence, passes automated source-verification gates, and is reviewed by a named human editor before it is published. AI accelerates how fast we turn verifiable evidence into a structured investigation — it never decides what is true, and every published page carries a named human reviewer who is accountable for it.",
+      sections: [
+        {
+          heading: "How our content is created",
+          paragraphs: [
+            "Our pipeline is evidence-first. We begin with evidence we have collected — captured advertisements, landing pages, domain and infrastructure records, regulator bulletins, and corroborated victim reports — and only then draft an investigation from that evidence. AI assists with drafting; it does not gather the facts and it is not permitted to invent them.",
+          ],
+          list: [
+            "Evidence first — an investigation only begins once verifiable evidence has been collected and archived.",
+            "AI-assisted drafting — AI turns the collected evidence into a structured draft, with no invented facts, figures, or sources.",
+            "Automated quality and source-liveness gates — drafts pass automated checks that confirm the cited sources are real and reachable before a human sees them.",
+            "Human editorial review — a named human editor reviews the investigation against the evidence and is accountable for what is published.",
+          ],
+        },
+        {
+          heading: "Level of AI assistance",
+          paragraphs: [
+            "We classify our content as \"AI-generated with human editorial review (L3 on the L0–L4 scale).\" AI produces the draft from collected evidence, and a named human editor reviews it against that evidence before publication. The human reviewer — not the model — is accountable for the published page.",
+            "AI-generated images on this site carry the IPTC DigitalSourceType value trainedAlgorithmicMedia, identifying them as machine-generated. Screenshots of scam advertisements are captured evidence — they are real artefacts we recorded from live ad campaigns, not AI-generated images.",
+          ],
+        },
+        {
+          heading: "Accountability",
+          paragraphs: [
+            "John Feldt is our Editorial Standards Reviewer and is publicly accountable for our editorial standards. His professional profile is at https://www.linkedin.com/in/john-feldt-240838249/.",
+            "Individual analysts publish under consistent personas to protect their operational security, because scam operations are frequently run by organised groups that retaliate against investigators. Personas are stable and accountable — they are a security measure, not anonymity. The publisher of record for every investigation is DEX Algo Technologies Pte Ltd.",
+          ],
+        },
+        {
+          heading: "Corrections",
+          paragraphs: [
+            "If you believe we have published something inaccurate, email corrections@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request on the merits and publish a dated correction notice when warranted.",
+          ],
         },
       ],
     }),
@@ -2193,7 +2978,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn future victims, and build evidence for authorities.",
       h1: "Report a Crypto Scam",
       intro:
-        "Submit a confidential report to the CryptoKiller research team. Your identity is never shared publicly — we do not publish reporter names, email addresses, or any identifying details unless you explicitly request otherwise. Reports are cross-referenced with our SpyOwl ad-surveillance intelligence and feed directly into published investigations that warn future victims. This page explains what happens after you submit, what we do with the information, and what we cannot do.",
+        "Submit a confidential report to the CryptoKiller research team. Your identity is never shared publicly — we do not publish reporter names, email addresses, or any identifying details unless you explicitly request otherwise. Reports are cross-referenced with our CryptoKiller ad-surveillance intelligence and feed directly into published investigations that warn future victims. This page explains what happens after you submit, what we do with the information, and what we cannot do.",
       sections: [
         {
           heading: "What to include in a report",
@@ -2222,7 +3007,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "What we can and cannot do",
           paragraphs: [
-            "We can investigate, publish, and warn. We can cross-reference your report against 1,000+ tracked brands and 84+ countries of ad surveillance. We can cite the regulators with jurisdiction over your case and link directly to their warning bulletins. We can coordinate with law enforcement when they ask.",
+            "We can investigate, publish, and warn. We can cross-reference your report against 22,000+ tracked brands and 84+ countries of ad surveillance. We can cite the regulators with jurisdiction over your case and link directly to their warning bulletins. We can coordinate with law enforcement when they ask.",
             "We cannot recover your funds. Nobody can guarantee fund recovery, and anyone who claims they can is running a second scam on top of the first one. We cannot file police reports on your behalf — that must come from you, through your national reporting channel. We cannot freeze wallets, reverse transactions, or negotiate with the scammer.",
             "If your primary need is fund recovery, see our recovery guide for the legitimate paths — chargebacks, exchange reporting, law enforcement. These are slower and less certain than recovery scammers advertise, but they are the only real options.",
           ],
@@ -2523,11 +3308,26 @@ export async function renderPage(rawPath: string): Promise<RenderResult> {
   const reviewMatch = cleaned.match(/^\/review\/([^/]+)$/);
   if (reviewMatch) return renderReview(decodeURIComponent(reviewMatch[1]));
 
+  // Locale-prefixed review routes — /it/review/:slug, /pt-br/review/:slug,
+  // etc. The URL segment is lowercase; we normalise to BCP-47 canonical
+  // case before forwarding to renderReview so the DB lookup (which stores
+  // canonical case in review_translations.locale) succeeds. Unsupported
+  // locale segments don't match this regex and fall through to NotFound.
+  const localeReviewMatch = cleaned.match(/^\/(it|es|de|fr|pt-br)\/review\/([^/]+)$/);
+  if (localeReviewMatch) {
+    const urlLocale = localeReviewMatch[1];
+    const canonicalLocale = TRANSLATION_LOCALE_CANONICAL[urlLocale];
+    return renderReview(
+      decodeURIComponent(localeReviewMatch[2]),
+      { locale: canonicalLocale },
+    );
+  }
+
   const blogMatch = cleaned.match(/^\/blog\/([^/]+)$/);
   if (blogMatch) return renderBlogPost(decodeURIComponent(blogMatch[1]));
 
   const authorMatch = cleaned.match(/^\/author\/([^/]+)$/);
-  if (authorMatch) return renderAuthor(decodeURIComponent(authorMatch[1]));
+  if (authorMatch) return await renderAuthor(decodeURIComponent(authorMatch[1]));
 
   const staticHandler = STATIC_PAGES[cleaned];
   if (staticHandler) return staticHandler();

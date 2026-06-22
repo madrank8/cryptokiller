@@ -61,6 +61,35 @@ export interface GeoTarget {
 }
 
 /**
+ * A single fraudulent ad-creative screenshot used as evidence, tagged with the country it targeted and the celebrity whose likeness was abused.
+
+ */
+export interface AdEvidenceImage {
+  /** ISO-3166-1 alpha-2 country code the creative targeted (e.g. "ES", "IT"). */
+  geo: string;
+  /** Name of the public figure impersonated in the creative. */
+  celebrity: string;
+  /** Image URL of the ad-creative screenshot. */
+  url: string;
+}
+
+/**
+ * Map of ISO-3166-1 alpha-2 country code → number of ads detected there.
+ */
+export type AdEvidenceGeoCounts = { [key: string]: number };
+
+/**
+ * Structured fraudulent-ad evidence for the brand under review: creative screenshots grouped by target country plus per-country detected-ad counts. Synced from the admin and rendered in the "Evidence: Fraudulent Ad Creatives by Country" section.
+
+ */
+export interface AdEvidence {
+  /** Ad-creative screenshots tagged by geo + impersonated celebrity. */
+  images: AdEvidenceImage[];
+  /** Map of ISO-3166-1 alpha-2 country code → number of ads detected there. */
+  geoCounts: AdEvidenceGeoCounts;
+}
+
+/**
  * Inline image placed between review sections. Populated by the admin polish pipeline (Imagen) and referenced from rich content sections on the review page.
 
  */
@@ -113,6 +142,29 @@ export interface ReviewSource {
   date?: string;
 }
 
+export type ReviewItemReviewedType =
+  (typeof ReviewItemReviewedType)[keyof typeof ReviewItemReviewedType];
+
+export const ReviewItemReviewedType = {
+  FinancialProduct: "FinancialProduct",
+  Service: "Service",
+  SoftwareApplication: "SoftwareApplication",
+  Organization: "Organization",
+} as const;
+
+/**
+ * Writer-emitted typed entity for schema.org Review.itemReviewed. Stored as item_reviewed in Postgres; consumed by SSR and client JSON-LD.
+
+ */
+export interface ReviewItemReviewed {
+  type: ReviewItemReviewedType;
+  name: string;
+  description?: string | null;
+  url?: string | null;
+  alternateName?: string[] | null;
+  sameAs?: string[] | null;
+}
+
 /**
  * Severity tier from classifyThreat() on the Vercel side (source of truth lib/threat-score.js). Drives the H1/title label and all declarative-scam language gating on the client. Null for reviews synced before migration 0003, in which case the client should fall back to deriving a tier from threatScore.
  */
@@ -128,14 +180,54 @@ export const ReviewFullThreatTier = {
   low: "low",
 } as const;
 
-/** Writer-emitted typed entity for JSON-LD Review.itemReviewed (sync from Vercel). */
-export interface ReviewItemReviewed {
-  type: "FinancialProduct" | "Service" | "SoftwareApplication" | "Organization";
-  name: string;
-  description: string | null;
-  url: string | null;
-  alternateName: string[] | null;
-  sameAs: string[] | null;
+/**
+ * Slim metadata describing a single published translation of a review. Returned in ReviewFull.translations[] so the master page can emit hreflang reciprocity, workTranslation @ids, and stale detection without round-tripping the full translated article.
+ */
+export interface ReviewTranslationSummary {
+  /** BCP-47 canonical-case locale (`it`, `es`, `de`, `fr`, `pt-BR`). */
+  locale: string;
+  /** Per-locale slug (may differ from the master slug). */
+  slug: string;
+  /** Always `published` in this list — drafts/unpublished are filtered server-side. */
+  status: string;
+  title?: string | null;
+  translatorName?: string | null;
+  /** One of `ai_full`, `ai_assisted`, `human_only`. Free-form for forward compatibility. */
+  translationMethod?: string | null;
+  /** ISO-8601 timestamp when the translation was first published. */
+  publishedAt?: string | null;
+  /** Snapshot of master.updatedAt at translation time. Compared against the live master updatedAt to detect staleness. */
+  sourceReviewUpdatedAt?: string | null;
+  /** ISO-8601 timestamp of last translation sync. */
+  updatedAt: string;
+}
+
+/**
+ * Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.
+ */
+export interface RecentAd {
+  /** Supabase creative UUID; stable per ad creative and used as the row key. */
+  id: string;
+  /** Normalized offer name from Supabase (e.g. "Senvix", "Senvix Cristiano Ronaldo"). */
+  offer: string;
+  /** Comma-separated list of named figures abused in the creative. */
+  celebrity?: string | null;
+  /** ISO-3166-1 alpha-2 country code (e.g. "ES", "IT", "CZ"). */
+  geo: string;
+  /** BCP-47-ish language code of the landing page (e.g. "es", "it"). */
+  language?: string | null;
+  /** True for video creatives, false for image/static. */
+  isVideo: boolean;
+  /** ISO-8601 timestamp of the most recent sighting in scraping. */
+  lastSeenAt: string;
+  /** Number of times this creative has been observed by CryptoKiller scrapers. */
+  scrapeCount: number;
+  /** Landing URL the creative drives to. */
+  linkUrl?: string | null;
+  /** Facebook post permalink used by the "View archived ad" CTA. */
+  postUrl?: string | null;
+  /** Ad body copy (typically truncated by upstream). */
+  adCopy?: string | null;
 }
 
 export interface ReviewFull {
@@ -175,6 +267,12 @@ export interface ReviewFull {
   heroImageUrl?: string | null;
   /** Accessibility text for the hero image. */
   heroImageAlt?: string | null;
+  /** Attribution string rendered as a small caption below the hero image. Null when no credit was supplied. */
+  heroImageCredit?: string | null;
+  /** Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty. */
+  headline?: string | null;
+  /** Writer-supplied SEO title override (≤55 chars). When present, the client and SSR use this instead of the generic "{platformName} Scam Review — Threat Score N/100" formula. Mirrors `alternative_headline` in the Vercel CMS schema. Null for reviews that have not been through the Polish pipeline. */
+  alternativeHeadline?: string | null;
   /** Inline section images placed between content blocks. */
   contentImages: ContentImage[];
   /** Chart/diagram/infographic metadata. Only succeeded=true entries are rendered. */
@@ -195,8 +293,63 @@ export interface ReviewFull {
   threatBadge?: string | null;
   /** True only for confirmed+high tiers (~top 0.42% of brands by scam_score after the 2026-04 recalibration). Gates declarative scam copy on the client — share/embed/copy strings must use hedged language when this is false. */
   frameAsScam: boolean;
-  /** When null, client JSON-LD falls back to a synthetic Service node from platformName + tier. */
+  /** When null, client-side JSON-LD uses a synthetic Service node from platformName and tier metadata (must match SSR prerender). */
   itemReviewed?: ReviewItemReviewed | null;
+  /** Structured fraudulent-ad evidence (creative screenshots grouped by target country plus per-country detected-ad counts). Rendered in the "Evidence: Fraudulent Ad Creatives by Country" section. Null when the admin has not synced ad evidence for this review. */
+  adEvidence?: AdEvidence | null;
+  /** Published translations of this review. Slim metadata only — enough for the master page to emit hreflang link tags, the JSON-LD workTranslation array, and the visible "also-available-in" affordance. Fetch full translated content via GET /reviews/translations/{locale}/{slug}. Empty array when no translations exist. */
+  translations: ReviewTranslationSummary[];
+  /** Up to 4 CryptoKiller ad creatives for the brand under review, live-derived on each request from the Supabase `creatives` table (joined with `creatives_with_text`) keyed by the first token of `normalized_offer` against the brand name (case-insensitive). Primary window is the trailing 7 days; falls back to all-time when 7d returns 0 rows. Ordered newest-first by `lastSeenAt`. 5-minute server-side cache per brand. Empty array when no matches exist. */
+  recentAds: RecentAd[];
+}
+
+export type ReviewFullTranslatedRedFlagsItem = { [key: string]: unknown };
+
+export type ReviewFullTranslatedFaqItem = { [key: string]: unknown };
+
+/**
+ * Full translated review. Content fields are the locale-specific text; structural/identity fields (master*) are inherited from the English master so the translation page can render brand info, threat score, hero image, dates, etc. consistently.
+ */
+export interface ReviewFullTranslated {
+  /** BCP-47 canonical-case locale. */
+  locale: string;
+  /** Per-locale slug (the URL segment). */
+  slug: string;
+  status: string;
+  title?: string | null;
+  metaDescription?: string | null;
+  headline?: string | null;
+  alternativeHeadline?: string | null;
+  summary?: string | null;
+  verdict?: string | null;
+  howItWorks?: string | null;
+  fullArticle?: string | null;
+  /** Translator-provided red flags. Items may use either `{flag, detail}` or `{title, description}` keys — the client renders both shapes. */
+  redFlags?: ReviewFullTranslatedRedFlagsItem[] | null;
+  faq?: ReviewFullTranslatedFaqItem[] | null;
+  keyTakeaways?: string[] | null;
+  notForYou?: string | null;
+  protectionSteps?: string | null;
+  methodology?: string | null;
+  disclaimer?: string | null;
+  expertiseDepth?: string | null;
+  translationMethod?: string | null;
+  translatorName?: string | null;
+  translatorCredentials?: string | null;
+  aiModel?: string | null;
+  aiPromptVersion?: string | null;
+  reviewedAt?: string | null;
+  wordCount?: number | null;
+  publishedAt?: string | null;
+  sourceReviewUpdatedAt?: string | null;
+  updatedAt: string;
+  /** Live ISO-8601 updatedAt of the English master row at request time. Used by the renderer to compare against sourceReviewUpdatedAt for stale detection and to compute the `stale` flag below. */
+  masterUpdatedAt: string;
+  /** True when the translation was generated against an older version of the master (source_review_updated_at lags masterUpdatedAt by more than 1 hour). Renders a yellow "out-of-date" banner; the page still serves. */
+  stale: boolean;
+  masterSlug: string;
+  master: ReviewFull;
+  siblingTranslations: ReviewTranslationSummary[];
 }
 
 export interface RelatedReview {

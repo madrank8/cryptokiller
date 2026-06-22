@@ -9,7 +9,7 @@
 // Why tokens instead of literal numbers in prose:
 //   - Article prose is generated once and frozen in the DB.
 //   - Platform aggregates (totalBrandsTracked, totalCreativesAnalyzed, etc.)
-//     drift continuously as the SpyOwl scraper detects new brands/creatives
+//     drift continuously as the CryptoKiller scraper detects new brands/creatives
 //     and as Replit publishes new reviews.
 //   - Without tokens, the body says "9,000 brands" while the JSON-LD or
 //     other live surfaces say "10,432" — a same-page contradiction.

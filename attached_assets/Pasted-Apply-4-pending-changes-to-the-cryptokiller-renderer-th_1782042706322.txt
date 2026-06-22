@@ -1,0 +1,24 @@
+Apply 4 pending changes to the cryptokiller renderer, then push to GitHub
+The Vercel admin side for all of these is already live. These are the Replit-renderer halves. GitHub madrank8/cryptokiller main is behind the live deploy — apply these to the running code, deploy, then commit + push the workspace to GitHub so the repo finally matches production.
+
+1. Render structured ad evidence (highest priority — users can't see scam-ad screenshots)
+Admin now syncs a structured ad_evidence field on reviews: { images: [{geo, celebrity, url}], geoCounts: {GEO: count} }.
+
+Add ad_evidence jsonb to the reviews table (Drizzle + migration); accept/upsert it in artifacts/api-server/src/routes/sync.ts (same optional-jsonb pattern as content_images); expose adEvidence on the review read API/type.
+Render a "Evidence: Fraudulent Ad Creatives by Country" section in ReviewPage.tsx (client) and prerender.ts (SSR) from review.adEvidence — group by geo, show geoCounts[geo] "ads detected", image cards with the celebrity caption. (Full React + SSR snippet in my prior message; the old full_article grid's styling strings still apply.)
+The client today renders structured fields only and ignores full_article — that's why evidence was invisible in browsers.
+2. AI-disclosure (GitHub PR madrank8/cryptokiller#32)
+Apply that PR: new /ai-disclosure page (SSR renderStaticPage + client AiDisclosurePage), reviewedBy (Person: John Feldt, sameAs LinkedIn) on the Review + BlogPosting JSON-LD, and the footer link.
+
+3. Preferred-Source badge (GitHub PR madrank8/cryptokiller#33)
+Apply that PR: official Google badge (public/google-preferred-source.png) + PreferredSourceButton at the end of every review + blog article (client + SSR). Deeplink https://google.com/preferences/source?q=cryptokiller.org.
+
+4. Cache-purge on sync (so updates show instantly)
+The renderer serves cache-control: max-age=300, stale-while-revalidate=600 with a frozen last-modified, so synced changes take ~15 min to appear. On each sync-receiver upsert, invalidate the cached page for that slug (+ localized variants + lists), and set last-modified/ETag from the row's updated_at. Or drop max-age for review/blog pages.
+
+Verify (all four)
+curl -s https://cryptokiller.org/review/fino-inversor-a | grep -c 'creative-images'   # ad evidence present
+curl -s https://cryptokiller.org/ai-disclosure | grep -c 'Editorial Standards'        # disclosure page
+curl -s https://cryptokiller.org/review/fino-inversor-a | grep -c 'preferences/source'# preferred-source badge
+curl -sI https://cryptokiller.org/review/fino-inversor-a | grep -i last-modified       # advances after a sync
+And confirm the ad-evidence section + badge are visible in a browser (not just curl). Then git push the renderer workspace to GitHub.

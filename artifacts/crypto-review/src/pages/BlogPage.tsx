@@ -56,12 +56,12 @@ function ContentTypeBadge({ contentType }: { contentType: string }) {
   );
 }
 
-function PostImage({ url, alt, className }: { url: string | null; alt: string | null; className?: string }) {
+function PostImage({ url, alt, fallbackAlt, className }: { url: string | null; alt: string | null; fallbackAlt?: string | null; className?: string }) {
   if (url) {
     return (
       <img
         src={url}
-        alt={alt || "Article illustration"}
+        alt={alt || fallbackAlt || "Article illustration"}
         loading="lazy"
         width={800}
         height={450}
@@ -87,10 +87,14 @@ function PostMeta({ post }: { post: BlogPostSummary }) {
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
       {persona && (
-        <span className="flex items-center gap-1">
+        <Link
+          href={`/author/${persona.slug}`}
+          className="flex items-center gap-1 hover:text-slate-300 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
           <User className="h-3.5 w-3.5" />
           {persona.name}
-        </span>
+        </Link>
       )}
       {date && (
         <span className="flex items-center gap-1">
@@ -113,7 +117,7 @@ function FeaturedPost({ post }: { post: BlogPostSummary }) {
     <Link href={`/blog/${post.slug}`}>
       <article className="relative rounded-xl overflow-hidden border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer group">
         <div className="aspect-[16/9] sm:aspect-[2/1] relative">
-          <PostImage url={post.heroImageUrl} alt={post.heroImageAlt} />
+          <PostImage url={post.heroImageUrl} alt={post.heroImageAlt} fallbackAlt={post.headline || post.title} />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
             <div className="flex items-center gap-2 mb-3">
@@ -143,7 +147,7 @@ function HorizontalPostCard({ post }: { post: BlogPostSummary }) {
     <Link href={`/blog/${post.slug}`}>
       <article className="flex gap-0 bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden hover:border-slate-700 hover:bg-slate-900/80 transition-colors cursor-pointer group">
         <div className="w-48 sm:w-56 flex-shrink-0 relative">
-          <PostImage url={post.heroImageUrl} alt={post.heroImageAlt} />
+          <PostImage url={post.heroImageUrl} alt={post.heroImageAlt} fallbackAlt={post.headline || post.title} />
         </div>
         <div className="flex-1 p-4 sm:p-5 flex flex-col justify-center min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -193,22 +197,18 @@ export default function BlogPage() {
 
   const blogJsonLd = useMemo(() => {
     const globalGraph = ((globalSiteSchema()["@graph"] as Record<string, unknown>[] | undefined) ?? []);
-    const graph: Record<string, unknown>[] = [
-      ...globalGraph,
-      {
-        "@type": "CollectionPage",
-        "@id": `${BASE}/blog#webpage`,
-        name: "CryptoKiller Blog",
-        description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety.",
-        url: `${BASE}/blog`,
-        isPartOf: { "@id": `${BASE}/#website` },
-        publisher: { "@id": `${BASE}/#organization` },
-      },
-      breadcrumbJsonLd(crumbs),
-    ];
+    const pageNode: Record<string, unknown> = {
+      "@type": "CollectionPage",
+      "@id": `${BASE}/blog#webpage`,
+      name: "CryptoKiller Blog",
+      description: "Expert guides, analysis, and insights on crypto scams, fraud prevention, and digital asset safety.",
+      url: `${BASE}/blog`,
+      isPartOf: { "@id": `${BASE}/#website` },
+      publisher: { "@id": `${BASE}/#organization` },
+    };
 
     if (posts && posts.length > 0) {
-      graph[0].mainEntity = {
+      pageNode.mainEntity = {
         "@type": "ItemList",
         numberOfItems: posts.length,
         itemListElement: posts.slice(0, 10).map((p, i) => ({
@@ -219,6 +219,12 @@ export default function BlogPage() {
         })),
       };
     }
+
+    const graph: Record<string, unknown>[] = [
+      ...globalGraph,
+      pageNode,
+      breadcrumbJsonLd(crumbs),
+    ];
 
     return { "@context": "https://schema.org", "@graph": graph };
   }, [posts, crumbs]);

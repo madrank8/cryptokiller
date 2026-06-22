@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
-import { submitToIndexNow } from "../lib/indexnow";
+import { pingIndexNow } from "../indexnow";
+import { blogUrl } from "../canonical-urls";
 
 const router: IRouter = Router();
 
@@ -172,14 +173,19 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
     await client.query("COMMIT");
 
     const row = result.rows[0];
-    const blogUrl = `https://cryptokiller.org/blog/${content.slug}`;
+    const canonicalUrl = blogUrl(content.slug);
 
-    submitToIndexNow([blogUrl]).catch(() => {});
+    // Fire-and-forget IndexNow ping — published posts only, never drafts.
+    // URL from canonical-urls (the same builder the sitemap uses) so it can't
+    // drift. Never awaited / never throws into the request lifecycle.
+    if ((content.status ?? "draft") === "published") {
+      pingIndexNow([canonicalUrl]);
+    }
 
     res.json({
       success: true,
       slug: content.slug,
-      url: blogUrl,
+      url: canonicalUrl,
       post_id: row.id,
       action: row.inserted ? "created" : "updated",
     });

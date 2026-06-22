@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./adEvidence";
+export * from "./adEvidenceGeoCounts";
+export * from "./adEvidenceImage";
 export * from "./contentImage";
 export * from "./errorResponse";
 export * from "./faqItem";
@@ -13,13 +16,20 @@ export * from "./funnelStage";
 export * from "./geoTarget";
 export * from "./healthStatus";
 export * from "./keyFinding";
+export * from "./recentAd";
 export * from "./redFlag";
 export * from "./relatedReview";
 export * from "./reportResult";
 export * from "./reviewFull";
 export * from "./reviewFullThreatTier";
+export * from "./reviewFullTranslated";
+export * from "./reviewFullTranslatedFaqItem";
+export * from "./reviewFullTranslatedRedFlagsItem";
+export * from "./reviewItemReviewed";
+export * from "./reviewItemReviewedType";
 export * from "./reviewSource";
 export * from "./reviewSummary";
+export * from "./reviewTranslationSummary";
 export * from "./scamReportPayload";
 export * from "./syncFaqItem";
 export * from "./syncFunnelStage";

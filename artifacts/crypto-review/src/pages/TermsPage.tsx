@@ -34,6 +34,58 @@ export default function TermsPage() {
     title: "Terms of Service",
     description: "CryptoKiller terms of service. Rules governing use of our crypto scam investigation platform, report submissions, and published content.",
     canonical: "https://cryptokiller.org/terms",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://cryptokiller.org/" },
+            { "@type": "ListItem", position: 2, name: "Terms of Service", item: "https://cryptokiller.org/terms" },
+          ],
+        },
+        {
+          "@type": "WebPage",
+          "@id": "https://cryptokiller.org/terms#webpage",
+          url: "https://cryptokiller.org/terms",
+          name: "Terms of Service — CryptoKiller",
+          description: "CryptoKiller terms of service. Rules governing use of our crypto scam investigation platform, report submissions, and published content.",
+          isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          inLanguage: "en",
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://cryptokiller.org/terms#faq",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Can I republish CryptoKiller investigations on my site?",
+              acceptedAnswer: { "@type": "Answer", text: "No — wholesale republication of investigations is not permitted. You may quote short excerpts (a few sentences) with attribution and a link to the original source, and you may freely link to our investigations from your content. If you are a journalist or researcher requiring broader reproduction rights, contact corrections@cryptokiller.org to discuss a specific arrangement." },
+            },
+            {
+              "@type": "Question",
+              name: "Can AI systems cite your investigations?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes. AI search and answer systems (Google AI Overviews, ChatGPT Search, Perplexity, and similar) citing our investigations in response to user queries are explicitly welcomed. We publish with structured data specifically to make this citation accurate and attributed. Bulk-scraping our content to train models without attribution or agreement, however, is not permitted." },
+            },
+            {
+              "@type": "Question",
+              name: "What if I disagree with a threat score you've assigned to a brand?",
+              acceptedAnswer: { "@type": "Answer", text: "The correction path is email corrections@cryptokiller.org with the investigation URL and a specific, evidence-based explanation of what you believe is incorrect. We review every correction request on its merits, regardless of who it comes from. We do not charge for corrections and we do not condition them on any form of payment or quiet agreement." },
+            },
+            {
+              "@type": "Question",
+              name: "If I suffer a financial loss based on trusting or not trusting a CryptoKiller investigation, are you liable?",
+              acceptedAnswer: { "@type": "Answer", text: "No. Our content is editorial assessment based on cited evidence. It is not financial advice, and we disclaim liability for losses arising from reliance on our content. Any investment decision requires your own due diligence beyond CryptoKiller, including consulting the primary regulatory sources we cite and, where appropriate, qualified professional advisors." },
+            },
+            {
+              "@type": "Question",
+              name: "How do I report a legal or copyright concern?",
+              acceptedAnswer: { "@type": "Answer", text: "Email corrections@cryptokiller.org with the URL of the content at issue and a clear description of the concern. For copyright claims, please include the specific material you claim is infringed, your contact information, and a good-faith statement that you are the rightsholder or authorised to act on their behalf. We review all legal notices promptly and act in accordance with the applicable copyright law." },
+            },
+          ],
+        },
+      ],
+    },
   });
 
   useEffect(() => {

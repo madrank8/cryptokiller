@@ -1,0 +1,69 @@
+# Fix these issues on https://cryptokiller.org/ to meet The Website Specification
+
+You are an AI coding assistant. Fix the problems below so this site conforms to The Website Specification (https://specification.website). Scope: the Security category. Each item lists the current evidence, the requirement, a reference, and (where known) a suggested fix. Make the smallest correct change for each item and do not touch anything not listed.
+
+## Frame ancestors / clickjacking - FAIL (required)
+- **Evidence:** No CSP frame-ancestors and no X-Frame-Options
+- **Requirement:** Neither CSP frame-ancestors nor X-Frame-Options is set, leaving the page framable.
+- **Reference:** https://specification.website/spec/security/frame-ancestors/
+- **Fix hint:** Add `Content-Security-Policy: frame-ancestors 'self'` (or X-Frame-Options: DENY/SAMEORIGIN).
+
+## X-Content-Type-Options - FAIL (required)
+- **Evidence:** No X-Content-Type-Options header
+- **Requirement:** Without `nosniff`, browsers may MIME-sniff responses into a wrong, riskier type.
+- **Reference:** https://specification.website/spec/security/x-content-type-options/
+- **Fix hint:** Send `X-Content-Type-Options: nosniff` on all responses.
+
+## CAA records - FAIL (recommended)
+- **Evidence:** No CAA records found
+- **Requirement:** No CAA records restrict which CAs may issue certificates for this domain.
+- **Reference:** https://specification.website/spec/security/caa-records/
+- **Fix hint:** Add a CAA record, e.g. `example.com. IN CAA 0 issue "letsencrypt.org"`.
+
+## Content Security Policy - FAIL (recommended)
+- **Evidence:** No Content-Security-Policy header
+- **Requirement:** No enforcing CSP is set, so the page has no defence-in-depth against injection.
+- **Reference:** https://specification.website/spec/security/content-security-policy/
+- **Fix hint:** Add a Content-Security-Policy starting from a strict baseline (e.g. `default-src 'self'`).
+
+## Permissions-Policy - FAIL (recommended)
+- **Evidence:** No Permissions-Policy header
+- **Requirement:** No Permissions-Policy is set, so powerful features are not explicitly restricted.
+- **Reference:** https://specification.website/spec/security/permissions-policy/
+- **Fix hint:** Add a `Permissions-Policy` that disables unused features (e.g. `geolocation=(), camera=()`).
+
+## Referrer-Policy - FAIL (recommended)
+- **Evidence:** No Referrer-Policy header
+- **Requirement:** No Referrer-Policy is set, so the browser default may leak full URLs cross-site.
+- **Reference:** https://specification.website/spec/security/referrer-policy/
+- **Fix hint:** Add `Referrer-Policy: strict-origin-when-cross-origin`.
+
+## security.txt - FAIL (recommended)
+- **Evidence:** No /.well-known/security.txt
+- **Requirement:** No security.txt is published, so researchers have no clear disclosure channel.
+- **Reference:** https://specification.website/spec/security/security-txt/
+- **Fix hint:** Publish `/.well-known/security.txt` with at least a `Contact:` field.
+
+## Cookie attributes - PARTIAL (required)
+- **Evidence:** GAESA (missing Secure, HttpOnly, SameSite)
+- **Requirement:** Some cookies are missing recommended security attributes.
+- **Reference:** https://specification.website/spec/security/cookie-attributes/
+- **Fix hint:** Set `Secure`, `HttpOnly` (where applicable), and an explicit `SameSite` on each cookie.
+
+## HSTS - PARTIAL (required)
+- **Evidence:** Strict-Transport-Security: max-age=63072000; includeSubDomains (no preload)
+- **Requirement:** HSTS is present but incomplete.
+- **Reference:** https://specification.website/spec/security/hsts/
+- **Fix hint:** Set max-age=63072000; includeSubDomains; preload once you are confident.
+
+## DNSSEC - FAIL (optional)
+- **Evidence:** DNSSEC not enabled
+- **Requirement:** DNSSEC is not enabled for this domain.
+- **Reference:** https://specification.website/spec/security/dnssec/
+- **Fix hint:** Enable DNSSEC at your DNS provider and publish a DS record at the registrar.
+
+## Subresource Integrity - PARTIAL (recommended)
+- **Evidence:** 3/3 without integrity: script https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1909284135670574, link https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjQ.woff2, link https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap
+- **Requirement:** Some cross-origin subresources are missing Subresource Integrity hashes.
+- **Reference:** https://specification.website/spec/security/subresource-integrity/
+- **Fix hint:** Add `integrity` (and `crossorigin`) attributes to the listed external resources.

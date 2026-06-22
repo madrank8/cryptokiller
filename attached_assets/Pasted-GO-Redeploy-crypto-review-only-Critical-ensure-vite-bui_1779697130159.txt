@@ -1,0 +1,82 @@
+GO. Redeploy crypto-review only. Critical: ensure vite + build-server.mjs
+actually run against the current source — your diagnosis identified build
+cache reuse as the likely root cause, so a naive redeploy could
+re-publish the same stale artifact.
+
+────────────────────────────────────────────────────────
+STEP 1 — Force a clean rebuild
+────────────────────────────────────────────────────────
+Before triggering the deploy, on the crypto-review build environment
+(or in the deploy hook / pre-build step):
+
+  cd artifacts/crypto-review
+  rm -rf dist/ node_modules/.vite node_modules/.cache
+  cd ../..
+  pnpm install --frozen-lockfile
+  pnpm --filter @workspace/crypto-review run build
+
+Watch the build output. You MUST see:
+  - vite building dist/public/index.html and dist/public/assets/*
+  - build-server.mjs running esbuild and writing dist/server/index.mjs
+
+If either step is skipped or "from cache", the deploy will ship the
+same stale bundle. In that case, also wipe any deploy-platform build
+cache (Replit's Deployments tab → Settings → "Clear build cache" or
+equivalent) and rerun.
+
+────────────────────────────────────────────────────────
+STEP 2 — Verify the built artifact has the new code BEFORE deploying
+────────────────────────────────────────────────────────
+Grep the freshly-built server bundle for fingerprints that only the
+new code has:
+
+  grep -c 'review_translations\|SUPPORTED_LOCALES\|localizePath\|buildAlternatesForPath' \
+       artifacts/crypto-review/dist/server/index.mjs
+
+Expect: a non-zero count (the bundle inlines the prerender source).
+If you get 0, the build did NOT pick up the new prerender.ts — stop
+and figure out why before deploying.
+
+Also confirm the bundle hash changed:
+  ls -l artifacts/crypto-review/dist/server/index.mjs
+(Different size/mtime than the previously-deployed artifact.)
+
+────────────────────────────────────────────────────────
+STEP 3 — Deploy crypto-review
+────────────────────────────────────────────────────────
+Ship it. Confirm the deploy succeeded and the new build is what's live.
+
+────────────────────────────────────────────────────────
+STEP 4 — Re-run the smoke tests
+────────────────────────────────────────────────────────
+A. FR review URL no longer 404s:
+   curl -sI "https://cryptokiller.org/fr/review/blackrose-finbitnex"
+   → HTTP/2 200
+
+B. FR page has French chrome:
+   curl -s -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
+        "https://cryptokiller.org/fr/review/blackrose-finbitnex" \
+        | grep -oE '<html lang="[^"]+"|<link rel="canonical"[^>]+|<link rel="alternate" hreflang="[^"]+"[^>]+|"inLanguage":"[a-z]+"' \
+        | head -20
+
+   Expect: <html lang="fr", canonical pointing at the /fr/ URL,
+           hreflang siblings for en + x-default + fr, "inLanguage":"fr"
+           multiple times.
+
+C. EN page now advertises the FR sibling:
+   curl -s -H "User-Agent: Googlebot" \
+        "https://cryptokiller.org/review/blackrose-finbitnex" \
+        | grep -oE '<link rel="alternate" hreflang="fr"[^>]+'
+   → expect one hit pointing at the /fr/ URL.
+
+D. CHECK F (localized 404 chrome):
+   curl -s "https://cryptokiller.org/fr/this-cannot-exist" \
+        | grep -oE '<html lang="[^"]+"|404 — Page introuvable' | head
+   → expect <html lang="fr" + "404 — Page introuvable".
+
+E. Sitemap has FR entries:
+   curl -s "https://cryptokiller.org/sitemap.xml" | grep -c "/fr/review/"
+   → expect ≥ 1 (one per published translation slug).
+
+Report all five outputs verbatim. If A is 200 and B–E look right, we're
+done.

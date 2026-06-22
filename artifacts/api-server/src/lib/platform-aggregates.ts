@@ -8,7 +8,7 @@ import { db, platformAggregatesTable, reviewsTable } from "@workspace/db";
 //     totalBrandsWithCelebrityAbuse, avgScamScore, topVelocityTrend, top*)
 //     come from the platform_aggregates row keyed `source = 'vercel-sync'`,
 //     which is upserted by POST /sync/platform-aggregates from the Vercel
-//     side. Vercel has visibility into the full SpyOwl universe (scam_brands,
+//     side. Vercel has visibility into the full CryptoKiller universe (scam_brands,
 //     creatives) which Replit does not.
 //
 //   - totalBrandsReviewed is computed live from Replit's own `reviews` table.

@@ -31,10 +31,55 @@ export default function RecoveryPage() {
   ];
 
   usePageMeta({
-    title: "Crypto Scam Recovery Guide — What To Do After Losing Funds | CryptoKiller",
-    description: "Step-by-step guide to recovering from a crypto scam. Immediate steps, reporting to authorities, chargebacks, and how to avoid recovery scams.",
+    title: "Crypto Scam Recovery Guide — CryptoKiller",
+    description: "Step-by-step recovery guide if you have lost crypto to a scam. Immediate actions, reporting authorities in every major jurisdiction, and how to avoid recovery scams.",
     canonical: "https://cryptokiller.org/recovery",
-    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        breadcrumbJsonLd(crumbs),
+        {
+          "@type": "WebPage",
+          "@id": "https://cryptokiller.org/recovery#webpage",
+          url: "https://cryptokiller.org/recovery",
+          name: "Crypto Scam Recovery Guide — CryptoKiller",
+          description: "Step-by-step recovery guide if you have lost crypto to a scam. Immediate actions, reporting authorities in every major jurisdiction, and how to avoid recovery scams.",
+          isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          inLanguage: "en",
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://cryptokiller.org/recovery#faq",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "I just sent crypto to a scam — is there any way to reverse it?",
+              acceptedAnswer: { "@type": "Answer", text: "Blockchain transactions cannot be reversed by the protocol itself. However, if the destination wallet is hosted at a custodial exchange (Coinbase, Binance, Kraken, etc.) and you report quickly, law enforcement can sometimes freeze the funds before they are moved off-exchange. Report to the exchange's abuse team, your local police, and your national fraud agency within 24 hours for the best chance." },
+            },
+            {
+              "@type": "Question",
+              name: "Someone contacted me offering to recover my lost funds for a fee. Is this legitimate?",
+              acceptedAnswer: { "@type": "Answer", text: "Almost certainly no. There is no legitimate recovery service that requires upfront payment, and no legitimate recovery service contacts victims through unsolicited DM, email, or phone call. Recovery scammers specifically target recent scam victims using leaked victim lists. If someone contacts you out of the blue claiming they can recover your funds, treat it as a second scam attempt." },
+            },
+            {
+              "@type": "Question",
+              name: "The scammer is asking for a \"release fee\" to let me withdraw. Should I pay?",
+              acceptedAnswer: { "@type": "Answer", text: "No. There is no legitimate financial mechanism that requires an additional deposit before a withdrawal is processed. \"Tax fees\", \"anti-money-laundering fees\", \"account verification fees\", \"unlocking fees\" — all of these are scam scripts. Every additional payment is another loss. Stop, preserve evidence, and report." },
+            },
+            {
+              "@type": "Question",
+              name: "Can I report the scam if I don't know the scammer's real identity?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Most scam reports start with only the platform name, wallet addresses, and communication evidence. Police cybercrime units are accustomed to working from this starting point. The more evidence you preserve — transaction IDs, screenshots, chat logs — the more useful your report is, even without knowing who is behind the operation." },
+            },
+            {
+              "@type": "Question",
+              name: "How long do I have to report?",
+              acceptedAnswer: { "@type": "Answer", text: "Different deadlines apply for different paths. Card chargebacks typically have a 120-day window from transaction date, sometimes shorter. Bank wire reversals must be attempted within days, often hours. Police and regulator reports have no hard deadline, but evidence availability decreases over time — scam platforms go offline, chat logs get deleted, witnesses move on. File within the first week if at all possible." },
+            },
+          ],
+        },
+      ],
+    },
   });
 
   useEffect(() => {

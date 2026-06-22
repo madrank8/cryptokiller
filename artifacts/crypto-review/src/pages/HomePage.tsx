@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
 import { useListReviews } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { ReviewSummary } from "@workspace/api-client-react";
@@ -62,8 +62,91 @@ function LiveFeedTicker({ reviews }: { reviews: ReviewSummary[] }) {
   );
 }
 
-function HeroSection() {
+function searchChipClasses(score: number) {
+  if (score >= 80) return "bg-red-600 text-white";
+  if (score >= 60) return "bg-orange-500 text-slate-950";
+  return "bg-amber-500 text-slate-950";
+}
+
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  const idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="text-red-400 font-semibold">{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+function HeroSection({ reviews }: { reviews: ReviewSummary[] }) {
   const [searchValue, setSearchValue] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const query = searchValue.trim().toLowerCase();
+
+  const matches = useMemo(() => {
+    if (query.length < 2) return [];
+    return reviews
+      .filter((r) => r.platformName.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const aStarts = a.platformName.toLowerCase().startsWith(query) ? 1 : 0;
+        const bStarts = b.platformName.toLowerCase().startsWith(query) ? 1 : 0;
+        if (aStarts !== bStarts) return bStarts - aStarts;
+        return b.threatScore - a.threatScore;
+      })
+      .slice(0, 6);
+  }, [reviews, query]);
+
+  const showDropdown = open && query.length >= 2;
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [query]);
+
+  useEffect(() => {
+    function onDocClick(e: globalThis.MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  function goToReview(slug: string) {
+    window.location.href = `/review/${slug}`;
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (activeIndex >= 0 && matches[activeIndex]) {
+      goToReview(matches[activeIndex].slug);
+    } else if (matches.length > 0) {
+      goToReview(matches[0].slug);
+    } else if (searchValue.trim()) {
+      goToReview(searchValue.trim().toLowerCase().replace(/\s+/g, "-"));
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (!showDropdown) return;
+    if (e.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (matches.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % matches.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? matches.length - 1 : i - 1));
+    }
+  }
 
   return (
     <section className="relative py-24 md:py-32 overflow-hidden">
@@ -87,25 +170,68 @@ function HeroSection() {
           Search any crypto platform to see its threat score, evidence of scam ads, and our investigation verdict.
         </p>
 
-        <form
-          className="max-w-xl mx-auto flex gap-2 mb-10"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (searchValue.trim()) {
-              const slug = searchValue.trim().toLowerCase().replace(/\s+/g, "-");
-              window.location.href = `/review/${slug}`;
-            }
-          }}
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+        <form className="max-w-xl mx-auto flex gap-2 mb-10" onSubmit={handleSubmit}>
+          <div ref={searchRef} className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 z-10 pointer-events-none" />
             <input
               type="text"
+              role="combobox"
+              aria-expanded={showDropdown}
+              aria-controls="platform-search-listbox"
+              aria-activedescendant={activeIndex >= 0 ? `platform-option-${activeIndex}` : undefined}
+              aria-autocomplete="list"
+              autoComplete="off"
               placeholder="Search a crypto platform..."
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              onChange={(e) => { setSearchValue(e.target.value); setOpen(true); }}
+              onFocus={() => setOpen(true)}
+              onKeyDown={handleKeyDown}
               className="w-full bg-slate-900 border border-slate-700 focus:border-red-600 focus:ring-1 focus:ring-red-600/30 rounded-xl pl-12 pr-4 py-4 text-white text-sm placeholder:text-slate-500 outline-none transition-colors"
             />
+
+            {showDropdown && (
+              <div
+                id="platform-search-listbox"
+                role="listbox"
+                className="absolute left-0 right-0 top-full mt-2 z-30 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 text-left shadow-2xl shadow-black/60"
+              >
+                {matches.length > 0 ? (
+                  <>
+                    <div className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      Tracked platforms
+                    </div>
+                    <ul className="max-h-[300px] overflow-y-auto">
+                      {matches.map((r, i) => (
+                        <li key={r.id} id={`platform-option-${i}`} role="option" aria-selected={i === activeIndex}>
+                          <a
+                            href={`/review/${r.slug}`}
+                            onMouseEnter={() => setActiveIndex(i)}
+                            className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${i === activeIndex ? "bg-slate-800" : "hover:bg-slate-800/60"}`}
+                          >
+                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-black ${searchChipClasses(r.threatScore)}`}>
+                              {r.threatScore}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold text-white">
+                                <HighlightMatch text={r.platformName} query={query} />
+                              </span>
+                              <span className="block truncate text-xs text-slate-500">{r.verdict}</span>
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <div className="px-4 py-4 text-sm text-slate-400">
+                    No tracked platform matches{" "}
+                    <span className="font-semibold text-white">"{searchValue.trim()}"</span>.
+                    <span className="mt-1 block text-xs text-slate-500">Press Enter to investigate it anyway.</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <button
             type="submit"
@@ -126,7 +252,7 @@ function HeroSection() {
               ],
             },
             {
-              value: "22,033+",
+              value: "22,000+",
               label: "Brands Tracked",
               citations: [{ name: "CryptoKiller Database" }],
             },
@@ -177,7 +303,7 @@ function HeroSection() {
           href="https://wa.me/14155238886?text=Hi%20CryptoKiller%2C%20I%20want%20to%20check%20a%20crypto%20platform"
           target="_blank"
           rel="noopener noreferrer"
-          className="block mt-6 text-sm text-[#25D366]/70 hover:text-[#25D366] transition-colors"
+          className="block mt-6 py-1 text-sm text-[#25D366]/70 hover:text-[#25D366] transition-colors"
         >
           💬 Or check any platform instantly on WhatsApp →
         </a>
@@ -197,6 +323,9 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
       : "from-amber-500 to-orange-500";
 
   const scoreBg = isExtreme ? "bg-red-600" : isHigh ? "bg-orange-500" : "bg-amber-500";
+  // WCAG: white clears 4.5:1 on the dark red-600 chip; the lighter orange/amber
+  // chips need near-black text to clear 4.5:1.
+  const scoreText = isExtreme ? "text-white" : "text-slate-950";
 
   const trend = daysActive > 400 ? "Stable" : daysActive > 100 ? "Rising" : "Surging";
   const trendColor = trend === "Surging" ? "text-red-400 bg-red-950/50 border-red-900/40" : trend === "Rising" ? "text-orange-400 bg-orange-950/50 border-orange-900/40" : "text-amber-400 bg-amber-950/50 border-amber-900/40";
@@ -210,8 +339,8 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
           {/* score + name */}
           <div className="flex items-start gap-4 mb-4">
             <div className={`${scoreBg} w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 shadow-lg`}>
-              <span className="text-white text-xl font-black leading-none">{threatScore}</span>
-              <span className="text-white/60 text-[9px] font-bold">Score</span>
+              <span className={`${scoreText} text-xl font-black leading-none`}>{threatScore}</span>
+              <span className={`${scoreText} text-[9px] font-bold`}>Score</span>
             </div>
             <div className="min-w-0 flex-1 pt-0.5">
               <h3 className="text-white font-bold text-lg leading-tight group-hover:text-red-400 transition-colors truncate">{platformName}</h3>
@@ -336,7 +465,7 @@ function HowItWorks() {
       icon: <Target className="h-7 w-7" />,
       color: "text-blue-400", bg: "bg-blue-500/10 border-blue-900/30",
       title: "Scam Ads Detected",
-      desc: "Our sophisticated systems monitor social media ad platforms across 50+ countries† 24/7, detecting crypto scam campaigns in real time.",
+      desc: "Our sophisticated systems monitor social media ad platforms across 84+ countries† 24/7, detecting crypto scam campaigns in real time.",
       footnote: "† CryptoKiller Ad Surveillance Network, April 2026",
     },
     {
@@ -427,7 +556,7 @@ export default function HomePage() {
         name: "CryptoKiller",
         url: "https://cryptokiller.org",
         logo: "https://cryptokiller.org/favicon.svg",
-        description: "Crypto scam intelligence platform tracking 1,000+ fraudulent brands through real-time ad surveillance and evidence-based investigation.",
+        description: "Crypto scam intelligence platform tracking 22,000+ fraudulent brands through real-time ad surveillance and evidence-based investigation.",
         foundingDate: "2025",
         knowsAbout: [
           "Cryptocurrency Scams",
@@ -467,7 +596,7 @@ export default function HomePage() {
         publisher: { "@id": "https://cryptokiller.org/#organization" },
         potentialAction: {
           "@type": "SearchAction",
-          target: "https://cryptokiller.org/search?q={search_term_string}",
+          target: { "@type": "EntryPoint", urlTemplate: "https://cryptokiller.org/investigations?q={search_term_string}" },
           "query-input": "required name=search_term_string",
         },
       },
@@ -521,8 +650,8 @@ export default function HomePage() {
   }), []);
 
   usePageMeta({
-    title: "Crypto Scam Checker — Investigate Any Platform | CryptoKiller",
-    description: "Check any crypto platform before investing. CryptoKiller tracks 1,000+ scam brands — pig butchering, rug pulls, phishing, fake exchanges — with evidence and threat scores.",
+    title: "CryptoKiller — Crypto Scam Checker & Investigations",
+    description: "Check any crypto platform before investing. CryptoKiller tracks 22,000+ scam brands — pig butchering, rug pulls, phishing — with evidence and threat scores.",
     canonical: "https://cryptokiller.org/",
     jsonLd,
   });
@@ -530,16 +659,18 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-900 selection:text-white">
       <SiteHeader activeNav="home" />
-      <LiveFeedTicker reviews={reviews ?? []} />
-      <HeroSection />
-      <TrustBar />
-      <TrendingScams reviews={reviews} isLoading={isLoading} />
-      <LatestReviews reviews={reviews} />
-      <WarningBanner />
-      <HowItWorks />
-      <ResearchTeam />
-      <ScamActionSteps />
-      <EditorialBand />
+      <main id="main" tabIndex={-1}>
+        <LiveFeedTicker reviews={reviews ?? []} />
+        <HeroSection reviews={reviews ?? []} />
+        <TrustBar />
+        <TrendingScams reviews={reviews} isLoading={isLoading} />
+        <LatestReviews reviews={reviews} />
+        <WarningBanner />
+        <HowItWorks />
+        <ResearchTeam />
+        <ScamActionSteps />
+        <EditorialBand />
+      </main>
       <WhatsAppFloatingButton />
 
       <SiteFooter />

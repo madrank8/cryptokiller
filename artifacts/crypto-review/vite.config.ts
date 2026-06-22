@@ -57,6 +57,33 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Pin stable third-party runtimes into named vendor chunks so they
+        // survive across deploys without cache-busting. Route components are
+        // code-split via React.lazy; Vite splits other shared modules
+        // (UI primitives, icons, etc.) automatically.
+        //   react-vendor  — React core (react, react-dom, scheduler)
+        //   query-vendor  — TanStack React Query (@tanstack/react-query)
+        manualChunks(id) {
+          if (
+            /[\\/]node_modules[\\/](react|react-dom|scheduler|react-is)[\\/]/.test(
+              id,
+            )
+          ) {
+            return "react-vendor";
+          }
+          if (
+            /[\\/]node_modules[\\/](@tanstack[\\/]react-query|@tanstack[\\/]query-core)[\\/]/.test(
+              id,
+            )
+          ) {
+            return "query-vendor";
+          }
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port,

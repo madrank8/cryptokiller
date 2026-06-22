@@ -1,0 +1,143 @@
+Pull and deploy PR #31 (feat/i18n-fr-review-urls) to wire up /fr/review/:slug
+support end-to-end. The PR is already merged-ready on the feat/i18n-fr-review-urls
+branch: https://github.com/madrank8/cryptokiller/pull/31
+
+The site currently 404s on https://cryptokiller.org/fr/review/blackrose-finbitnex
+because the SSR has no /fr/ routing AND the Replit Postgres has no
+review_translations table — translations live only in Supabase upstream.
+The PR mirrors them into Replit and adds locale-aware routing/rendering.
+
+Execute in this order. STOP after each step and report; do not chain past a
+failure.
+
+────────────────────────────────────────────────────────
+STEP 1 — Pull the branch
+────────────────────────────────────────────────────────
+git fetch origin
+git checkout feat/i18n-fr-review-urls
+git pull --ff-only origin feat/i18n-fr-review-urls
+pnpm install
+pnpm typecheck   # must exit 0; do not proceed if it fails
+
+────────────────────────────────────────────────────────
+STEP 2 — Apply the database migration
+────────────────────────────────────────────────────────
+The migration file is lib/db/migrations/0007_review_translations.sql.
+It creates the review_translations table (idempotent: CREATE TABLE IF NOT
+EXISTS + CREATE UNIQUE INDEX IF NOT EXISTS, so safe to re-run).
+
+Apply it against the Replit Postgres (the database DATABASE_URL points to).
+Use psql, the Replit DB pane's "Run SQL" tool, or any psql client — whichever
+you have available. After applying, verify with:
+
+  SELECT to_regclass('public.review_translations'), to_regclass('public.review_translations_slug_locale_idx');
+
+Both should return non-null. If either is null, the migration didn't apply —
+stop and report.
+
+DO NOT run `pnpm --filter @workspace/db run push` unless drizzle-kit is the
+project's chosen migration tool here — the .sql files are the source of
+truth in this repo and drizzle push would try to diff the whole schema.
+
+────────────────────────────────────────────────────────
+STEP 3 — Deploy the api-server
+────────────────────────────────────────────────────────
+The api-server gained:
+  - A review_translations pull inside runSupabaseSync (returns
+    syncedTranslations in the result payload)
+  - GET /api/reviews/:slug now accepts ?locale=fr|es and overlays the
+    translation server-side
+  - GET /api/sitemap.xml now emits /<locale>/review/:slug entries with
+    xhtml:link hreflang siblings
+
+Deploy api-server. Confirm it boots cleanly (check logs for any startup
+errors), then sanity-check:
+
+  curl -s "$API_BASE/api/reviews/blackrose-finbitnex" | jq '.locale, .title'
+    # expect: "en", "Blackrose Finbitnex Review: 33/100 ..."
+
+  curl -s "$API_BASE/api/reviews/blackrose-finbitnex?locale=fr"
+    # expect 404 BEFORE step 4 (translation not yet synced into Replit DB)
+
+────────────────────────────────────────────────────────
+STEP 4 — Sync translations from Supabase into Replit
+────────────────────────────────────────────────────────
+Trigger the existing supabase sync. The header secret is the SYNC_SECRET
+environment variable already configured on api-server.
+
+  curl -s -X POST "$API_BASE/sync/supabase" \
+       -H "x-sync-secret: $SYNC_SECRET" | jq .
+
+Expected response (the syncedTranslations field is NEW):
+  {
+    "message": "Sync complete",
+    "syncedBrands": <N>,
+    "syncedReviews": <N>,
+    "syncedTranslations": 1,   <-- must be ≥ 1
+    "durationMs": <number>
+  }
+
+Verify the row landed:
+  curl -s "$API_BASE/api/reviews/blackrose-finbitnex?locale=fr" | jq '.locale, .title, .verdict' | head
+  # expect: "fr", "Examen Blackrose Finbitnex : Score de Menace 33/100 [2026]",
+  #         "Blackrose Finbitnex est sous investigation active. ..."
+
+If syncedTranslations stays at 0, the sync code couldn't reach the upstream
+public.review_translations table — check SUPABASE_URL / SUPABASE_SERVICE_KEY
+on api-server, then re-run.
+
+────────────────────────────────────────────────────────
+STEP 5 — Deploy crypto-review (the SSR app)
+────────────────────────────────────────────────────────
+This deploy carries the locale-aware SSR router + i18n chrome catalog +
+hreflang emission + client-side /fr/review/:slug route.
+
+After it's live, smoke-test the original URL the user reported:
+
+  curl -sI "https://cryptokiller.org/fr/review/blackrose-finbitnex"
+  # expect: HTTP/2 200 (not 404)
+
+  curl -s -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
+       "https://cryptokiller.org/fr/review/blackrose-finbitnex" \
+       | grep -oE '<html lang="[^"]+"|<link rel="canonical"[^>]+|<link rel="alternate" hreflang="[^"]+"[^>]+|"inLanguage":"[a-z]+"' \
+       | head -20
+
+  Expected lines:
+    <html lang="fr"
+    <link rel="canonical" href="https://cryptokiller.org/fr/review/blackrose-finbitnex" data-ssr="1"
+    <link rel="alternate" hreflang="en" href="https://cryptokiller.org/review/blackrose-finbitnex" data-ssr="1"
+    <link rel="alternate" hreflang="x-default" href="https://cryptokiller.org/review/blackrose-finbitnex" data-ssr="1"
+    <link rel="alternate" hreflang="fr" href="https://cryptokiller.org/fr/review/blackrose-finbitnex" data-ssr="1"
+    "inLanguage":"fr"   (multiple — Review node, FAQPage node)
+
+Also confirm the EN URL is unchanged AND now advertises the FR sibling:
+
+  curl -s -H "User-Agent: Googlebot" "https://cryptokiller.org/review/blackrose-finbitnex" \
+       | grep -oE '<link rel="alternate" hreflang="fr"[^>]+'
+  # expect a hit pointing at the /fr/ URL
+
+And verify the sitemap:
+
+  curl -s "https://cryptokiller.org/sitemap.xml" | grep -A2 '/fr/review/blackrose-finbitnex'
+  # expect a <url> block with xhtml:link siblings
+
+────────────────────────────────────────────────────────
+STEP 6 — Report back
+────────────────────────────────────────────────────────
+Confirm:
+  - migration applied (which method you used)
+  - api-server deployed (sha or build id)
+  - sync result JSON (syncedTranslations count)
+  - crypto-review deployed (sha or build id)
+  - the curl outputs from step 5
+
+If anything regressed on the EN side (existing /review/:slug URLs broken,
+sitemap malformed, sync errors on non-translation paths), do NOT roll
+forward — revert to the previous deploys and report.
+
+Out of scope for this PR (do not file bugs about):
+  - /fr/blog/* /fr/about /fr/ all return localized 404 by design
+  - React-tree chrome strings (buttons, "Related Scam Investigations")
+    stay English on FR pages — SSR HTML/JSON-LD/canonical/hreflang are
+    fully French, which is what crawlers see and what the URL fix
+    required

@@ -90,6 +90,44 @@ paths:
                 items:
                   $ref: "#/components/schemas/RelatedReview"
 
+  /reviews/translations/{locale}/{slug}:
+    get:
+      operationId: getReviewTranslation
+      tags: [reviews]
+      summary: Get a translated review by locale + per-locale slug
+      description: >-
+        Returns the full translated review content joined with structural
+        fields from the master (brand info, threat metadata, hero image,
+        etc). 404 if no published translation exists for (locale, slug).
+        Locale must be the BCP-47 canonical form (e.g. `pt-BR`, not
+        `pt-br`).
+      parameters:
+        - name: locale
+          in: path
+          required: true
+          description: BCP-47 locale code (`it`, `es`, `de`, `fr`, `pt-BR`).
+          schema:
+            type: string
+        - name: slug
+          in: path
+          required: true
+          description: Per-locale slug for the translation (may differ from master).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full translated review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewFullTranslated"
+        "404":
+          description: Translation not found or not published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /reports:
     post:
       operationId: submitReport
@@ -283,6 +321,48 @@ components:
         - region
         - countryCodes
         - orderIndex
+
+    AdEvidenceImage:
+      type: object
+      description: >
+        A single fraudulent ad-creative screenshot used as evidence, tagged with
+        the country it targeted and the celebrity whose likeness was abused.
+      properties:
+        geo:
+          type: string
+          description: ISO-3166-1 alpha-2 country code the creative targeted (e.g. "ES", "IT").
+        celebrity:
+          type: string
+          description: Name of the public figure impersonated in the creative.
+        url:
+          type: string
+          description: Image URL of the ad-creative screenshot.
+      required:
+        - geo
+        - celebrity
+        - url
+
+    AdEvidence:
+      type: object
+      description: >
+        Structured fraudulent-ad evidence for the brand under review: creative
+        screenshots grouped by target country plus per-country detected-ad
+        counts. Synced from the admin and rendered in the "Evidence: Fraudulent
+        Ad Creatives by Country" section.
+      properties:
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdEvidenceImage"
+          description: Ad-creative screenshots tagged by geo + impersonated celebrity.
+        geoCounts:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Map of ISO-3166-1 alpha-2 country code → number of ads detected there.
+      required:
+        - images
+        - geoCounts
 
     ContentImage:
       type: object
@@ -489,6 +569,23 @@ components:
           type: string
           nullable: true
           description: Accessibility text for the hero image.
+        heroImageCredit:
+          type: string
+          nullable: true
+          description: Attribution string rendered as a small caption below the hero image. Null when no credit was supplied.
+        headline:
+          type: string
+          nullable: true
+          description: Visible H1 for the review page. Distinct from `title` (which is the SEO title). Falls back to the SEO title when null/empty.
+        alternativeHeadline:
+          type: string
+          nullable: true
+          description: >-
+            Writer-supplied SEO title override (≤55 chars). When present, the
+            client and SSR use this instead of the generic
+            "{platformName} Scam Review — Threat Score N/100" formula. Mirrors
+            `alternative_headline` in the Vercel CMS schema.
+            Null for reviews that have not been through the Polish pipeline.
         contentImages:
           type: array
           items:
@@ -545,6 +642,38 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/ReviewItemReviewed"
+        adEvidence:
+          description: >-
+            Structured fraudulent-ad evidence (creative screenshots grouped by
+            target country plus per-country detected-ad counts). Rendered in the
+            "Evidence: Fraudulent Ad Creatives by Country" section. Null when the
+            admin has not synced ad evidence for this review.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AdEvidence"
+        translations:
+          type: array
+          description: >-
+            Published translations of this review. Slim metadata only —
+            enough for the master page to emit hreflang link tags, the
+            JSON-LD workTranslation array, and the visible
+            "also-available-in" affordance. Fetch full translated content
+            via GET /reviews/translations/{locale}/{slug}. Empty array when
+            no translations exist.
+          items:
+            $ref: "#/components/schemas/ReviewTranslationSummary"
+        recentAds:
+          type: array
+          description: >-
+            Up to 4 CryptoKiller ad creatives for the brand under review, live-derived
+            on each request from the Supabase `creatives` table (joined with
+            `creatives_with_text`) keyed by the first token of `normalized_offer`
+            against the brand name (case-insensitive). Primary window is the
+            trailing 7 days; falls back to all-time when 7d returns 0 rows.
+            Ordered newest-first by `lastSeenAt`. 5-minute server-side cache
+            per brand. Empty array when no matches exist.
+          items:
+            $ref: "#/components/schemas/RecentAd"
       required:
         - id
         - slug
@@ -583,6 +712,253 @@ components:
         - notForYou
         - expertiseDepth
         - frameAsScam
+        - translations
+        - recentAds
+
+    RecentAd:
+      type: object
+      description: >-
+        Single CryptoKiller ad creative for the brand, live-derived from Supabase's
+        `creatives` (joined with `creatives_with_text`). Surfaces named celebrity
+        + offer name + ad copy + landing URL + Facebook post link as first-hand
+        investigation evidence (E-E-A-T signal). Nullable fields render only when
+        present.
+      properties:
+        id:
+          type: string
+          description: Supabase creative UUID; stable per ad creative and used as the row key.
+        offer:
+          type: string
+          description: Normalized offer name from Supabase (e.g. "Senvix", "Senvix Cristiano Ronaldo").
+        celebrity:
+          type: string
+          nullable: true
+          description: Comma-separated list of named figures abused in the creative.
+        geo:
+          type: string
+          description: ISO-3166-1 alpha-2 country code (e.g. "ES", "IT", "CZ").
+        language:
+          type: string
+          nullable: true
+          description: BCP-47-ish language code of the landing page (e.g. "es", "it").
+        isVideo:
+          type: boolean
+          description: True for video creatives, false for image/static.
+        lastSeenAt:
+          type: string
+          description: ISO-8601 timestamp of the most recent sighting in scraping.
+        scrapeCount:
+          type: integer
+          description: Number of times this creative has been observed by CryptoKiller scrapers.
+        linkUrl:
+          type: string
+          nullable: true
+          description: Landing URL the creative drives to.
+        postUrl:
+          type: string
+          nullable: true
+          description: Facebook post permalink used by the "View archived ad" CTA.
+        adCopy:
+          type: string
+          nullable: true
+          description: Ad body copy (typically truncated by upstream).
+      required:
+        - id
+        - offer
+        - geo
+        - isVideo
+        - lastSeenAt
+        - scrapeCount
+
+    ReviewTranslationSummary:
+      type: object
+      description: >-
+        Slim metadata describing a single published translation of a
+        review. Returned in ReviewFull.translations[] so the master page
+        can emit hreflang reciprocity, workTranslation @ids, and stale
+        detection without round-tripping the full translated article.
+      properties:
+        locale:
+          type: string
+          description: BCP-47 canonical-case locale (`it`, `es`, `de`, `fr`, `pt-BR`).
+        slug:
+          type: string
+          description: Per-locale slug (may differ from the master slug).
+        status:
+          type: string
+          description: Always `published` in this list — drafts/unpublished are filtered server-side.
+        title:
+          type: string
+          nullable: true
+        translatorName:
+          type: string
+          nullable: true
+        translationMethod:
+          type: string
+          nullable: true
+          description: One of `ai_full`, `ai_assisted`, `human_only`. Free-form for forward compatibility.
+        publishedAt:
+          type: string
+          nullable: true
+          description: ISO-8601 timestamp when the translation was first published.
+        sourceReviewUpdatedAt:
+          type: string
+          nullable: true
+          description: >-
+            Snapshot of master.updatedAt at translation time. Compared
+            against the live master updatedAt to detect staleness.
+        updatedAt:
+          type: string
+          description: ISO-8601 timestamp of last translation sync.
+      required:
+        - locale
+        - slug
+        - status
+        - updatedAt
+
+    ReviewFullTranslated:
+      type: object
+      description: >-
+        Full translated review. Content fields are the locale-specific
+        text; structural/identity fields (master*) are inherited from the
+        English master so the translation page can render brand info,
+        threat score, hero image, dates, etc. consistently.
+      properties:
+        locale:
+          type: string
+          description: BCP-47 canonical-case locale.
+        slug:
+          type: string
+          description: Per-locale slug (the URL segment).
+        status:
+          type: string
+        title:
+          type: string
+          nullable: true
+        metaDescription:
+          type: string
+          nullable: true
+        headline:
+          type: string
+          nullable: true
+        alternativeHeadline:
+          type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        verdict:
+          type: string
+          nullable: true
+        howItWorks:
+          type: string
+          nullable: true
+        fullArticle:
+          type: string
+          nullable: true
+        redFlags:
+          type: array
+          nullable: true
+          description: >-
+            Translator-provided red flags. Items may use either
+            `{flag, detail}` or `{title, description}` keys — the client
+            renders both shapes.
+          items:
+            type: object
+        faq:
+          type: array
+          nullable: true
+          items:
+            type: object
+        keyTakeaways:
+          type: array
+          nullable: true
+          items:
+            type: string
+        notForYou:
+          type: string
+          nullable: true
+        protectionSteps:
+          type: string
+          nullable: true
+        methodology:
+          type: string
+          nullable: true
+        disclaimer:
+          type: string
+          nullable: true
+        expertiseDepth:
+          type: string
+          nullable: true
+        translationMethod:
+          type: string
+          nullable: true
+        translatorName:
+          type: string
+          nullable: true
+        translatorCredentials:
+          type: string
+          nullable: true
+        aiModel:
+          type: string
+          nullable: true
+        aiPromptVersion:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          nullable: true
+        wordCount:
+          type: integer
+          nullable: true
+        publishedAt:
+          type: string
+          nullable: true
+        sourceReviewUpdatedAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+        masterUpdatedAt:
+          type: string
+          description: >-
+            Live ISO-8601 updatedAt of the English master row at request
+            time. Used by the renderer to compare against
+            sourceReviewUpdatedAt for stale detection and to compute the
+            `stale` flag below.
+        stale:
+          type: boolean
+          description: >-
+            True when the translation was generated against an older
+            version of the master (source_review_updated_at lags
+            masterUpdatedAt by more than 1 hour). Renders a yellow
+            "out-of-date" banner; the page still serves.
+        # Inherited from the English master so the translation page can
+        # render brand chrome, hero image, dates, schema enrichment, etc.
+        # All keys mirror ReviewFull. masterSlug is the EN URL slug — used
+        # to build the canonical hreflang="en" alternate link and the
+        # translationOfWork @id in JSON-LD.
+        masterSlug:
+          type: string
+        master:
+          $ref: "#/components/schemas/ReviewFull"
+        # All sibling translations (including this one) so the page can
+        # emit the complete hreflang reciprocity set without an extra
+        # request. Excludes drafts.
+        siblingTranslations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewTranslationSummary"
+      required:
+        - locale
+        - slug
+        - status
+        - updatedAt
+        - masterUpdatedAt
+        - stale
+        - masterSlug
+        - master
+        - siblingTranslations
 
     RelatedReview:
       type: object

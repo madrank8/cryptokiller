@@ -25,6 +25,9 @@ const scamTypes = [
 
 const currencies = ["USD", "EUR", "GBP", "AUD", "CAD", "BTC", "ETH", "USDT"];
 
+const WHATSAPP_NUMBER = "";
+const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=I%20just%20submitted%20a%20scam%20report%20on%20CryptoKiller%20and%20want%20to%20add%20more%20details`;
+
 export default function ReportPage() {
   const crumbs = [
     { label: "Home", href: "https://cryptokiller.org/" },
@@ -35,7 +38,52 @@ export default function ReportPage() {
     title: "Report a Crypto Scam — Submit Evidence | CryptoKiller",
     description: "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn victims, and build evidence for authorities.",
     canonical: "https://cryptokiller.org/report",
-    jsonLd: { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) },
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        breadcrumbJsonLd(crumbs),
+        {
+          "@type": "WebPage",
+          "@id": "https://cryptokiller.org/report#webpage",
+          url: "https://cryptokiller.org/report",
+          name: "Report a Crypto Scam — Submit Evidence",
+          description: "Report a crypto scam to CryptoKiller. Your confidential report helps us investigate fraudulent platforms, warn victims, and build evidence for authorities.",
+          isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
+          inLanguage: "en",
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://cryptokiller.org/report#faq",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Will my name appear in the investigation?",
+              acceptedAnswer: { "@type": "Answer", text: "No. Reporter identities are never disclosed in published investigations. We may quote the substance of a report (for example, describing the deposit pattern you experienced) but without any identifying details. If you want to be quoted by name — as a victim speaking publicly about the scam — you must explicitly request it, and we will review the request before agreeing." },
+            },
+            {
+              "@type": "Question",
+              name: "I don't have much evidence — is it still worth reporting?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Even a partial report with just the brand name and one screenshot adds signal. When multiple reports cluster around the same brand, the aggregate picture becomes actionable even if each individual report is sparse. Report what you have." },
+            },
+            {
+              "@type": "Question",
+              name: "Do I need to report to the police too?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes — CryptoKiller does not file police reports on your behalf. If you have lost funds, a police report in your jurisdiction is the prerequisite for chargebacks, insurance claims, and any civil action. Our recovery guide lists the reporting channels for major jurisdictions." },
+            },
+            {
+              "@type": "Question",
+              name: "How long before I hear back?",
+              acceptedAnswer: { "@type": "Answer", text: "Within 72 hours for the initial acknowledgement. Substantive investigation can take 1-6 weeks depending on complexity, existing evidence, and ongoing surveillance data. We email when an investigation based on your report is published." },
+            },
+            {
+              "@type": "Question",
+              name: "Can I submit a report about a platform that hasn't scammed me yet but looks suspicious?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes — preventative tips are welcome and valuable. Describe what made you suspicious (the advertising pattern, the celebrity endorsement, the platform interface, the deposit process). We treat these with the same confidentiality as victim reports." },
+            },
+          ],
+        },
+      ],
+    },
   });
 
   const { mutateAsync: submitReport, isPending } = useSubmitReport();
@@ -107,6 +155,22 @@ export default function ReportPage() {
             <p className="text-slate-500 text-sm mb-8">
               Report ID: <span className="text-green-400 font-mono font-bold">#{reportId}</span>
             </p>
+            {WHATSAPP_NUMBER && (
+              <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 mb-8">
+                <p className="text-slate-200 font-semibold text-sm mb-4">
+                  Want to follow up with our team or add more evidence?
+                </p>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white"
+                >
+                  <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+                    Continue on WhatsApp →
+                  </a>
+                </Button>
+              </div>
+            )}
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 text-left mb-8">
               <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-amber-400" /> What happens next
@@ -182,6 +246,24 @@ export default function ReportPage() {
             </div>
           ))}
         </div>
+
+        {WHATSAPP_NUMBER && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-900/40 border border-slate-800 rounded-xl px-5 py-4 mb-6">
+            <div>
+              <p className="text-slate-200 font-semibold text-sm">Prefer to report by chat?</p>
+              <p className="text-slate-500 text-xs">same confidentiality, faster for mobile users.</p>
+            </div>
+            <Button
+              asChild
+              variant="outline"
+              className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white shrink-0"
+            >
+              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+                💬 Report via WhatsApp
+              </a>
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Card className="bg-slate-900/60 border-slate-800 mb-6">

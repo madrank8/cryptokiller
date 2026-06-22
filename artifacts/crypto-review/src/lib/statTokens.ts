@@ -9,7 +9,7 @@
  * persisted as static text in Supabase. The numerical stats (ad creative
  * count, country count, days active, celebs, weekly velocity, first/last
  * detection dates) live in `review_stats` and are kept in sync with the
- * SpyOwl scraper output continuously.
+ * CryptoKiller scraper output continuously.
  *
  * After enough scraper sweeps, dedupe passes, and platform takedowns, the
  * stats drift away from whatever was true at write-time. The JSON-LD
