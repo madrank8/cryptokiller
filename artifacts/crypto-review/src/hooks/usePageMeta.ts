@@ -190,7 +190,7 @@ export function usePageMeta({ title, description, canonical, ogType, ogImage, js
       }
       if (robots) {
         const robotsEl = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
-        if (robotsEl) robotsEl.content = "index, follow";
+        if (robotsEl) robotsEl.content = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
       }
       setLink("prev", undefined);
       setLink("next", undefined);

@@ -108,7 +108,7 @@ function applyMeta(template: string, r: RenderResult): string {
   };
 
   replaceAttr(/<meta name="description"[^>]*>/, r.description);
-  replaceAttr(/<meta name="robots"[^>]*>/, r.robots ?? "index, follow");
+  replaceAttr(/<meta name="robots"[^>]*>/, r.robots ?? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
   replaceAttr(/<meta property="og:type"[^>]*>/, r.ogType);
   replaceAttr(/<meta property="og:title"[^>]*>/, r.title);
   replaceAttr(/<meta property="og:description"[^>]*>/, r.description);
