@@ -2575,7 +2575,7 @@ ${articlesSection}
   const authoredWorkRefs = authoredReviewRows.slice(0, 3).map(r => ({
     "@type": "Article",
     url: `${BASE}/review/${r.slug}`,
-    name: `${r.platformName} Review`,
+    name: `${r.platformName} Investigation`,
   }));
 
   return {
@@ -2591,28 +2591,24 @@ ${articlesSection}
       "@graph": [
         legalEntityNode(),
         organizationNode(),
+        websiteNode(),
         breadcrumbList([
           { label: "Home", href: `${BASE}/` },
+          { label: "About", href: `${BASE}/about` },
           { label: persona.name, href: canonical },
         ]),
-        // Use the canonical personNode and override description/url for
-        // the dedicated /author/{slug} profile page (uses fullBio when
-        // available, and the page itself is the canonical url for the
-        // Person — not the slug-derived path personNode defaults to).
-        {
-          ...personNode(persona),
-          description: persona.fullBio || persona.bio,
-          url: canonical,
-          ...(authoredWorkRefs.length > 0 && { mainEntityOfPage: authoredWorkRefs }),
-        },
         {
           "@type": "ProfilePage",
+          "@id": canonical,
           url: canonical,
-          name: title,
+          name: `${persona.name}, ${persona.role}`,
           description,
-          mainEntity: personRef(persona),
           isPartOf: { "@id": WEBSITE_ID },
-          inLanguage: "en",
+          mainEntity: {
+            ...personNode(persona),
+            description: persona.fullBio || persona.bio,
+          },
+          ...(authoredWorkRefs.length > 0 && { hasPart: authoredWorkRefs }),
         },
       ],
     },

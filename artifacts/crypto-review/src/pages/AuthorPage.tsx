@@ -8,6 +8,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { personNode, WEBSITE_ID } from "@/lib/schemaBuilder";
 
 const BASE = "https://cryptokiller.org";
 
@@ -87,39 +88,15 @@ export default function AuthorPage() {
     : "Author Not Found | CryptoKiller";
   const pageDescription = persona?.fullBio?.slice(0, 160) || "Author profile on CryptoKiller.";
 
-  const personJsonLd = persona
-    ? {
-        "@type": "Person",
-        name: persona.name,
-        jobTitle: persona.role,
-        description: persona.fullBio,
-        url: canonicalUrl,
-        worksFor: {
-          "@type": "Organization",
-          name: "CryptoKiller",
-          url: BASE,
-        },
-        knowsAbout: persona.specialties,
-        // mainEntityOfPage is the profile page URL (singular) — not the
-        // authored-work list. Per schema.org, mainEntityOfPage on a Person
-        // is the page that most prominently features this entity, not a
-        // collection of authored articles.
-        mainEntityOfPage: canonicalUrl,
-      }
-    : undefined;
-
   const profilePageJsonLd = persona
     ? {
         "@type": "ProfilePage",
-        "@id": `${canonicalUrl}#profile`,
+        "@id": canonicalUrl,
         url: canonicalUrl,
-        name: pageTitle,
+        name: `${persona.name}, ${persona.role}`,
         description: pageDescription,
-        mainEntity: { "@type": "Person", name: persona.name, url: canonicalUrl },
-        isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: BASE },
-        inLanguage: "en",
-        // Authored work list lives on ProfilePage.hasPart — a valid pattern
-        // for associating a profile page with the entity's published works.
+        isPartOf: { "@id": WEBSITE_ID },
+        mainEntity: { ...personNode(persona), description: persona.fullBio },
         ...(authoredReviews.length > 0 && {
           hasPart: authoredReviews.slice(0, 3).map(r => ({
             "@type": "Article",
@@ -139,7 +116,6 @@ export default function AuthorPage() {
       "@context": "https://schema.org",
       "@graph": [
         breadcrumbJsonLd(crumbs),
-        ...(personJsonLd ? [personJsonLd] : []),
         ...(profilePageJsonLd ? [profilePageJsonLd] : []),
       ],
     },
