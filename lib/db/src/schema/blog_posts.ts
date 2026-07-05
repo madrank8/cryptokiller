@@ -61,6 +61,12 @@ export const blogPostsTable = pgTable("blog_posts", {
   about: jsonb("about").notNull().default([]),
   mentions: jsonb("mentions").notNull().default([]),
 
+  // ── AI disclosure (2026-07-05 Vercel pipeline audit handoff) ──
+  // Plain-text 2–4 sentence disclosure synced from the Vercel admin and
+  // rendered as the "How this was created" box near the byline/author area.
+  // Nullable: legacy rows stay NULL and the box is omitted at render.
+  aiDisclosure: text("ai_disclosure"),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

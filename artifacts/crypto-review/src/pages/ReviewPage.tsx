@@ -1883,6 +1883,19 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
               </section>
             )}
 
+            {/* HOW THIS WAS CREATED — AI disclosure (2026-07-05 Vercel pipeline
+                audit handoff). Read via a narrow cast until the orval client is
+                regenerated with the new ReviewFull.aiDisclosure field. Plain
+                text; React escapes it. Deliberately absent from JSON-LD. */}
+            {(review as unknown as { aiDisclosure?: string | null }).aiDisclosure && (
+              <section className="border border-slate-800 rounded-xl bg-slate-900/40 p-5">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">How this was created</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  {(review as unknown as { aiDisclosure?: string | null }).aiDisclosure}
+                </p>
+              </section>
+            )}
+
             {/* EXPERTISE DEPTH — YMYL author knowledge block. Demonstrates
                 first-hand investigation experience to reviewers and search
                 engines (E-E-A-T signal). Populated by the polish pipeline

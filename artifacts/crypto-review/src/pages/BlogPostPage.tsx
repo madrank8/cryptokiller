@@ -16,7 +16,7 @@ import {
   resolveAbout,
   resolveMentions,
   buildCitations,
-  buildClaimReviews,
+  buildBlogClaims,
   buildItemList,
   buildHowTo,
   buildDataset,
@@ -78,6 +78,11 @@ interface BlogPost {
   howTo?: unknown;
   quotes?: unknown[] | null;
   claims?: unknown[] | null;
+
+  // AI disclosure (2026-07-05 Vercel pipeline audit handoff) — plain text,
+  // rendered as the "How this was created" box near the author area. Not
+  // included in JSON-LD by design.
+  aiDisclosure?: string | null;
 
   // Live aggregates returned alongside the post, used to substitute
   // {{platform_stat:KEY}} tokens at render time. Never null in practice
@@ -250,9 +255,9 @@ export default function BlogPostPage() {
     const aboutNodes     = resolveAbout(post.aboutSlugs);
     const mentionNodes   = resolveMentions(post.mentionSlugs);
     const citationNodes  = buildCitations(post.citations);
-    // Thread publishedAt so ClaimReview nodes inherit the Article date instead
-    // of drifting to render-time `new Date()`; no brand name on blog posts.
-    const claimNodes     = buildClaimReviews(post.claims, pageUrl, persona?.name, post.publishedAt);
+    // Blog claims are honest Claim nodes, never ClaimReview (2026-07-05 Vercel
+    // pipeline audit handoff) — mirrors the SSR swap in server/prerender.ts.
+    const claimNodes     = buildBlogClaims(post.claims, pageUrl);
     const itemListNode   = buildItemList(post.itemList, pageUrl);
     const howToNode      = buildHowTo(post.howTo, pageUrl);
     const datasetNode    = buildDataset(post.dataset, pageUrl);
@@ -474,6 +479,15 @@ export default function BlogPostPage() {
             <div className="mt-12 border-t border-slate-800 pt-8">
               <AuthorBox {...(persona || {})} />
             </div>
+
+            {/* HOW THIS WAS CREATED — AI disclosure (2026-07-05 Vercel
+                pipeline audit handoff). Plain text; React escapes it. */}
+            {post.aiDisclosure && (
+              <section className="mt-8 bg-slate-900/50 border border-slate-800 rounded-lg p-6">
+                <h3 className="text-white font-semibold mb-3">How this was created</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">{post.aiDisclosure}</p>
+              </section>
+            )}
 
             {Array.isArray(post.faq) && post.faq.length > 0 && (
               <section className="mt-12 border-t border-slate-800 pt-8">

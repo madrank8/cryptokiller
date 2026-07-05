@@ -675,6 +675,62 @@ export function buildClaimReviews(
   return out;
 }
 
+// ─── Blog Claim[] (2026-07-05 Vercel pipeline audit handoff) ────────────────
+// Blog-path claims are honest schema.org Claim statements, not fact-checks:
+//   { "@type": "Claim", text, author?: { "@type": "Organization", name },
+//     firstAppearance?: "https://..." }
+// The Vercel pipeline previously shipped fake ClaimReview nodes on blog rows
+// ({ claimReviewed, ratingValue: 5, "Verified" }); the review path keeps
+// buildClaimReviews above for its genuine debunk-style fact checks, but the
+// blog path must NEVER emit ClaimReview. Legacy blog rows that still carry
+// `.claimReviewed` are salvaged into plain Claim nodes (text only, no rating).
+export function buildBlogClaims(
+  input: unknown,
+  pageUrl: string,
+): Record<string, unknown>[] {
+  if (!Array.isArray(input)) return [];
+  const out: Record<string, unknown>[] = [];
+  (input as Array<Record<string, unknown>>).forEach((c, i) => {
+    if (!c || typeof c !== "object") return;
+    // Canonical (pipeline v3): pass through ready-made Claim nodes, giving
+    // them a stable @id in the same #claim-N form their ClaimReview siblings
+    // use on the review path.
+    if (c["@type"] === "Claim" && typeof c.text === "string" && c.text.trim()) {
+      out.push({
+        ...c,
+        "@id": c["@id"] ?? `${pageUrl}#claim-${i + 1}`,
+      });
+      return;
+    }
+    // Legacy rows — raw { claimReviewed, ... } objects or full ClaimReview
+    // nodes. Keep the claim text, drop rating/review semantics entirely.
+    const legacyText =
+      typeof c.claimReviewed === "string" && c.claimReviewed.trim()
+        ? c.claimReviewed
+        : typeof c.claim === "string" && c.claim.trim()
+          ? c.claim
+          : null;
+    if (!legacyText) return;
+    const node: Record<string, unknown> = {
+      "@type": "Claim",
+      "@id": `${pageUrl}#claim-${i + 1}`,
+      text: legacyText,
+    };
+    if (typeof c.originator === "string" && c.originator.trim()) {
+      node.author = { "@type": "Organization", name: c.originator };
+    }
+    const firstAppearance =
+      typeof c.firstAppearance === "string" && /^https?:\/\//i.test(c.firstAppearance)
+        ? c.firstAppearance
+        : typeof c.appearance === "string" && /^https?:\/\//i.test(c.appearance)
+          ? c.appearance
+          : null;
+    if (firstAppearance) node.firstAppearance = firstAppearance;
+    out.push(node);
+  });
+  return out;
+}
+
 // ─── ItemList (ranked list node) ────────────────────────────────────────────
 // Canonical input shape (from Vercel's content generator): a bare array of
 //   [{ name, description?, entitySlug? }, ...]

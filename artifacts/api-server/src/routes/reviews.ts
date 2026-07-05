@@ -158,6 +158,8 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
       frameAsScam: reviewsTable.frameAsScam,
       itemReviewed: reviewsTable.itemReviewed,
       adEvidence: reviewsTable.adEvidence,
+      // ai_disclosure (migration 0009, 2026-07-05 Vercel pipeline audit handoff).
+      aiDisclosure: reviewsTable.aiDisclosure,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
@@ -252,6 +254,9 @@ router.get("/reviews/:slug", async (req, res): Promise<void> => {
     // ad_evidence (migration 0008). Null when not synced; the client and SSR
     // omit the "Fraudulent Ad Creatives by Country" section in that case.
     adEvidence: row.adEvidence ?? null,
+    // ai_disclosure (migration 0009). Null when the row pre-dates the
+    // 2026-07-05 Vercel pipeline audit handoff; client omits the box.
+    aiDisclosure: row.aiDisclosure ?? null,
     adCreatives: row.adCreatives ?? 0,
     countriesTargeted: row.countriesTargeted ?? 0,
     daysActive: row.daysActive ?? 0,
@@ -380,6 +385,8 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
       frameAsScam: reviewsTable.frameAsScam,
       itemReviewed: reviewsTable.itemReviewed,
       adEvidence: reviewsTable.adEvidence,
+      // ai_disclosure (migration 0009, 2026-07-05 Vercel pipeline audit handoff).
+      aiDisclosure: reviewsTable.aiDisclosure,
       updatedAt: reviewsTable.updatedAt,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -471,6 +478,9 @@ router.get("/reviews/translations/:locale/:slug", async (req, res): Promise<void
     frameAsScam: masterRow.frameAsScam ?? false,
     itemReviewed: masterRow.itemReviewed ?? null,
     adEvidence: masterRow.adEvidence ?? null,
+    // ai_disclosure inherits from the EN master on translated pages —
+    // translations don't carry a localised disclosure column (yet).
+    aiDisclosure: masterRow.aiDisclosure ?? null,
     adCreatives: masterRow.adCreatives ?? 0,
     countriesTargeted: masterRow.countriesTargeted ?? 0,
     daysActive: masterRow.daysActive ?? 0,

@@ -36,6 +36,7 @@ import {
   resolveMentions,
   buildCitations,
   buildClaimReviews,
+  buildBlogClaims,
   buildItemList,
   buildHowTo,
   buildDataset,
@@ -969,6 +970,8 @@ async function renderReview(
       quotes: reviewsTable.quotes,
       claims: reviewsTable.claims,
       adEvidence: reviewsTable.adEvidence,
+      // ai_disclosure (migration 0009, 2026-07-05 Vercel pipeline audit handoff).
+      aiDisclosure: reviewsTable.aiDisclosure,
       platformName: platformsTable.name,
       adCreatives: reviewStatsTable.adCreatives,
       countriesTargeted: reviewStatsTable.countriesTargeted,
@@ -1363,6 +1366,9 @@ async function renderReview(
   const warningText = clean(row.warningCallout);
   const methodologyText = clean(row.methodologyText);
   const disclaimerText = clean(row.disclaimerText);
+  // AI disclosure (2026-07-05 Vercel pipeline audit handoff). Plain text —
+  // rendered as the "How this was created" box near the byline/methodology.
+  const aiDisclosureText = clean(row.aiDisclosure ?? "");
 
   const stats: string[] = [];
   if (row.adCreatives) stats.push(`<li><strong>${row.adCreatives.toLocaleString()}</strong> tracked scam ad creatives</li>`);
@@ -1379,6 +1385,13 @@ async function renderReview(
       .filter(Boolean)
       .map((p) => `<p>${esc(p)}</p>`)
       .join("");
+
+  // "How this was created" box (2026-07-05 Vercel pipeline audit handoff).
+  // Rendered on both body paths near the byline/methodology area; omitted
+  // entirely for rows that pre-date the disclosure column.
+  const aiDisclosureHtml = aiDisclosureText
+    ? `<section data-ai-disclosure><h2>How this was created</h2>${paragraphize(aiDisclosureText)}</section>`
+    : "";
 
   // ── Build the new long-form sections ──
 
@@ -1821,6 +1834,7 @@ async function renderReview(
       `${siteHeaderHtml()}<main>
 ${translationDisclosureHtml}<article id="article-body">
 ${fullArticleBylineHtml}
+${aiDisclosureHtml}
 ${fullArticleBodyHtml}
 </article>
 ${recentAdsHtml}
@@ -1854,6 +1868,7 @@ ${adEvidenceHtml}
 ${visualsHtml}
 ${celebritiesHtml}
 ${methodologyText ? `<section><h2>How we investigated ${esc(platformName)}</h2>${paragraphize(methodologyText)}</section>` : ""}
+${aiDisclosureHtml}
 ${expertiseDepthHtml}
 ${protectionStepsHtml}
 ${faqHtml}
@@ -2351,11 +2366,20 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
     ? `<a href="/author/${persona.slug}" rel="author">${esc(authorName)}</a>`
     : esc(authorName);
 
+  // "How this was created" box (2026-07-05 Vercel pipeline audit handoff).
+  // Plain text from the sync payload, escaped; sits under the byline. Not
+  // emitted into the JSON-LD @graph by design.
+  const blogAiDisclosureText = clean(row.aiDisclosure ?? "");
+  const blogAiDisclosureHtml = blogAiDisclosureText
+    ? `<section data-ai-disclosure><h2>How this was created</h2><p>${esc(blogAiDisclosureText)}</p></section>`
+    : "";
+
   const bodyHtml = `${siteHeaderHtml()}<main>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · <a href="/blog">Blog</a> · ${esc(row.title)}</nav>
 <article>
 <h1>${esc(row.headline || row.title)}</h1>
 <p><strong>By</strong> ${bylineAuthor}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.wordCount ? ` · ${row.wordCount}-word read` : ""}</p>
+${blogAiDisclosureHtml}
 ${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
 ${articleBodyHtml}
 ${faqHtml}
@@ -2374,10 +2398,9 @@ ${preferredSourceHtml()}
   const aboutNodes    = resolveAbout(row.aboutSlugs);
   const mentionNodes  = resolveMentions(row.mentionSlugs);
   const citationNodes = buildCitations(row.citations);
-  // Blog posts don't carry a brand name (no platforms join) — pass undefined
-  // for brandName; ClaimReview nodes that need itemReviewed.author fall back
-  // to omitting the field rather than fabricating an originator.
-  const claimNodes    = buildClaimReviews(row.claims, canonical, persona?.name, datePublished);
+  // Blog claims are honest Claim nodes, never ClaimReview (2026-07-05 Vercel
+  // pipeline audit handoff) — see buildBlogClaims for legacy-row salvage.
+  const claimNodes    = buildBlogClaims(row.claims, canonical);
   const itemListNode  = buildItemList(row.itemList, canonical);
   const howToNode     = buildHowTo(row.howTo, canonical);
   const datasetNode   = buildDataset(row.dataset, canonical);

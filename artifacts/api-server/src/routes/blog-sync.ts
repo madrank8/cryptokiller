@@ -65,6 +65,11 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
     const aboutEntities    = content.about    ?? content.ai_audit?.about    ?? [];
     const mentionsEntities = content.mentions ?? content.ai_audit?.mentions ?? [];
 
+    // ── AI disclosure (2026-07-05 Vercel pipeline audit handoff) ──────────
+    // Plain-text "How this was created" copy. Same dual-location tolerance
+    // as the enrichment fields above; null for pre-handoff payloads.
+    const aiDisclosure = content.ai_disclosure ?? content.ai_audit?.ai_disclosure ?? null;
+
     const result = await client.query(
       `INSERT INTO blog_posts (
         external_id, topic_id, content_type, title, headline, slug,
@@ -76,12 +81,12 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         hero_image_url, hero_image_alt, hero_image_credit, visual_meta,
         alternative_headline, about_slugs, mention_slugs, speakable_selectors,
         citations, dataset, item_list, how_to, quotes, claims,
-        about, mentions,
+        about, mentions, ai_disclosure,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
         $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,
-        $39,$40,
+        $39,$40,$41,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -124,6 +129,7 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         claims = EXCLUDED.claims,
         about = EXCLUDED.about,
         mentions = EXCLUDED.mentions,
+        ai_disclosure = EXCLUDED.ai_disclosure,
         updated_at = NOW()
       RETURNING id, (xmax = 0) AS inserted`,
       [
@@ -167,6 +173,7 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
         JSON.stringify(claims),
         JSON.stringify(aboutEntities),
         JSON.stringify(mentionsEntities),
+        aiDisclosure,
       ]
     );
 

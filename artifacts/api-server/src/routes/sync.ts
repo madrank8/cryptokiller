@@ -111,7 +111,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         author_persona_id, alternative_headline, target_keyword,
         about_slugs, mention_slugs, speakable_selectors, citations,
         dataset, item_reviewed, item_list, how_to, quotes, claims,
-        ad_evidence,
+        ad_evidence, ai_disclosure,
         created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,
@@ -124,7 +124,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         $31,$32,$33,
         $34,$35,$36,$37,
         $38,$39,$40,$41,$42,$43,
-        $44,
+        $44,$45,
         NOW(),NOW()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -171,6 +171,7 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         quotes = EXCLUDED.quotes,
         claims = EXCLUDED.claims,
         ad_evidence = EXCLUDED.ad_evidence,
+        ai_disclosure = EXCLUDED.ai_disclosure,
         updated_at = NOW()
       RETURNING id`,
       [
@@ -239,6 +240,10 @@ router.post("/sync/review", async (req, res): Promise<void> => {
         // item_reviewed: stringify when present, null when absent so legacy
         // callers and brands without evidence leave the column NULL.
         review.ad_evidence ? JSON.stringify(review.ad_evidence) : null,
+        // ai_disclosure (migration 0009, 2026-07-05 Vercel pipeline audit
+        // handoff). Plain-text "How this was created" copy; null-tolerant so
+        // pre-handoff callers keep syncing without the field.
+        review.ai_disclosure ?? null,
       ]
     );
     const reviewId = reviewResult.rows[0].id;
