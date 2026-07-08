@@ -169,6 +169,12 @@ TypeScript note: server code (e.g. `artifacts/crypto-review/server/index.ts`) mu
 - Deploy pending: Replit workspace `git fetch origin && git reset --hard origin/main`,
   then Publish. Verify via Googlebot curl (Organization node on legacy-bitfundex) + GSC
   live test + Request Indexing; spot-check a confirmed-tier page keeps type + `review` ref.
+- Sitemap audit (live /api/sitemap.xml vs published content): reviews 28/28 match,
+  blog 29/29 match vs Supabase `content` (incl. same-day `fake-crypto-website`), locale
+  translations 3/3, all 75 URLs return 200. One gap found + fixed: `/ai-disclosure`
+  (live, indexable, footer-linked) was missing from `staticPages` in the sitemap route
+  (`artifacts/api-server/src/routes/reviews.ts`); added with yearly/0.3 like privacy/terms.
+  `legacy-bitfundex` IS in the sitemap - the GSC "unknown URL" note is discovery lag only.
 
 ### 2026-06-28
 - Published reactive Discover article `celebrity-crypto-ad-verification` (Mark Carney
