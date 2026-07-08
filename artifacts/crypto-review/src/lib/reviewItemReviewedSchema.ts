@@ -152,7 +152,22 @@ export function buildItemReviewedJsonLdNode(
     ? (rawItemReviewed as Record<string, unknown>)
     : null;
 
-  const type = resolveValidItemType(input?.type);
+  const rawType = resolveValidItemType(input?.type);
+
+  // 2026-07-08 - Product rich-result gate (GSC: legacy-bitfundex).
+  // Google evaluates standalone Product/SoftwareApplication nodes for rich
+  // results and flags "Either 'offers', 'review', or 'aggregateRating'
+  // should be specified" when none is present. Watchlist/low tiers omit
+  // reviewRating by design (see reviewRatingForTier in prerender.ts), so
+  // those nodes can never satisfy the gate: demote to Organization
+  // (Google-valid itemReviewed type, no rich-result requirements).
+  // Rated tiers keep the type and gain a `review` @id back-reference
+  // below, making the node fully eligible - including 1-star display on
+  // the scam's branded SERP.
+  const tierHasRating =
+    tier.tier === "confirmed" || tier.tier === "high" || tier.tier === "elevated";
+  const gatedType = rawType === "Product" || rawType === "SoftwareApplication";
+  const type = gatedType && !tierHasRating ? "Organization" : rawType;
 
   const rawName = typeof input?.name === "string" ? input.name.trim() : "";
   const name = rawName || platformName;
@@ -208,6 +223,9 @@ export function buildItemReviewedJsonLdNode(
     ...(alternateName && alternateName.length ? { alternateName } : {}),
     ...(sameAs && sameAs.length ? { sameAs } : {}),
     ...softwareFields,
+    ...(gatedType && tierHasRating
+      ? { review: { "@id": `${canonical}#review` } }
+      : {}),
     subjectOf: { "@id": `${canonical}#review` },
   };
 }
