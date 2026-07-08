@@ -155,6 +155,21 @@ TypeScript note: server code (e.g. `artifacts/crypto-review/server/index.ts`) mu
 
 ## 7. Session changelog (newest first — append here every session)
 
+### 2026-07-08
+- Fixed GSC "Product snippets: 1 invalid item" on review pages (repro:
+  `/review/legacy-bitfundex`). Cause: watchlist/low tiers omit `reviewRating` by design,
+  so a standalone `Product`/`SoftwareApplication` `#item-reviewed` node had none of
+  offers/review/aggregateRating and failed Google's Product rich-result gate.
+- Fix in `artifacts/crypto-review/src/lib/reviewItemReviewedSchema.ts` (commit `e00a6bb`):
+  unrated tiers (watchlist, low) demote Product/SoftwareApplication to Organization;
+  rated tiers (confirmed, high, elevated) keep the type and add a `review` @id
+  back-reference (`{canonical}#review`), making the node eligible for 1-star SERP display.
+- Render-layer only; Vercel `lib/review-schema.js` untouched (optional follow-up: mirror
+  the tier gate there for contract symmetry).
+- Deploy pending: Replit workspace `git fetch origin && git reset --hard origin/main`,
+  then Publish. Verify via Googlebot curl (Organization node on legacy-bitfundex) + GSC
+  live test + Request Indexing; spot-check a confirmed-tier page keeps type + `review` ref.
+
 ### 2026-06-28
 - Published reactive Discover article `celebrity-crypto-ad-verification` (Mark Carney
   deepfake $900K hook). Supabase `content.id = 8fc8b998-d45e-4bd7-961e-b6bc1533fd4d`.
