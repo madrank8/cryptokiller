@@ -1,10 +1,11 @@
-import { lazy, Suspense, useMemo } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { lazy, Suspense, useEffect, useMemo } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGlobalJsonLd } from "@/hooks/usePageMeta";
 import { globalSiteSchema } from "@/lib/schemaBuilder";
+import { initAnalytics, trackPageview } from "@/lib/analytics";
 
 // Route components are code-split with React.lazy so each route ships its own
 // chunk instead of one site-wide application bundle (Task #44). The app is
@@ -73,12 +74,24 @@ function GlobalSchema() {
   return null;
 }
 
+// Fires a GA4 page_view on every wouter route change (and the initial load —
+// automatic page_view is disabled in initAnalytics to avoid double-counting).
+// Must render inside <WouterRouter> so useLocation subscribes to navigation.
+function AnalyticsTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    trackPageview();
+  }, [location]);
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <GlobalSchema />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AnalyticsTracker />
           <Router />
         </WouterRouter>
         <Toaster />

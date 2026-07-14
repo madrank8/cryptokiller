@@ -2703,7 +2703,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           paragraphs: [
             "CryptoKiller is funded by referral partnerships with regulated cryptocurrency exchanges (such as exchanges licensed under the EU's MiCA framework, U.S. money-service-business registrations, or equivalent jurisdictional licensing) and by sponsored educational content clearly labelled as such. We receive no funding from the subjects of our investigations or from any party with an interest in our editorial conclusions.",
             "Partner exchanges are chosen for their licensing status and track record, not their willingness to pay. Educational sponsorships are disclosed on every page where they appear and never affect our threat-scoring methodology.",
-            "We do not run display advertising, tracking cookies, or third-party behavioural analytics. The site exists to serve the reader's question, not to monetise their attention.",
+            "We do not run display advertising, advertising cookies, or behavioural ad tracking. We use Google Analytics solely to measure aggregate readership. The site exists to serve the reader's question, not to monetise their attention.",
           ],
         },
         {
@@ -3074,10 +3074,10 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
       path: "/privacy",
       title: "Privacy Policy — CryptoKiller",
       description:
-        "CryptoKiller privacy policy. How we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
+        "CryptoKiller privacy policy. How we collect, use, and protect your information. GDPR and CCPA compliant. Aggregate analytics only — no advertising trackers.",
       h1: "Privacy Policy",
       intro:
-        "This privacy policy explains what personal data CryptoKiller collects, why we collect it, how we store and protect it, who we share it with, and what rights you have over your data. It applies to all visitors of cryptokiller.org and to anyone who submits a report through our reporting form. This policy is written to comply with the European Union General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA) and its successor legislation, the UK Data Protection Act, and equivalent frameworks in the jurisdictions where our readers are based. Last updated: 2026-04-24.",
+        "This privacy policy explains what personal data CryptoKiller collects, why we collect it, how we store and protect it, who we share it with, and what rights you have over your data. It applies to all visitors of cryptokiller.org and to anyone who submits a report through our reporting form. This policy is written to comply with the European Union General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA) and its successor legislation, the UK Data Protection Act, and equivalent frameworks in the jurisdictions where our readers are based. Last updated: 2026-07-14.",
       sections: [
         {
           heading: "Who is the data controller",
@@ -3094,7 +3094,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           list: [
             "When you submit a scam report through our reporting form, we collect the information you provide in that form — which typically includes your name or pseudonym, your email address, and the details of the scam incident. This is the only category of personal information we actively collect.",
             "Standard server access logs (IP address, user agent, referring URL, timestamp) are recorded for security, abuse prevention, and to detect infrastructure issues. These logs are retained for 30 days and then deleted.",
-            "We do not use tracking cookies. We do not use third-party analytics (Google Analytics, Facebook Pixel, or equivalents). We do not use behavioural advertising pixels of any kind.",
+            "We use Google Analytics 4 to measure aggregate site usage (pages visited, device type, approximate region); Google Analytics 4 does not log or store IP addresses. We do not use advertising cookies, Facebook Pixel, or behavioural advertising pixels of any kind.",
             "We do not collect biometric data, precise geolocation, health information, or any special category of personal data under GDPR Article 9.",
             "We do not knowingly collect personal information from children under 16 years of age. If you believe a minor has submitted information to us, please contact corrections@cryptokiller.org and we will delete it.",
           ],
@@ -3166,12 +3166,12 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "Do you use Google Analytics?",
           answer:
-            "No. We do not use Google Analytics or any third-party behavioural analytics service. We also do not use Facebook Pixel, advertising trackers, or session-recording tools. The only logging we do is standard server access logs, retained for 30 days.",
+            "Yes. We use Google Analytics 4 to understand aggregate site usage — pages visited, device type, and approximate region. Google Analytics 4 does not log or store IP addresses. We do not use Facebook Pixel, advertising trackers, or session-recording tools. Standard server access logs are retained for 30 days.",
         },
         {
           question: "Do you use cookies?",
           answer:
-            "We use a minimal set of technical cookies required for the site to function. We do not use tracking cookies, marketing cookies, or third-party advertising cookies.",
+            "We use a minimal set of technical cookies required for the site to function, plus Google Analytics cookies (such as _ga) used solely to measure aggregate site usage. We do not use marketing cookies or third-party advertising cookies.",
         },
         {
           question: "If I submit a report, can I later delete it?",

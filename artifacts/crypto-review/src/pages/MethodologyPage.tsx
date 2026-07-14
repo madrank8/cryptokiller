@@ -167,7 +167,7 @@ const editorialPolicies = [
   {
     icon: <Ban className="h-5 w-5 text-red-400" />,
     title: "Independence & Conflicts",
-    desc: "We hold no direct financial relationships with the platforms we investigate. We do not sell sponsored placements, accept payment to add, modify, or remove listings, or solicit advertising from cryptocurrency platforms, exchanges, or financial services. Editorial revenue comes from programmatic display advertising (Google AdSense), educational content, and institutional threat intelligence licensing. Programmatic ads are matched and served by third-party networks based on Google's targeting signals — we do not select individual advertisers and an ad served on a page has no influence on the threat score for the platform reviewed there. Threat scores are determined solely by the evidence categories described above.",
+    desc: "We hold no direct financial relationships with the platforms we investigate. We do not sell sponsored placements, accept payment to add, modify, or remove listings, or solicit advertising from cryptocurrency platforms, exchanges, or financial services. Editorial revenue comes from referral partnerships with regulated cryptocurrency exchanges, clearly labelled sponsored educational content, and institutional threat intelligence licensing. We do not run display advertising, and no revenue source has any influence on the threat score for the platform reviewed. Threat scores are determined solely by the evidence categories described above.",
   },
   {
     icon: <Shield className="h-5 w-5 text-purple-400" />,

@@ -18,11 +18,18 @@ un-hashable cross-origin script (SRI finding); Google Fonts were the other two
 SRI findings. The user explicitly approved removing AdSense (accepting ad-revenue
 loss) and self-hosting fonts.
 
-**How to apply:** Do NOT reintroduce `unsafe-inline`/`unsafe-eval`, ad/analytics
+**How to apply:** Do NOT reintroduce `unsafe-inline`/`unsafe-eval`, ad
 script origins, or external font origins without an explicit CSP review. The only
 inline `<script>` the page emits is escaped `application/ld+json` (a data block
 NOT governed by `script-src`), so it needs no allowance. If a new third-party
 embed is added, expect to widen CSP and re-check these spec findings.
+
+**Approved exception (Jul 2026):** Google Analytics 4 — user explicitly requested
+it. `script-src` also allows `https://www.googletagmanager.com`; gtag.js is
+injected programmatically (`src/lib/analytics.ts`, prod-only, no inline snippet),
+so no `unsafe-*` was added. GA beacons ride the pre-existing
+`connect-src`/`img-src https:` allowances. gtag.js remains an un-hashable
+cross-origin script (same SRI-finding class AdSense had) — accepted tradeoff.
 
 Out-of-code spec items for this domain: CAA records + DNSSEC live at the DNS
 provider/registrar, not in app code. A wrong CAA record can block TLS renewal, so

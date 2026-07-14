@@ -215,11 +215,14 @@ const CONTENT_SECURITY_POLICY = [
   "object-src 'none'",
   "frame-ancestors 'self'",
   "form-action 'self'",
-  // No third-party scripts: the app ships only its own bundled, same-origin JS.
-  // The only inline <script> the page emits is escaped JSON-LD (type
-  // application/ld+json), which is a data block not governed by script-src, so
-  // 'unsafe-inline'/'unsafe-eval' are not needed.
-  "script-src 'self'",
+  // The app ships its own bundled, same-origin JS plus Google Analytics
+  // (gtag.js), which the client injects programmatically from
+  // www.googletagmanager.com — no inline snippet, so 'unsafe-inline'/
+  // 'unsafe-eval' are still not needed. The only inline <script> the page
+  // emits is escaped JSON-LD (type application/ld+json), a data block not
+  // governed by script-src. GA beacons go to google-analytics.com collect
+  // endpoints, already covered by connect-src/img-src https:.
+  "script-src 'self' https://www.googletagmanager.com",
   // Inline styles are used throughout (SSR fallback markup + React style={{}}).
   // Fonts are self-hosted, so no external stylesheet origins are required.
   "style-src 'self' 'unsafe-inline'",

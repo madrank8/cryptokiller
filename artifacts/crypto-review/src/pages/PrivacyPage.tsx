@@ -31,7 +31,7 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 export default function PrivacyPage() {
   usePageMeta({
     title: "Privacy Policy",
-    description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
+    description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. Aggregate analytics only — no advertising trackers.",
     canonical: "https://cryptokiller.org/privacy",
     jsonLd: {
       "@context": "https://schema.org",
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           "@id": "https://cryptokiller.org/privacy#webpage",
           url: "https://cryptokiller.org/privacy",
           name: "Privacy Policy — CryptoKiller",
-          description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. No tracking cookies or third-party analytics.",
+          description: "CryptoKiller privacy policy. Learn how we collect, use, and protect your information. GDPR and CCPA compliant. Aggregate analytics only — no advertising trackers.",
           isPartOf: { "@type": "WebSite", name: "CryptoKiller", url: "https://cryptokiller.org" },
           inLanguage: "en",
         },
@@ -59,12 +59,12 @@ export default function PrivacyPage() {
             {
               "@type": "Question",
               name: "Do you use Google Analytics?",
-              acceptedAnswer: { "@type": "Answer", text: "No. We do not use Google Analytics or any third-party behavioural analytics service. We also do not use Facebook Pixel, advertising trackers, or session-recording tools. The only logging we do is standard server access logs, retained for 30 days." },
+              acceptedAnswer: { "@type": "Answer", text: "Yes. We use Google Analytics 4 to understand aggregate site usage — pages visited, device type, and approximate region. Google Analytics 4 does not log or store IP addresses. We do not use Facebook Pixel, advertising trackers, or session-recording tools. Standard server access logs are retained for 30 days." },
             },
             {
               "@type": "Question",
               name: "Do you use cookies?",
-              acceptedAnswer: { "@type": "Answer", text: "We use a minimal set of technical cookies required for the site to function. We do not use tracking cookies, marketing cookies, or third-party advertising cookies." },
+              acceptedAnswer: { "@type": "Answer", text: "We use a minimal set of technical cookies required for the site to function, plus Google Analytics cookies (such as _ga) used solely to measure aggregate site usage. We do not use marketing cookies or third-party advertising cookies." },
             },
             {
               "@type": "Question",
@@ -102,7 +102,7 @@ export default function PrivacyPage() {
         <div className="mb-10">
           <h1 className="text-4xl md:text-5xl font-black text-white mb-3">Privacy Policy</h1>
           <p className="text-slate-400 text-sm">
-            Effective Date: April 1, 2026 &middot; Last Updated: April 1, 2026
+            Effective Date: April 1, 2026 &middot; Last Updated: July 14, 2026
           </p>
         </div>
 
@@ -172,8 +172,8 @@ export default function PrivacyPage() {
             CryptoKiller is designed with privacy in mind. We want to be clear about what we do <strong className="text-white">not</strong> do:
           </p>
           <ul className="list-disc list-inside text-slate-300 space-y-1.5 mb-4 ml-2">
-            <li><strong className="text-white">No tracking cookies</strong> — We do not use cookies for tracking, advertising, or analytics purposes. Only essential framework cookies required for site functionality may be used.</li>
-            <li><strong className="text-white">No third-party analytics</strong> — We do not use Google Analytics, Facebook Pixel, or any third-party analytics or tracking services.</li>
+            <li><strong className="text-white">No advertising cookies</strong> — We do not use cookies for advertising or marketing. Beyond essential framework cookies, the only additional cookies are Google Analytics cookies used to measure aggregate site usage.</li>
+            <li><strong className="text-white">Analytics limited to aggregate measurement</strong> — We use Google Analytics 4 to understand overall site usage (pages visited, device type, approximate region). We do not use Facebook Pixel, session-recording tools, or any advertising or retargeting trackers.</li>
             <li><strong className="text-white">No advertising scripts</strong> — We do not run advertising networks or retargeting scripts.</li>
             <li><strong className="text-white">No user accounts</strong> — CryptoKiller does not have a login or registration system. We do not store usernames, passwords, or account profiles.</li>
             <li><strong className="text-white">No newsletter signups or comment systems</strong> — We do not collect email addresses for marketing purposes.</li>
