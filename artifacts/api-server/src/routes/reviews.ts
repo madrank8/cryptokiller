@@ -714,6 +714,10 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     { loc: "/recovery", changefreq: "monthly", priority: "0.7", lastmod: globalLastmodStr },
     { loc: "/privacy", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
     { loc: "/terms", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
+    // AI-disclosure page: live, indexable (index,follow + self-canonical),
+    // linked from the footer, but historically absent from the sitemap.
+    // Trust/transparency page in the same class as privacy/terms.
+    { loc: "/ai-disclosure", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
     ...AUTHOR_SLUGS.map(s => ({
       loc: `/author/${s}`,
       changefreq: "monthly",
