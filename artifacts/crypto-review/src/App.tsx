@@ -1,10 +1,11 @@
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGlobalJsonLd } from "@/hooks/usePageMeta";
 import { globalSiteSchema } from "@/lib/schemaBuilder";
+import { registerWebMcpTools } from "@/lib/webmcp";
 
 // Route components are code-split with React.lazy so each route ships its own
 // chunk instead of one site-wide application bundle (Task #44). The app is
@@ -73,11 +74,22 @@ function GlobalSchema() {
   return null;
 }
 
+// WebMCP (https://webmachinelearning.github.io/webmcp/): advertises the site's
+// public read APIs as callable tools to agent-enabled browsers. Feature-detected
+// and read-only; a no-op everywhere the API is absent, including during SSR.
+function WebMcpTools() {
+  useEffect(() => {
+    registerWebMcpTools();
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <GlobalSchema />
+        <WebMcpTools />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>

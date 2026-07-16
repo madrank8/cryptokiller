@@ -155,6 +155,39 @@ TypeScript note: server code (e.g. `artifacts/crypto-review/server/index.ts`) mu
 
 ## 7. Session changelog (newest first — append here every session)
 
+### 2026-07-16
+- Agent discovery: acted on an isitagentready.com audit of cryptokiller.org. Shipped only
+  the items backed by real infrastructure; **declined 6 of 8** because implementing them
+  would mean publishing metadata for capabilities that do not exist (fabricated discovery
+  documents are worse than none: agents would attempt auth flows against dead endpoints).
+  Declined: OAuth/OIDC discovery + OAuth Protected Resource + auth.md (no authorization
+  server anywhere in the codebase: `oauth|openid|authorization_endpoint` = 0 matches),
+  MCP Server Card (no MCP server; spec is still an unmerged PR), DNS-AID (IETF draft,
+  advertises agent endpoints we do not run, needs registrar DNS + DNSSEC).
+- **`/.well-known/api-catalog` (RFC 9727 + RFC 9264 linkset)** and **`/openapi.json`
+  (OpenAPI 3.1)** added in `artifacts/crypto-review/server/index.ts`, registered next to
+  security.txt (before static + SSR, since express.static ignores dotfiles).
+  Scope rule: documents ONLY the public unauthenticated read API that api-server already
+  serves (`/api/reviews`, `/api/reviews/{slug}`, `/api/reviews/{slug}/related`,
+  `/api/reviews/translations/{locale}/{slug}`, `/api/blog`, `/api/blog/{slug}`,
+  `/api/healthz`). Bearer-gated `/api/sync/*` + `/api/admin/*` + `/api/whatsapp` are
+  deliberately excluded. Verified 0 private paths leak.
+  NOTE: `lib/api-spec/openapi.yaml` is an INTERNAL contract (documents `/sync/review`,
+  predates the blog routes) and is intentionally NOT the file published.
+- **WebMCP** (`src/lib/webmcp.ts`, mounted in `App.tsx` as `<WebMcpTools />` beside
+  `<GlobalSchema />`): registers 3 READ-ONLY tools via
+  `navigator.modelContext.provideContext()`: `search_scam_reviews`, `get_scam_review`,
+  `search_blog_posts`, all backed by the live public API. Feature-detected + SSR-safe
+  (no-op without the API). The `/report` form is deliberately NOT exposed: an
+  agent-submittable scam-report endpoint is an abuse vector.
+- Verified locally by booting the built SSR server: api-catalog returns 200
+  `application/linkset+json`, openapi.json returns 200 `application/openapi+json`, both
+  parse and contain no private paths. `typecheck` clean for the new files (the pre-existing
+  `@workspace/i18n` error in ReviewPage.tsx is unrelated). WebMCP itself cannot be
+  exercised locally: it needs an agent-enabled browser.
+- **NOT LIVE YET.** Per Section 0 this repo does not deploy from GitHub. In the Replit
+  workspace: `git pull origin main`, then Publish (full rebuild, server TS must recompile).
+
 ### 2026-07-08
 - Fixed GSC "Product snippets: 1 invalid item" on review pages (repro:
   `/review/legacy-bitfundex`). Cause: watchlist/low tiers omit `reviewRating` by design,
