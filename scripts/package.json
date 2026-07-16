@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "verify:ssr": "tsx ./src/verify-ssr.ts",
     "gsc:summary": "tsx ./src/gsc-summary.ts",
+    "verify:agent-api": "tsx ./src/verify-agent-api.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
@@ -14,6 +15,8 @@
     "tsx": "catalog:"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "googleapis": "^171.4.0"
   }
 }

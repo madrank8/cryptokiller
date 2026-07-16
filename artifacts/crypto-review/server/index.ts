@@ -267,6 +267,230 @@ app.get("/.well-known/security.txt", (_req: Request, res: Response) => {
   res.send(SECURITY_TXT);
 });
 
+// ─── Machine-readable API discovery ───
+// Two related documents for AI agents / automated clients:
+//   /openapi.json            : OpenAPI 3.1 description of the PUBLIC read API
+//   /.well-known/api-catalog : RFC 9727 linkset pointing at it
+//
+// Scope rule: this describes ONLY the unauthenticated read endpoints that
+// artifacts/api-server already serves to the public (/api/reviews*, /api/blog*,
+// /api/healthz). The Bearer-gated /api/sync/* and /api/admin/* routes are
+// deliberately omitted: cataloguing them would advertise private surface and
+// they are not usable by third parties anyway.
+//
+// Note lib/api-spec/openapi.yaml is an INTERNAL contract (it documents
+// /sync/review and predates the blog routes); it is intentionally not the file
+// published here.
+const PUBLIC_ORIGIN = "https://cryptokiller.org";
+
+const REVIEW_SUMMARY_SCHEMA = {
+  type: "object",
+  properties: {
+    id: { type: "integer" },
+    slug: { type: "string" },
+    platformName: { type: "string" },
+    threatScore: { type: "integer", minimum: 0, maximum: 100, description: "Higher is more dangerous." },
+    verdict: { type: "string" },
+    status: { type: "string" },
+    investigationDate: { type: "string", format: "date-time" },
+    adCreatives: { type: "integer" },
+    countriesTargeted: { type: "integer" },
+    daysActive: { type: "integer" },
+    celebritiesAbused: { type: "integer" },
+  },
+} as const;
+
+const OPENAPI_DOC = {
+  openapi: "3.1.0",
+  info: {
+    title: "CryptoKiller Public API",
+    version: "1.0.0",
+    description:
+      "Read-only access to CryptoKiller's published crypto scam investigations and research. " +
+      "No authentication is required. Threat scores are editorially independent: CryptoKiller " +
+      "cannot be paid to remove or modify listings.",
+    license: { name: "Content is (c) DEX Algo Technologies Pte Ltd; attribution required." },
+  },
+  servers: [{ url: `${PUBLIC_ORIGIN}/api`, description: "Public API base" }],
+  tags: [
+    { name: "reviews", description: "Published scam investigations" },
+    { name: "blog", description: "Research and guides" },
+    { name: "health", description: "Service status" },
+  ],
+  paths: {
+    "/reviews": {
+      get: {
+        operationId: "listReviews",
+        tags: ["reviews"],
+        summary: "List all published investigations",
+        responses: {
+          "200": {
+            description: "Published investigations",
+            content: {
+              "application/json": { schema: { type: "array", items: REVIEW_SUMMARY_SCHEMA } },
+            },
+          },
+        },
+      },
+    },
+    "/reviews/{slug}": {
+      get: {
+        operationId: "getReview",
+        tags: ["reviews"],
+        summary: "Get one investigation by slug",
+        parameters: [{ name: "slug", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "Investigation detail",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ...REVIEW_SUMMARY_SCHEMA.properties,
+                    summary: { type: "string" },
+                    methodologyText: { type: "string" },
+                    disclaimerText: { type: "string" },
+                    author: { type: "string" },
+                    readingMinutes: { type: "integer" },
+                    heroImageUrl: { type: ["string", "null"] },
+                  },
+                },
+              },
+            },
+          },
+          "404": { description: "No published investigation with that slug" },
+        },
+      },
+    },
+    "/reviews/{slug}/related": {
+      get: {
+        operationId: "getRelatedReviews",
+        tags: ["reviews"],
+        summary: "Related investigations for a slug",
+        parameters: [{ name: "slug", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "Related investigations",
+            content: { "application/json": { schema: { type: "array", items: REVIEW_SUMMARY_SCHEMA } } },
+          },
+        },
+      },
+    },
+    "/reviews/translations/{locale}/{slug}": {
+      get: {
+        operationId: "getReviewTranslation",
+        tags: ["reviews"],
+        summary: "Localised investigation, when a translation exists",
+        parameters: [
+          { name: "locale", in: "path", required: true, schema: { type: "string", enum: ["it", "es", "de", "fr", "pt-br"] } },
+          { name: "slug", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "Translated investigation" },
+          "404": { description: "No translation for that locale and slug" },
+        },
+      },
+    },
+    "/blog": {
+      get: {
+        operationId: "listBlogPosts",
+        tags: ["blog"],
+        summary: "List published research and guides",
+        responses: {
+          "200": {
+            description: "Blog index",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    items: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "integer" },
+                          slug: { type: "string" },
+                          title: { type: "string" },
+                          headline: { type: "string" },
+                          summary: { type: "string" },
+                          metaDescription: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/blog/{slug}": {
+      get: {
+        operationId: "getBlogPost",
+        tags: ["blog"],
+        summary: "Get one post by slug",
+        parameters: [{ name: "slug", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Post detail" },
+          "404": { description: "No published post with that slug" },
+        },
+      },
+    },
+    "/healthz": {
+      get: {
+        operationId: "healthCheck",
+        tags: ["health"],
+        summary: "Service status",
+        responses: {
+          "200": {
+            description: "Healthy",
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { status: { type: "string", examples: ["ok"] } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+app.get("/openapi.json", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/openapi+json; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.json(OPENAPI_DOC);
+});
+
+// RFC 9727 (api-catalog) + RFC 9264 (linkset). One entry per public API, each
+// carrying: service-desc (the OpenAPI doc), service-doc (human docs), and
+// status (the live health endpoint).
+const API_CATALOG = {
+  linkset: [
+    {
+      anchor: `${PUBLIC_ORIGIN}/api/reviews`,
+      "service-desc": [{ href: `${PUBLIC_ORIGIN}/openapi.json`, type: "application/openapi+json" }],
+      "service-doc": [{ href: `${PUBLIC_ORIGIN}/methodology`, type: "text/html", title: "How CryptoKiller investigates and scores" }],
+      status: [{ href: `${PUBLIC_ORIGIN}/api/healthz`, type: "application/json" }],
+    },
+    {
+      anchor: `${PUBLIC_ORIGIN}/api/blog`,
+      "service-desc": [{ href: `${PUBLIC_ORIGIN}/openapi.json`, type: "application/openapi+json" }],
+      "service-doc": [{ href: `${PUBLIC_ORIGIN}/blog`, type: "text/html", title: "CryptoKiller research and guides" }],
+      status: [{ href: `${PUBLIC_ORIGIN}/api/healthz`, type: "application/json" }],
+    },
+  ],
+};
+
+app.get("/.well-known/api-catalog", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/linkset+json; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(JSON.stringify(API_CATALOG, null, 2));
+});
+
 // Convention: search engines and humans look for /sitemap.xml at the
 // site root. The canonical location is /api/sitemap.xml (built
 // dynamically from the DB, including all locale alternates). 301 here
