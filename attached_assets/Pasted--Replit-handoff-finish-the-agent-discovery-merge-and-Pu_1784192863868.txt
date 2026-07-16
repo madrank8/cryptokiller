@@ -1,0 +1,308 @@
+# Replit handoff: finish the agent-discovery merge and Publish
+
+**Repo:** `madrank8/cryptokiller` (the live public site, cryptokiller.org)
+**Workspace state:** a merge of `origin/main` into workspace `main` is IN PROGRESS and is
+blocked on ONE conflict.
+**Incoming commit:** `238fcc7` "feat(agent-discovery): api-catalog (RFC 9727), public OpenAPI, WebMCP tools"
+
+Do the steps in order. Do not skip step 5.
+
+---
+
+## Context: what is being merged and why
+
+The workspace and GitHub diverged (this is normal here: Replit Autoscale builds from a
+workspace snapshot and does NOT deploy from GitHub, so the two checkouts drift).
+
+- Workspace-only commits (7): "Published your App" x3, review page images, auth guide,
+  privacy policy + funding disclosures, Google Analytics disclosure.
+- GitHub-only commits (2): `0b16e03` (/ai-disclosure sitemap fix) and `238fcc7`
+  (agent discovery: api-catalog + OpenAPI + WebMCP).
+
+A **merge** was chosen deliberately (not rebase, not ff-only). This matches the precedent
+from the 2026-06-28 session: no force-push, no loss. Both sides are keepers.
+
+`artifacts/crypto-review/server/index.ts` already auto-merged cleanly.
+Only `artifacts/crypto-review/src/App.tsx` conflicts.
+
+---
+
+## The conflict, and the correct resolution
+
+Two independent features touched the same two spots in `App.tsx`:
+
+- **Workspace side:** Google Analytics. Adds `useLocation` to the wouter import, imports
+  `{ initAnalytics, trackPageview }`, and defines `AnalyticsTracker`.
+- **GitHub side (`238fcc7`):** WebMCP. Imports `{ registerWebMcpTools }` and defines
+  `WebMcpTools`.
+
+They are additive and do not contradict. **Keep BOTH.**
+
+> **Do NOT run `git checkout --ours` or `git checkout --theirs` on this file.** Either one
+> silently deletes one of the two features (your GA tracking, or the WebMCP tools).
+
+Note: git already auto-merged the `App()` body correctly. Both `<WebMcpTools />` and
+`<AnalyticsTracker />` are already present there, with `<AnalyticsTracker />` correctly
+INSIDE `<WouterRouter>` (it needs `useLocation` to subscribe to navigation). Leave that
+as-is.
+
+---
+
+## Step 1: replace `artifacts/crypto-review/src/App.tsx` with exactly this
+
+```tsx
+import { lazy, Suspense, useEffect, useMemo } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useGlobalJsonLd } from "@/hooks/usePageMeta";
+import { globalSiteSchema } from "@/lib/schemaBuilder";
+import { initAnalytics, trackPageview } from "@/lib/analytics";
+import { registerWebMcpTools } from "@/lib/webmcp";
+
+// Route components are code-split with React.lazy so each route ships its own
+// chunk instead of one site-wide application bundle (Task #44). The app is
+// SSR-prerendered (crawler-visible HTML lives in #root before hydration) and
+// the client mounts via createRoot, so on-demand route loading does not affect
+// indexed content — it only trims what each visitor downloads per route.
+const HomePage = lazy(() => import("@/pages/HomePage"));
+const ReviewPage = lazy(() => import("@/pages/ReviewPage"));
+const ReportPage = lazy(() => import("@/pages/ReportPage"));
+const AboutPage = lazy(() => import("@/pages/AboutPage"));
+const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
+const RecoveryPage = lazy(() => import("@/pages/RecoveryPage"));
+const InvestigationsPage = lazy(() => import("@/pages/InvestigationsPage"));
+const BlogPage = lazy(() => import("@/pages/BlogPage"));
+const BlogPostPage = lazy(() => import("@/pages/BlogPostPage"));
+const MethodologyPage = lazy(() => import("@/pages/MethodologyPage"));
+const AiDisclosurePage = lazy(() => import("@/pages/AiDisclosurePage"));
+const AuthorPage = lazy(() => import("@/pages/AuthorPage"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+
+const queryClient = new QueryClient();
+
+// Suspense fallback while a route chunk loads. Matches the SSR shell's dark
+// slate background so the swap from prerendered HTML to the React tree does not
+// flash white; intentionally minimal (no spinner) to avoid layout shift.
+function RouteFallback() {
+  return <div className="min-h-screen bg-background" aria-hidden="true" />;
+}
+
+function Router() {
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Switch>
+        <Route path="/" component={() => <HomePage />} />
+        <Route path="/investigations" component={() => <InvestigationsPage />} />
+        <Route path="/review/:slug" component={() => <ReviewPage />} />
+        {/*
+          Locale-prefixed review routes. URL segment is lowercase
+          (`/pt-br/review/...`) but the DB and BCP-47 canonical form for the
+          Portuguese (Brazil) locale is `pt-BR` — the component normalises
+          the URL segment to canonical case before fetching. Unsupported
+          locales are caught by validation inside ReviewPage and fall
+          through to the NotFound render.
+        */}
+        <Route path="/:locale/review/:slug" component={() => <ReviewPage />} />
+        <Route path="/blog" component={() => <BlogPage />} />
+        <Route path="/blog/:slug" component={() => <BlogPostPage />} />
+        <Route path="/report" component={() => <ReportPage />} />
+        <Route path="/about" component={() => <AboutPage />} />
+        <Route path="/author/:slug" component={() => <AuthorPage />} />
+        <Route path="/privacy" component={() => <PrivacyPage />} />
+        <Route path="/terms" component={() => <TermsPage />} />
+        <Route path="/methodology" component={() => <MethodologyPage />} />
+        <Route path="/ai-disclosure" component={() => <AiDisclosurePage />} />
+        <Route path="/recovery" component={() => <RecoveryPage />} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
+  );
+}
+
+function GlobalSchema() {
+  const schema = useMemo(() => globalSiteSchema(), []);
+  useGlobalJsonLd(schema);
+  return null;
+}
+
+// Fires a GA4 page_view on every wouter route change (and the initial load —
+// automatic page_view is disabled in initAnalytics to avoid double-counting).
+// Must render inside <WouterRouter> so useLocation subscribes to navigation.
+function AnalyticsTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    trackPageview();
+  }, [location]);
+  return null;
+}
+
+// WebMCP (https://webmachinelearning.github.io/webmcp/): advertises the site's
+// public read APIs as callable tools to agent-enabled browsers. Feature-detected
+// and read-only; a no-op everywhere the API is absent, including during SSR.
+function WebMcpTools() {
+  useEffect(() => {
+    registerWebMcpTools();
+  }, []);
+  return null;
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <GlobalSchema />
+        <WebMcpTools />
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AnalyticsTracker />
+          <Router />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
+```
+
+Confirm no conflict markers survive anywhere:
+
+```bash
+grep -rn '<<<<<<<\|=======\|>>>>>>>' artifacts/crypto-review/src/App.tsx
+```
+
+That must print nothing.
+
+---
+
+## Step 2: confirm App.tsx was the only conflict
+
+```bash
+git status
+```
+
+Expect `artifacts/crypto-review/src/App.tsx` as the only unmerged path. If anything else is
+unmerged, STOP and report it; do not guess a resolution.
+
+---
+
+## Step 3: commit the merge and push
+
+```bash
+git add artifacts/crypto-review/src/App.tsx
+git commit                 # accept the pre-filled merge message
+git push origin main       # GitHub becomes the superset again
+```
+
+Do NOT force-push. If the push is rejected, STOP and report; a rejection means something
+else changed on GitHub and needs another pull.
+
+---
+
+## Step 4: Publish
+
+Publishing tab -> Publish. Prefer a **full / clean rebuild**, not a cached one: this change
+adds new Express routes in `artifacts/crypto-review/server/index.ts`, and that TypeScript
+must recompile. A cached Publish can ship a stale server bundle and silently drop the new
+routes.
+
+---
+
+## Step 5: verify it actually went live (do not skip)
+
+```bash
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://cryptokiller.org/.well-known/api-catalog
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://cryptokiller.org/openapi.json
+```
+
+Expected:
+
+```
+200 application/linkset+json; charset=utf-8
+200 application/openapi+json; charset=utf-8
+```
+
+If either returns **404**, the snapshot did not pick up the recompiled server. That is the
+exact failure documented in the 2026-06-28 session (workspace/GitHub fork meant Publish
+shipped old code). Re-check that the merge commit is actually in the workspace
+(`git log --oneline -3`) and Publish again with a clean rebuild.
+
+Sanity check the content too:
+
+```bash
+curl -s https://cryptokiller.org/.well-known/api-catalog | head -20
+```
+
+Should be a JSON object with a `linkset` array of 2 entries (anchors
+`https://cryptokiller.org/api/reviews` and `.../api/blog`), each with `service-desc`,
+`service-doc` and `status`.
+
+---
+
+## Step 6: one pre-existing issue to check (not caused by this merge)
+
+In `App.tsx`, `initAnalytics` is imported but is never called in that file. This came from
+the workspace-side GA commit, not from the merge. The import was preserved verbatim rather
+than "fixed", because deleting it blindly could break GA.
+
+```bash
+grep -rn "initAnalytics" artifacts/crypto-review/src/
+```
+
+- If `initAnalytics()` is called somewhere else (for example `main.tsx`): the App.tsx import
+  is vestigial. Harmless, but it will trip `noUnusedLocals` if that is enabled. Remove the
+  unused name from the App.tsx import if the typecheck complains.
+- If `initAnalytics()` is called NOWHERE: that is a real bug. GA4 is never initialised, so
+  `trackPageview()` fires into an uninitialised SDK and pageviews are silently lost. Report
+  this rather than papering over it.
+
+Run the typecheck before Publish if convenient:
+
+```bash
+cd artifacts/crypto-review && npm run typecheck
+```
+
+A pre-existing `Cannot find module '@workspace/i18n'` error in `ReviewPage.tsx` is expected
+and unrelated to this change.
+
+---
+
+## What this change actually adds (for reviewer context)
+
+Shipped (backed by real, already-public infrastructure):
+
+1. **`/.well-known/api-catalog`** (RFC 9727 + RFC 9264 linkset) and **`/openapi.json`**
+   (OpenAPI 3.1), registered in `server/index.ts` beside `security.txt`, before
+   `express.static` and the SSR catch-all (express.static ignores dotfiles, so
+   `/.well-known/*` needs an explicit route).
+   These document ONLY the public unauthenticated read API that `artifacts/api-server`
+   already serves: `/api/reviews`, `/api/reviews/{slug}`, `/api/reviews/{slug}/related`,
+   `/api/reviews/translations/{locale}/{slug}`, `/api/blog`, `/api/blog/{slug}`,
+   `/api/healthz`.
+   The Bearer-gated `/api/sync/*`, `/api/admin/*` and `/api/whatsapp` are deliberately
+   EXCLUDED. Verified: 0 private paths leak.
+   `lib/api-spec/openapi.yaml` stays INTERNAL and is intentionally not the published file
+   (it documents `/sync/review` and predates the blog routes).
+
+2. **WebMCP** (`src/lib/webmcp.ts`): registers 3 READ-ONLY tools via
+   `navigator.modelContext.provideContext()`, backed by the live public API:
+   `search_scam_reviews`, `get_scam_review`, `search_blog_posts`. Feature-detected and
+   SSR-safe, so it is a no-op in Node and in browsers without WebMCP.
+   The `/report` form is deliberately NOT exposed: an agent-submittable scam-report
+   endpoint is an abuse vector.
+
+Deliberately NOT implemented (6 of 8 items from the isitagentready.com audit), because
+each would require publishing metadata for infrastructure that does not exist. Fabricated
+discovery documents are worse than none: agents would attempt auth flows against dead
+endpoints and treat the site as broken rather than as "no auth required".
+
+- OAuth/OIDC discovery, OAuth Protected Resource Metadata, auth.md: there is no
+  authorization server (`oauth|openid|authorization_endpoint` match nothing in this repo).
+- MCP Server Card: there is no MCP server, and the spec is still an unmerged PR.
+- DNS-AID: an IETF draft; it advertises agent endpoints we do not run, and needs registrar
+  DNS plus DNSSEC.
+
+Do not add these unless the underlying infrastructure is built first.
