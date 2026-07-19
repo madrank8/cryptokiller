@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
+import { getGithubSyncStatus } from "../lib/github-sync-status";
 
 /**
  * Short-lived admin endpoints for one-off maintenance. Every route here is
@@ -25,6 +26,17 @@ function requireAuth(req: import("express").Request, res: import("express").Resp
   }
   return true;
 }
+
+/**
+ * GET /api/admin/github-sync-status
+ * Visible status of the daily GitHub backup sync (last run, last error,
+ * consecutive failure count). Gated by SYNC_SECRET like the other admin routes.
+ */
+router.get("/admin/github-sync-status", (req, res): void => {
+  if (!requireAuth(req, res)) return;
+  const status = getGithubSyncStatus();
+  res.json({ ok: status.lastResult !== "failure", status });
+});
 
 /**
  * GET /api/admin/db-info
