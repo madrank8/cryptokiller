@@ -124,6 +124,8 @@ pnpm --filter @workspace/scripts run github:sync
 
 **Automatic schedule**: the API server runs the sync automatically once per day (`startGithubSyncScheduler()` in `artifacts/api-server/src/lib/github-sync-scheduler.ts`, called from `index.ts`). First run fires 1 minute after boot, then every 24h. It is dev-only — the scheduler disables itself when `/home/runner/workspace/.git` is absent (production deployments). Failures are logged at error level with stdout/stderr so drift isn't silent; overlapping runs are skipped.
 
+**Failure alerting**: each sync result is recorded in `artifacts/api-server/src/lib/github-sync-status.ts`. On failure, a WhatsApp alert is sent via Twilio (one alert per failure streak, no spam; a recovery message is sent when the streak ends) — requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`, and `ALERT_WHATSAPP_TO` env vars; if any are missing, the skip is logged at warn level. Current status (last run/result/error, consecutive failure count) is always visible at `GET /api/admin/github-sync-status` (Bearer `SYNC_SECRET`).
+
 ## CryptoKiller Application
 
 ### Database Schema

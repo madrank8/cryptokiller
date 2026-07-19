@@ -1,6 +1,10 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { logger } from "./logger";
+import {
+  recordGithubSyncFailure,
+  recordGithubSyncSuccess,
+} from "./github-sync-status";
 
 const WORKSPACE = "/home/runner/workspace";
 const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // daily
@@ -36,6 +40,9 @@ function runGithubSync(): Promise<void> {
             { err: err.message, stdout, stderr, durationMs },
             "GitHub backup sync FAILED — workspace/GitHub drift may be accumulating",
           );
+          recordGithubSyncFailure(
+            `${err.message}${stderr ? ` | stderr: ${stderr.slice(-500)}` : ""}`,
+          );
         } else {
           const summary = stdout
             .split("\n")
@@ -44,6 +51,7 @@ function runGithubSync(): Promise<void> {
             .slice(-4)
             .join(" | ");
           logger.info({ durationMs, summary }, "GitHub backup sync finished");
+          recordGithubSyncSuccess();
         }
         resolve();
       },
