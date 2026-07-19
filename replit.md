@@ -108,6 +108,10 @@ React + Vite frontend web app — the **CryptoKiller** scam investigation review
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
 
+### Agent API drift validation
+
+The `agent-api` validation step (registered validation command) runs `pnpm --filter @workspace/scripts run verify:agent-api:ci`. The wrapper (`scripts/src/verify-agent-api-ci.ts`) builds crypto-review + api-server, boots both built servers on spare ports (45871/45872), runs `scripts/src/verify-agent-api.ts` against them with `VERIFY_BASE_URL`/`VERIFY_API_BASE_URL`, then tears them down. Needed because Vite dev never serves the discovery documents — only the built SSR server does.
+
 ### GitHub repo sync
 
 One command keeps the companion GitHub repo (`madrank8/cryptokiller`) in sync with the workspace:
