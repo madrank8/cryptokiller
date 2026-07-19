@@ -300,6 +300,93 @@ const REVIEW_SUMMARY_SCHEMA = {
   },
 } as const;
 
+// Slim per-locale translation metadata, as embedded in review detail
+// responses (`translations`) and translation responses (`siblingTranslations`).
+const TRANSLATION_META_SCHEMA = {
+  type: "object",
+  required: ["locale", "slug", "status", "title", "updatedAt"],
+  properties: {
+    locale: { type: "string" },
+    slug: { type: "string" },
+    status: { type: "string" },
+    title: { type: "string" },
+    translatorName: { type: ["string", "null"] },
+    translationMethod: { type: ["string", "null"] },
+    publishedAt: { type: ["string", "null"], format: "date-time" },
+    sourceReviewUpdatedAt: { type: ["string", "null"], format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+} as const;
+
+// Full translated investigation, mirroring the response built by the
+// api-server review-translations route: translated text fields at the top
+// level, the EN master's structural data under `master`, plus staleness
+// metadata. Keep this in sync with GET /reviews/translations/:locale/:slug
+// in artifacts/api-server/src/routes/reviews.ts — verify:agent-api validates
+// live responses against this schema.
+const TRANSLATION_SCHEMA = {
+  type: "object",
+  required: ["locale", "slug", "status", "title", "updatedAt", "masterUpdatedAt", "stale", "masterSlug", "master", "siblingTranslations"],
+  properties: {
+    locale: { type: "string", description: "BCP-47 locale of this translation (e.g. es, pt-BR)." },
+    slug: { type: "string", description: "Locale-specific slug of the translated page." },
+    status: { type: "string" },
+    title: { type: "string" },
+    metaDescription: { type: ["string", "null"] },
+    headline: { type: ["string", "null"] },
+    alternativeHeadline: { type: ["string", "null"] },
+    summary: { type: "string" },
+    verdict: { type: ["string", "null"] },
+    howItWorks: { type: ["string", "null"] },
+    fullArticle: { type: ["string", "null"] },
+    redFlags: { type: ["array", "null"] },
+    faq: { type: ["array", "null"] },
+    keyTakeaways: { type: ["array", "null"] },
+    notForYou: { type: ["string", "null"] },
+    protectionSteps: { type: ["string", "null"] },
+    methodology: { type: ["string", "null"] },
+    disclaimer: { type: ["string", "null"] },
+    expertiseDepth: { type: ["string", "null"] },
+    translationMethod: { type: ["string", "null"] },
+    translatorName: { type: ["string", "null"] },
+    translatorCredentials: { type: ["string", "null"] },
+    aiModel: { type: ["string", "null"] },
+    aiPromptVersion: { type: ["string", "null"] },
+    reviewedAt: { type: ["string", "null"], format: "date-time" },
+    wordCount: { type: ["integer", "null"] },
+    publishedAt: { type: ["string", "null"], format: "date-time" },
+    sourceReviewUpdatedAt: { type: ["string", "null"], format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+    masterUpdatedAt: { type: "string", format: "date-time" },
+    stale: { type: "boolean", description: "True when the EN master changed after this translation was produced." },
+    masterSlug: { type: "string", description: "Slug of the English master investigation." },
+    master: {
+      type: "object",
+      description: "The EN master's structural data (threat metrics, red flags, FAQ, geo targets).",
+      required: ["id", "slug", "platformName", "threatScore", "verdict", "status"],
+      properties: {
+        ...REVIEW_SUMMARY_SCHEMA.properties,
+        summary: { type: "string" },
+        heroDescription: { type: "string" },
+        methodologyText: { type: "string" },
+        disclaimerText: { type: "string" },
+        author: { type: "string" },
+        readingMinutes: { type: "integer" },
+        heroImageUrl: { type: ["string", "null"] },
+        allCountryCodes: { type: "array", items: { type: "string" } },
+        funnelStages: { type: "array" },
+        redFlags: { type: "array" },
+        faqItems: { type: "array" },
+        keyFindings: { type: "array" },
+        geoTargets: { type: "array" },
+        recentAds: { type: "array" },
+        translations: { type: "array", items: TRANSLATION_META_SCHEMA },
+      },
+    },
+    siblingTranslations: { type: "array", items: TRANSLATION_META_SCHEMA },
+  },
+} as const;
+
 const OPENAPI_DOC = {
   openapi: "3.1.0",
   info: {
@@ -383,11 +470,14 @@ const OPENAPI_DOC = {
         tags: ["reviews"],
         summary: "Localised investigation, when a translation exists",
         parameters: [
-          { name: "locale", in: "path", required: true, schema: { type: "string", enum: ["it", "es", "de", "fr", "pt-br"] } },
+          { name: "locale", in: "path", required: true, schema: { type: "string", enum: ["it", "es", "de", "fr", "pt-BR"] } },
           { name: "slug", in: "path", required: true, schema: { type: "string" } },
         ],
         responses: {
-          "200": { description: "Translated investigation" },
+          "200": {
+            description: "Translated investigation",
+            content: { "application/json": { schema: TRANSLATION_SCHEMA } },
+          },
           "404": { description: "No translation for that locale and slug" },
         },
       },

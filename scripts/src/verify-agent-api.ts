@@ -206,6 +206,27 @@ async function main(): Promise<void> {
   if (blogSlug) pass(`found blog slug "${blogSlug}" (${blogItems.length} posts on page 1)`);
   else fail(`${specServerBase}/blog returned no items with a slug`);
 
+  // Discover a real (locale, slug) pair for the translations endpoint by
+  // scanning review details for a non-empty `translations` array. Without
+  // this, the translation path would always be exercised with an EN slug and
+  // 404, silently skipping body validation of the translation schema.
+  let translationPair: { locale: string; slug: string } | null = null;
+  for (const r of reviews.slice(0, 25)) {
+    if (typeof r.slug !== "string") continue;
+    const detail = await get(`${specServerBase}/reviews/${r.slug}`);
+    const translations = (detail.body as { translations?: Array<Record<string, unknown>> })?.translations;
+    const t = Array.isArray(translations) ? translations[0] : undefined;
+    if (t && typeof t.locale === "string" && typeof t.slug === "string") {
+      translationPair = { locale: t.locale, slug: t.slug };
+      break;
+    }
+  }
+  if (translationPair) {
+    pass(`found published translation "${translationPair.locale}/${translationPair.slug}"`);
+  } else {
+    console.log("  INFO  no published translation found in first 25 reviews — translation endpoint will be checked as a documented 404");
+  }
+
   // Published-only spot check: list endpoints must not leak drafts.
   const badStatus = reviews.filter(
     (r) => typeof r.status === "string" && /draft|unpublish|pending/i.test(r.status as string),
@@ -223,12 +244,19 @@ async function main(): Promise<void> {
     let allow404 = false;
 
     if (rawPath.includes("{locale}")) {
-      // Translations legitimately 404 when no translation exists for the
-      // chosen locale/slug pair; the spec documents 404. Any other status is
-      // still a failure.
-      const locales = op.parameters?.find((p) => p.name === "locale")?.schema?.enum ?? ["it"];
-      urlPath = urlPath.replace("{locale}", locales[0]);
-      allow404 = true;
+      if (translationPair) {
+        // A real published translation was discovered — exercise it and
+        // validate the body against the documented schema. A 404 here would
+        // be a genuine failure.
+        urlPath = urlPath.replace("{locale}", translationPair.locale).replace("{slug}", translationPair.slug);
+      } else {
+        // Translations legitimately 404 when no translation exists for the
+        // chosen locale/slug pair; the spec documents 404. Any other status is
+        // still a failure.
+        const locales = op.parameters?.find((p) => p.name === "locale")?.schema?.enum ?? ["it"];
+        urlPath = urlPath.replace("{locale}", locales[0]);
+        allow404 = true;
+      }
     }
     if (rawPath.includes("{slug}")) {
       const slug = rawPath.startsWith("/blog") ? blogSlug : reviewSlug;

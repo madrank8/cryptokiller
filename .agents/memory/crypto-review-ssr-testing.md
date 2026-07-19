@@ -34,3 +34,6 @@ correctly fails against dev. To verify pre-publish: build crypto-review, boot
 (background processes die between bash tool calls), with
 `VERIFY_BASE_URL=http://127.0.0.1:<port> VERIFY_API_BASE_URL=http://127.0.0.1:80`.
 Default (no env) targets https://cryptokiller.org for post-publish confirmation.
+
+## verify:agent-api locally
+Discovery docs (/.well-known/api-catalog, /openapi.json) exist only on the built SSR server — Vite dev 404s them for JSON Accept headers (SPA fallback only serves html for */*). Local flow: `pnpm --filter @workspace/crypto-review run build`, run `PORT=<spare> node dist/server/index.mjs` (nohup, 512MB cap), then `VERIFY_BASE_URL=http://127.0.0.1:<spare> VERIFY_API_BASE_URL=http://127.0.0.1:80 pnpm --filter @workspace/scripts run verify:agent-api`.
