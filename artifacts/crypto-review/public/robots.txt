@@ -1,6 +1,6 @@
 # ============================================================
 # CryptoKiller.org — robots.txt
-# Last updated: 2026-06-15
+# Last updated: 2026-07-19
 # Strategy: Maximum AEO (Answer Engine Optimization) visibility.
 #
 # Every search + AI/citation crawler is welcomed on all public
@@ -16,6 +16,16 @@
 # ============================================================
 
 User-agent: *
+# ——————————————————————————————————————————————————————————————
+# CONTENT SIGNALS (contentsignals.org / IETF draft-romm-aipref-
+# contentsignals). Explicit permissive preferences, matching the
+# maximum-visibility strategy above:
+#   search=yes   — content may be indexed and linked in search results
+#   ai-input=yes — content may be used as input to AI answers (RAG,
+#                  grounding, citations)
+#   ai-train=yes — content may be used to train AI models
+# ——————————————————————————————————————————————————————————————
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 Allow: /api/sitemap.xml
 Disallow: /api/
