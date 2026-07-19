@@ -8,6 +8,7 @@
     "verify:ssr": "tsx ./src/verify-ssr.ts",
     "gsc:summary": "tsx ./src/gsc-summary.ts",
     "verify:agent-api": "tsx ./src/verify-agent-api.ts",
+    "github:sync": "tsx ./src/github-sync.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

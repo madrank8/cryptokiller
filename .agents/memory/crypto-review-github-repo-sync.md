@@ -3,6 +3,8 @@ name: crypto-review ↔ GitHub repo sync
 description: This Replit project has a companion GitHub repo that drifts; workspace .git is write-protected, so sync via a /tmp clone + connector-token push.
 ---
 
+**Automated:** `pnpm --filter @workspace/scripts run github:sync` (`scripts/src/github-sync.ts`) implements the recipe below end-to-end (temp clone, merge, workspace-wins conflict resolution, token push, no force). Prefer running it over redoing the manual steps.
+
 The Replit project mirrors a companion GitHub repo (`madrank8/cryptokiller`). They are **not** auto-synced and routinely diverge: the Replit project accumulates many commits, while GitHub may have its own commits/PRs not present locally (common ancestor + both sides ahead = non-fast-forward).
 
 **Why:** the workspace `.git` is write-protected at the filesystem level for the agent — `git commit`, `git add` (object writes), and even removing a stale `.git/index.lock` are all blocked, and this stays true even when a git Project Task is assigned to the main agent. The platform auto-commits at end of turn. So the workspace repo itself can never be committed/merged/pushed directly from the agent.

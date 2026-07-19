@@ -108,6 +108,16 @@ React + Vite frontend web app — the **CryptoKiller** scam investigation review
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
 
+### GitHub repo sync
+
+One command keeps the companion GitHub repo (`madrank8/cryptokiller`) in sync with the workspace:
+
+```
+pnpm --filter @workspace/scripts run github:sync
+```
+
+`scripts/src/github-sync.ts` clones the workspace into a temp dir, fetches GitHub `main`, merges (resolving any conflicts workspace-wins), and pushes with the GitHub connector token (never force-push, token redacted from output). Safe to run anytime — it no-ops when already in sync. After a sync, GitHub is ahead of the workspace by one merge commit until the next run; that is expected.
+
 ## CryptoKiller Application
 
 ### Database Schema
