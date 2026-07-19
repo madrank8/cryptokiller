@@ -322,7 +322,10 @@ async function main(): Promise<void> {
 
   // robots/sitemap sanity
   const robots = await fetchText(robotsUrl).catch(() => ({ status: 0, text: "" }));
-  const robotsOk = robots.status === 200;
+  const robotsHasContentSignal = /^Content-Signal:\s*search=yes,\s*ai-input=yes,\s*ai-train=yes\s*$/m.test(
+    robots.text,
+  );
+  const robotsOk = robots.status === 200 && robotsHasContentSignal;
 
   const failed = results.filter((r) => !r.passed);
   console.log(`SSR audit base: ${BASE_URL}`);
@@ -332,7 +335,9 @@ async function main(): Promise<void> {
   console.log(`Failed: ${failed.length}`);
 
   if (!robotsOk) {
-    console.log(`FAIL robots.txt status=${robots.status}`);
+    console.log(
+      `FAIL robots.txt status=${robots.status} contentSignal=${robotsHasContentSignal}`,
+    );
   }
 
   for (const r of failed) {
