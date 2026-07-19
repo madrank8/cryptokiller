@@ -434,7 +434,97 @@ const OPENAPI_DOC = {
         summary: "Get one post by slug",
         parameters: [{ name: "slug", in: "path", required: true, schema: { type: "string" } }],
         responses: {
-          "200": { description: "Post detail" },
+          "200": {
+            description: "Post detail",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "id",
+                    "slug",
+                    "title",
+                    "sections",
+                    "fullArticle",
+                    "publishedAt",
+                    "platformAggregates",
+                  ],
+                  properties: {
+                    id: { type: "integer" },
+                    slug: { type: "string" },
+                    title: { type: "string" },
+                    headline: { type: "string" },
+                    metaDescription: { type: "string" },
+                    summary: { type: "string" },
+                    contentType: { type: "string" },
+                    status: { type: "string" },
+                    targetKeyword: { type: "string" },
+                    wordCount: { type: "integer" },
+                    fullArticle: { type: "string", description: "Complete processed article HTML." },
+                    sections: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          heading: { type: "string" },
+                          body: { type: "string", description: "Processed section HTML." },
+                        },
+                      },
+                    },
+                    faq: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          question: { type: "string" },
+                          answer: { type: "string" },
+                        },
+                      },
+                    },
+                    sources: { type: "array" },
+                    internalLinks: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        required: ["text", "url"],
+                        properties: {
+                          text: { type: "string" },
+                          url: { type: "string" },
+                        },
+                      },
+                    },
+                    keyTakeaways: { type: ["string", "null"], description: "Extracted key-takeaways HTML block, when present." },
+                    notForYou: { type: ["string", "null"] },
+                    authorPersonaId: { type: ["string", "null"] },
+                    heroImageUrl: { type: ["string", "null"] },
+                    heroImageAlt: { type: ["string", "null"] },
+                    heroImageCredit: { type: ["string", "null"] },
+                    aiDisclosure: { type: ["string", "null"] },
+                    publishedAt: { type: "string", description: "ISO 8601 timestamp, or empty string if unset." },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                    platformAggregates: {
+                      type: "object",
+                      required: ["replitComputedAt"],
+                      properties: {
+                        totalBrandsTracked: { type: ["integer", "null"] },
+                        totalCreativesAnalyzed: { type: ["integer", "null"] },
+                        totalBrandsWithCelebrityAbuse: { type: ["integer", "null"] },
+                        totalBrandsReviewed: { type: ["integer", "null"] },
+                        avgScamScore: { type: ["number", "null"] },
+                        topVelocityTrend: { type: ["string", "null"] },
+                        topScamBrandName: { type: ["string", "null"] },
+                        topScamBrandScore: { type: ["number", "null"] },
+                        vercelSyncedAt: { type: ["string", "null"] },
+                        replitComputedAt: { type: "string", format: "date-time" },
+                        metadata: { type: ["object", "null"] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           "404": { description: "No published post with that slug" },
         },
       },
