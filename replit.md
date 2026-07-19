@@ -118,6 +118,8 @@ pnpm --filter @workspace/scripts run github:sync
 
 `scripts/src/github-sync.ts` clones the workspace into a temp dir, fetches GitHub `main`, merges (resolving any conflicts workspace-wins), and pushes with the GitHub connector token (never force-push, token redacted from output). Safe to run anytime — it no-ops when already in sync. After a sync, GitHub is ahead of the workspace by one merge commit until the next run; that is expected.
 
+**Automatic schedule**: the API server runs the sync automatically once per day (`startGithubSyncScheduler()` in `artifacts/api-server/src/lib/github-sync-scheduler.ts`, called from `index.ts`). First run fires 1 minute after boot, then every 24h. It is dev-only — the scheduler disables itself when `/home/runner/workspace/.git` is absent (production deployments). Failures are logged at error level with stdout/stderr so drift isn't silent; overlapping runs are skipped.
+
 ## CryptoKiller Application
 
 ### Database Schema

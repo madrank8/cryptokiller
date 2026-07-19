@@ -1,4 +1,5 @@
 import app from "./app";
+import { startGithubSyncScheduler } from "./lib/github-sync-scheduler";
 import { logger } from "./lib/logger";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +34,8 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  startGithubSyncScheduler();
 });
 
 process.on("SIGTERM", () => {
