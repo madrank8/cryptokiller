@@ -25,3 +25,12 @@ headers, `.md` endpoints) is NOT observable in dev preview either.
 - Final functional verification happens against production after Publish (curl the
   live domain). Booting the bundled prod server with `node --max-old-space-size` is
   unreliable (OOM/SIGKILL) — prefer the `renderPage` import above.
+
+**verify-agent-api specifics:** `scripts/src/verify-agent-api.ts` hits SSR-only routes
+(`/.well-known/api-catalog`, `/openapi.json`). In dev, Vite's SPA fallback returns
+index.html (200 text/html) to curl but 404 to JSON-Accept fetches — so the script
+correctly fails against dev. To verify pre-publish: build crypto-review, boot
+`dist/server/index.mjs` on a spare port AND run the script in the SAME bash invocation
+(background processes die between bash tool calls), with
+`VERIFY_BASE_URL=http://127.0.0.1:<port> VERIFY_API_BASE_URL=http://127.0.0.1:80`.
+Default (no env) targets https://cryptokiller.org for post-publish confirmation.
