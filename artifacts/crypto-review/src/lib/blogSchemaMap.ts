@@ -22,11 +22,11 @@ export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
           "Rug Pull Investigation"
         ],
         "sameAs": [],
-        "email": "corrections@cryptokiller.org",
+        "email": "office@cryptokiller.org",
         "contactPoint": {
           "@type": "ContactPoint",
           "contactType": "editorial corrections",
-          "email": "corrections@cryptokiller.org"
+          "email": "office@cryptokiller.org"
         },
         "areaServed": "Worldwide"
       },
@@ -239,11 +239,11 @@ export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
           "Rug Pull Investigation"
         ],
         "sameAs": [],
-        "email": "corrections@cryptokiller.org",
+        "email": "office@cryptokiller.org",
         "contactPoint": {
           "@type": "ContactPoint",
           "contactType": "editorial corrections",
-          "email": "corrections@cryptokiller.org"
+          "email": "office@cryptokiller.org"
         },
         "areaServed": "Worldwide"
       },
@@ -448,11 +448,11 @@ export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
           "Rug Pull Investigation"
         ],
         "sameAs": [],
-        "email": "corrections@cryptokiller.org",
+        "email": "office@cryptokiller.org",
         "contactPoint": {
           "@type": "ContactPoint",
           "contactType": "editorial corrections",
-          "email": "corrections@cryptokiller.org"
+          "email": "office@cryptokiller.org"
         },
         "areaServed": "Worldwide"
       },
@@ -652,11 +652,11 @@ export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
           "Rug Pull Investigation"
         ],
         "sameAs": [],
-        "email": "corrections@cryptokiller.org",
+        "email": "office@cryptokiller.org",
         "contactPoint": {
           "@type": "ContactPoint",
           "contactType": "editorial corrections",
-          "email": "corrections@cryptokiller.org"
+          "email": "office@cryptokiller.org"
         },
         "areaServed": "Worldwide"
       },
@@ -851,11 +851,11 @@ export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
           "Rug Pull Investigation"
         ],
         "sameAs": [],
-        "email": "corrections@cryptokiller.org",
+        "email": "office@cryptokiller.org",
         "contactPoint": {
           "@type": "ContactPoint",
           "contactType": "editorial corrections",
-          "email": "corrections@cryptokiller.org"
+          "email": "office@cryptokiller.org"
         },
         "areaServed": "Worldwide"
       },
@@ -1050,11 +1050,11 @@ export const BLOG_SCHEMA_MAP: Record<string, Record<string, unknown>> = {
           "Rug Pull Investigation"
         ],
         "sameAs": [],
-        "email": "corrections@cryptokiller.org",
+        "email": "office@cryptokiller.org",
         "contactPoint": {
           "@type": "ContactPoint",
           "contactType": "editorial corrections",
-          "email": "corrections@cryptokiller.org"
+          "email": "office@cryptokiller.org"
         },
         "areaServed": "Worldwide"
       },

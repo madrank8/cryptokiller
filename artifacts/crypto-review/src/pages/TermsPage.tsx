@@ -60,7 +60,7 @@ export default function TermsPage() {
             {
               "@type": "Question",
               name: "Can I republish CryptoKiller investigations on my site?",
-              acceptedAnswer: { "@type": "Answer", text: "No — wholesale republication of investigations is not permitted. You may quote short excerpts (a few sentences) with attribution and a link to the original source, and you may freely link to our investigations from your content. If you are a journalist or researcher requiring broader reproduction rights, contact corrections@cryptokiller.org to discuss a specific arrangement." },
+              acceptedAnswer: { "@type": "Answer", text: "No — wholesale republication of investigations is not permitted. You may quote short excerpts (a few sentences) with attribution and a link to the original source, and you may freely link to our investigations from your content. If you are a journalist or researcher requiring broader reproduction rights, contact office@cryptokiller.org to discuss a specific arrangement." },
             },
             {
               "@type": "Question",
@@ -70,7 +70,7 @@ export default function TermsPage() {
             {
               "@type": "Question",
               name: "What if I disagree with a threat score you've assigned to a brand?",
-              acceptedAnswer: { "@type": "Answer", text: "The correction path is email corrections@cryptokiller.org with the investigation URL and a specific, evidence-based explanation of what you believe is incorrect. We review every correction request on its merits, regardless of who it comes from. We do not charge for corrections and we do not condition them on any form of payment or quiet agreement." },
+              acceptedAnswer: { "@type": "Answer", text: "The correction path is email office@cryptokiller.org with the investigation URL and a specific, evidence-based explanation of what you believe is incorrect. We review every correction request on its merits, regardless of who it comes from. We do not charge for corrections and we do not condition them on any form of payment or quiet agreement." },
             },
             {
               "@type": "Question",
@@ -80,7 +80,7 @@ export default function TermsPage() {
             {
               "@type": "Question",
               name: "How do I report a legal or copyright concern?",
-              acceptedAnswer: { "@type": "Answer", text: "Email corrections@cryptokiller.org with the URL of the content at issue and a clear description of the concern. For copyright claims, please include the specific material you claim is infringed, your contact information, and a good-faith statement that you are the rightsholder or authorised to act on their behalf. We review all legal notices promptly and act in accordance with the applicable copyright law." },
+              acceptedAnswer: { "@type": "Answer", text: "Email office@cryptokiller.org with the URL of the content at issue and a clear description of the concern. For copyright claims, please include the specific material you claim is infringed, your contact information, and a good-faith statement that you are the rightsholder or authorised to act on their behalf. We review all legal notices promptly and act in accordance with the applicable copyright law." },
             },
           ],
         },
@@ -292,7 +292,7 @@ export default function TermsPage() {
             <p className="text-slate-400 text-sm">150 Beach Rd., Level 35 Gateway West</p>
             <p className="text-slate-400 text-sm">Singapore 189720</p>
             <p className="text-slate-400 text-sm mt-2">
-              Email: <a href="mailto:legal@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">legal@cryptokiller.org</a>
+              Email: <a href="mailto:office@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">office@cryptokiller.org</a>
             </p>
           </div>
         </div>

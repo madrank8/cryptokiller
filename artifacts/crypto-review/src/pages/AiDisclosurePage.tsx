@@ -239,11 +239,11 @@ export default function AiDisclosurePage() {
               on the merits and publish a dated correction notice when warranted.
             </p>
             <a
-              href="mailto:corrections@cryptokiller.org"
+              href="mailto:office@cryptokiller.org"
               className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors text-white font-bold px-6 py-3 rounded-xl text-sm"
             >
               <Mail className="h-4 w-4" />
-              corrections@cryptokiller.org
+              office@cryptokiller.org
             </a>
           </div>
         </section>

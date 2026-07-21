@@ -69,12 +69,12 @@ export default function PrivacyPage() {
             {
               "@type": "Question",
               name: "If I submit a report, can I later delete it?",
-              acceptedAnswer: { "@type": "Answer", text: "Yes. Email corrections@cryptokiller.org requesting deletion of your report, and we will remove it from our intelligence system within 30 days. Published investigation content based on multiple corroborated sources may remain, but your specific submission and any reference to it will be removed." },
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Email office@cryptokiller.org requesting deletion of your report, and we will remove it from our intelligence system within 30 days. Published investigation content based on multiple corroborated sources may remain, but your specific submission and any reference to it will be removed." },
             },
             {
               "@type": "Question",
               name: "How do I exercise my GDPR or CCPA rights?",
-              acceptedAnswer: { "@type": "Answer", text: "Email corrections@cryptokiller.org with your request. For erasure, access, rectification, and portability requests, we respond within 30 days (or one month under GDPR). We may ask you to verify your identity before processing substantive requests to prevent impersonation." },
+              acceptedAnswer: { "@type": "Answer", text: "Email office@cryptokiller.org with your request. For erasure, access, rectification, and portability requests, we respond within 30 days (or one month under GDPR). We may ask you to verify your identity before processing substantive requests to prevent impersonation." },
             },
             {
               "@type": "Question",
@@ -249,7 +249,7 @@ export default function PrivacyPage() {
 
           <h3 className="text-lg font-semibold text-white mt-6 mb-3">7.3 How to Exercise Your Rights</h3>
           <p className="text-slate-300 leading-relaxed mb-4">
-            To exercise any of your privacy rights, please contact us at <a href="mailto:privacy@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">privacy@cryptokiller.org</a>. We will respond to your request within 30 days (or within the timeframe required by applicable law). We may ask you to verify your identity before processing your request.
+            To exercise any of your privacy rights, please contact us at <a href="mailto:office@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">office@cryptokiller.org</a>. We will respond to your request within 30 days (or within the timeframe required by applicable law). We may ask you to verify your identity before processing your request.
           </p>
 
           <SectionHeading id="transfers">8. International Data Transfers</SectionHeading>
@@ -276,7 +276,7 @@ export default function PrivacyPage() {
 
           <SectionHeading id="children">10. Children's Privacy</SectionHeading>
           <p className="text-slate-300 leading-relaxed mb-4">
-            CryptoKiller is not directed at individuals under the age of 16. We do not knowingly collect personal information from children. If we become aware that we have inadvertently collected data from a child under 16, we will take steps to delete that information promptly. If you believe a child has provided us with personal data, please contact us at <a href="mailto:privacy@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">privacy@cryptokiller.org</a>.
+            CryptoKiller is not directed at individuals under the age of 16. We do not knowingly collect personal information from children. If we become aware that we have inadvertently collected data from a child under 16, we will take steps to delete that information promptly. If you believe a child has provided us with personal data, please contact us at <a href="mailto:office@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">office@cryptokiller.org</a>.
           </p>
 
           <SectionHeading id="third-party">11. Third-Party Links</SectionHeading>
@@ -314,7 +314,7 @@ export default function PrivacyPage() {
               Singapore 189720
             </p>
             <p className="text-slate-400 text-sm mt-3">
-              Email: <a href="mailto:privacy@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">privacy@cryptokiller.org</a>
+              Email: <a href="mailto:office@cryptokiller.org" className="text-red-400 hover:text-red-300 underline underline-offset-2">office@cryptokiller.org</a>
             </p>
             <p className="text-slate-400 text-sm mt-1">
               Website: <a href="https://cryptokiller.org" target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 underline underline-offset-2">cryptokiller.org</a>

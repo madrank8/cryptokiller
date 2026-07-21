@@ -54,11 +54,11 @@ export default function EditorialBand() {
               If a listing is incorrect, contact our editorial team. We review all disputes and publish corrections transparently.
             </p>
             <a
-              href="mailto:corrections@cryptokiller.org"
+              href="mailto:office@cryptokiller.org"
               className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
             >
               <Mail className="h-4 w-4" />
-              corrections@cryptokiller.org
+              office@cryptokiller.org
             </a>
           </div>
 

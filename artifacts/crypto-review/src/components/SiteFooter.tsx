@@ -38,11 +38,11 @@ export default function SiteFooter() {
                 150 Beach Rd., Level 35 Gateway West, Singapore 189720
               </p>
               <a
-                href="mailto:contact@cryptokiller.org"
+                href="mailto:office@cryptokiller.org"
                 className="flex items-center gap-1.5 min-h-[24px] hover:text-white transition-colors"
               >
                 <Mail className="h-3 w-3 shrink-0" />
-                contact@cryptokiller.org
+                office@cryptokiller.org
               </a>
               <div className="flex items-start gap-1.5 pt-1">
                 <Clock className="h-3 w-3 shrink-0 mt-0.5" />

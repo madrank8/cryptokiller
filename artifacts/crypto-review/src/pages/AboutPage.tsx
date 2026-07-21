@@ -298,7 +298,7 @@ export default function AboutPage() {
               we'd like to hear from you.
             </p>
             <a
-              href="mailto:contribute@cryptokiller.org"
+              href="mailto:office@cryptokiller.org"
               className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors text-white font-bold px-6 py-3 rounded-xl text-sm"
             >
               <Mail className="h-4 w-4" />

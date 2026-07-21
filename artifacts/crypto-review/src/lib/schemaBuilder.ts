@@ -83,11 +83,11 @@ export function organizationNode(): Record<string, unknown> {
     parentOrganization: { "@id": LEGAL_ENTITY_ID },
     knowsAbout: KNOWS_ABOUT,
     sameAs: organizationSameAs(),
-    email: "corrections@cryptokiller.org",
+    email: "office@cryptokiller.org",
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "editorial corrections",
-      email: "corrections@cryptokiller.org",
+      email: "office@cryptokiller.org",
       availableLanguage: ["English"],
       hoursAvailable: [
         {

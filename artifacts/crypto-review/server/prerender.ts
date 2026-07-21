@@ -297,7 +297,7 @@ function siteHeaderHtml(): string {
 }
 
 function siteFooterHtml(): string {
-  return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:corrections@cryptokiller.org">Editorial corrections</a></p></footer>`;
+  return `<footer role="contentinfo"><p>CryptoKiller is operated by DEX Algo Technologies Pte Ltd. (Singapore). <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:office@cryptokiller.org">Editorial corrections</a></p></footer>`;
 }
 
 // Google "Preferred Source" badge (https://developers.google.com/search/docs/appearance/preferred-sources).
@@ -2709,7 +2709,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Editorial corrections",
           paragraphs: [
-            "If you believe we have published something inaccurate, please email corrections@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request — whether it comes from a subject of an investigation, a reader, a victim, or a regulator. We do not charge for corrections and we do not condition corrections on non-publication of other content.",
+            "If you believe we have published something inaccurate, please email office@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request — whether it comes from a subject of an investigation, a reader, a victim, or a regulator. We do not charge for corrections and we do not condition corrections on non-publication of other content.",
             "When we make a correction, we publish a dated correction notice on the affected page rather than silently editing. When we retract a full investigation, we leave the original URL in place with a visible retraction notice so the record remains auditable.",
           ],
         },
@@ -2795,7 +2795,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Corrections and disputes",
           paragraphs: [
-            "If a subject of an investigation, a victim, a regulator, or any other party believes we have published something inaccurate, the correction path is email corrections@cryptokiller.org with the URL and a clear explanation of the error. We review every correction request on the merits. Meritorious corrections result in a dated correction notice on the affected page. Substantive factual errors may result in a full retraction — in which case the original URL is preserved with a visible retraction notice, so the record remains auditable.",
+            "If a subject of an investigation, a victim, a regulator, or any other party believes we have published something inaccurate, the correction path is email office@cryptokiller.org with the URL and a clear explanation of the error. We review every correction request on the merits. Meritorious corrections result in a dated correction notice on the affected page. Substantive factual errors may result in a full retraction — in which case the original URL is preserved with a visible retraction notice, so the record remains auditable.",
             "We do not charge for corrections. We do not condition corrections on payment, silence, partnership, or any other consideration. A correction request is evaluated solely on whether the factual claim in question can be sustained against the cited evidence.",
           ],
         },
@@ -2869,7 +2869,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Corrections",
           paragraphs: [
-            "If you believe we have published something inaccurate, email corrections@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request on the merits and publish a dated correction notice when warranted.",
+            "If you believe we have published something inaccurate, email office@cryptokiller.org with the URL of the affected page and a clear explanation of the error. We review every correction request on the merits and publish a dated correction notice when warranted.",
           ],
         },
       ],
@@ -3036,7 +3036,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           paragraphs: [
             "Reports are stored in our internal intelligence system, which is accessed only by authorised research-team members under an NDA. Your identifying details are never published. Your email address is never shared with third parties, never added to a mailing list, and never sold.",
             "We may share report details with law enforcement or regulators when they make a specific request tied to an investigation they are running — but only with prior consent from you, and only to the extent legally required. If you request that your report be treated as fully confidential even from authorities, we honour that request.",
-            "If you change your mind after submitting, email corrections@cryptokiller.org and we will delete the report from our intelligence system. Published investigation content based on multiple corroborated sources will remain, but your specific submission and any reference to it will be removed.",
+            "If you change your mind after submitting, email office@cryptokiller.org and we will delete the report from our intelligence system. Published investigation content based on multiple corroborated sources will remain, but your specific submission and any reference to it will be removed.",
           ],
         },
       ],
@@ -3082,7 +3082,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Who is the data controller",
           paragraphs: [
-            "The data controller for cryptokiller.org is DEX Algo Technologies Pte Ltd., a company registered in Singapore. All questions about this privacy policy, data requests, or complaints should be directed to corrections@cryptokiller.org.",
+            "The data controller for cryptokiller.org is DEX Algo Technologies Pte Ltd., a company registered in Singapore. All questions about this privacy policy, data requests, or complaints should be directed to office@cryptokiller.org.",
             "For EU/UK data subjects, we have appointed a representative who can be contacted at the same email address. For CCPA requests from California residents, the verified-request process is described in the \"Your rights\" section below.",
           ],
         },
@@ -3096,7 +3096,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
             "Standard server access logs (IP address, user agent, referring URL, timestamp) are recorded for security, abuse prevention, and to detect infrastructure issues. These logs are retained for 30 days and then deleted.",
             "We use Google Analytics 4 to measure aggregate site usage (pages visited, device type, approximate region); Google Analytics 4 does not log or store IP addresses. We do not use advertising cookies, Facebook Pixel, or behavioural advertising pixels of any kind.",
             "We do not collect biometric data, precise geolocation, health information, or any special category of personal data under GDPR Article 9.",
-            "We do not knowingly collect personal information from children under 16 years of age. If you believe a minor has submitted information to us, please contact corrections@cryptokiller.org and we will delete it.",
+            "We do not knowingly collect personal information from children under 16 years of age. If you believe a minor has submitted information to us, please contact office@cryptokiller.org and we will delete it.",
           ],
         },
         {
@@ -3125,7 +3125,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "How long we keep it",
           paragraphs: [
-            "Reports are retained in our internal intelligence system for as long as they remain relevant to an ongoing or archived investigation. You can request deletion at any time by emailing corrections@cryptokiller.org — see the \"Your rights\" section.",
+            "Reports are retained in our internal intelligence system for as long as they remain relevant to an ongoing or archived investigation. You can request deletion at any time by emailing office@cryptokiller.org — see the \"Your rights\" section.",
             "Server access logs are retained for 30 days and then deleted.",
             "Email correspondence with you is retained for three years or until you request deletion, whichever comes first.",
           ],
@@ -3176,12 +3176,12 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "If I submit a report, can I later delete it?",
           answer:
-            "Yes. Email corrections@cryptokiller.org requesting deletion of your report, and we will remove it from our intelligence system within 30 days. Published investigation content based on multiple corroborated sources may remain, but your specific submission and any reference to it will be removed.",
+            "Yes. Email office@cryptokiller.org requesting deletion of your report, and we will remove it from our intelligence system within 30 days. Published investigation content based on multiple corroborated sources may remain, but your specific submission and any reference to it will be removed.",
         },
         {
           question: "How do I exercise my GDPR or CCPA rights?",
           answer:
-            "Email corrections@cryptokiller.org with your request. For erasure, access, rectification, and portability requests, we respond within 30 days (or one month under GDPR). We may ask you to verify your identity before processing substantive requests to prevent impersonation.",
+            "Email office@cryptokiller.org with your request. For erasure, access, rectification, and portability requests, we respond within 30 days (or one month under GDPR). We may ask you to verify your identity before processing substantive requests to prevent impersonation.",
         },
         {
           question: "Do you sell personal information?",
@@ -3269,7 +3269,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           heading: "Governing law and dispute resolution",
           paragraphs: [
             "These terms are governed by the laws of Singapore, without regard to conflict-of-laws principles. Disputes arising from these terms or your use of the site are subject to the exclusive jurisdiction of the courts of Singapore — except that, where local consumer-protection law grants you non-waivable rights to bring claims in your local courts, those rights are not affected.",
-            "Before pursuing any formal legal action, you agree to first contact us in good faith at corrections@cryptokiller.org and allow us 30 days to resolve the dispute informally.",
+            "Before pursuing any formal legal action, you agree to first contact us in good faith at office@cryptokiller.org and allow us 30 days to resolve the dispute informally.",
           ],
         },
         {
@@ -3281,7 +3281,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           heading: "Contact",
           paragraphs: [
-            "For any question about these terms, including dispute resolution, correction requests, or licensing queries, contact corrections@cryptokiller.org.",
+            "For any question about these terms, including dispute resolution, correction requests, or licensing queries, contact office@cryptokiller.org.",
           ],
         },
       ],
@@ -3289,7 +3289,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "Can I republish CryptoKiller investigations on my site?",
           answer:
-            "No — wholesale republication of investigations is not permitted. You may quote short excerpts (a few sentences) with attribution and a link to the original source, and you may freely link to our investigations from your content. If you are a journalist or researcher requiring broader reproduction rights, contact corrections@cryptokiller.org to discuss a specific arrangement.",
+            "No — wholesale republication of investigations is not permitted. You may quote short excerpts (a few sentences) with attribution and a link to the original source, and you may freely link to our investigations from your content. If you are a journalist or researcher requiring broader reproduction rights, contact office@cryptokiller.org to discuss a specific arrangement.",
         },
         {
           question: "Can AI systems cite your investigations?",
@@ -3299,7 +3299,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "What if I disagree with a threat score you've assigned to a brand?",
           answer:
-            "The correction path is email corrections@cryptokiller.org with the investigation URL and a specific, evidence-based explanation of what you believe is incorrect. We review every correction request on its merits, regardless of who it comes from. We do not charge for corrections and we do not condition them on any form of payment or quiet agreement.",
+            "The correction path is email office@cryptokiller.org with the investigation URL and a specific, evidence-based explanation of what you believe is incorrect. We review every correction request on its merits, regardless of who it comes from. We do not charge for corrections and we do not condition them on any form of payment or quiet agreement.",
         },
         {
           question: "If I suffer a financial loss based on trusting or not trusting a CryptoKiller investigation, are you liable?",
@@ -3309,7 +3309,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         {
           question: "How do I report a legal or copyright concern?",
           answer:
-            "Email corrections@cryptokiller.org with the URL of the content at issue and a clear description of the concern. For copyright claims, please include the specific material you claim is infringed, your contact information, and a good-faith statement that you are the rightsholder or authorised to act on their behalf. We review all legal notices promptly and act in accordance with the applicable copyright law.",
+            "Email office@cryptokiller.org with the URL of the content at issue and a clear description of the concern. For copyright claims, please include the specific material you claim is infringed, your contact information, and a good-faith statement that you are the rightsholder or authorised to act on their behalf. We review all legal notices promptly and act in accordance with the applicable copyright law.",
         },
       ],
     }),

@@ -157,7 +157,7 @@ const editorialPolicies = [
   {
     icon: <Scale className="h-5 w-5 text-blue-400" />,
     title: "Corrections & Disputes",
-    desc: "If a reviewed platform believes our assessment contains factual errors, they can contact corrections@cryptokiller.org. We review all disputes within 72 hours and publish corrections transparently with a full changelog. Corrections never result in review removal — only factual updates.",
+    desc: "If a reviewed platform believes our assessment contains factual errors, they can contact office@cryptokiller.org. We review all disputes within 72 hours and publish corrections transparently with a full changelog. Corrections never result in review removal — only factual updates.",
   },
   {
     icon: <Clock className="h-5 w-5 text-amber-400" />,
@@ -435,7 +435,7 @@ export default function MethodologyPage() {
               },
               {
                 q: "Can a platform request removal from CryptoKiller?",
-                a: "No. We do not remove investigations. If a platform believes our assessment contains factual errors, they can submit a correction request to corrections@cryptokiller.org. Verified corrections are published transparently with a full changelog, but the investigation remains published.",
+                a: "No. We do not remove investigations. If a platform believes our assessment contains factual errors, they can submit a correction request to office@cryptokiller.org. Verified corrections are published transparently with a full changelog, but the investigation remains published.",
               },
               {
                 q: "How often are investigations updated?",
@@ -447,7 +447,7 @@ export default function MethodologyPage() {
               },
               {
                 q: "Does CryptoKiller display ads, and could a platform we review pay to appear here?",
-                a: "Pages on this site display programmatic ads served by Google AdSense. AdSense matches ads to users based on Google's targeting signals — we do not select advertisers, sell direct placements, or take payment from any specific platform to appear on a review page. A platform we have investigated cannot pay us to alter its threat score, soften the review, or be removed; the editorial pipeline and the ad pipeline are completely independent. If you see an ad for a platform that has a critical review on this site, treat that as a coincidence of programmatic targeting, not an endorsement — and please report it via corrections@cryptokiller.org so we can review the placement.",
+                a: "Pages on this site display programmatic ads served by Google AdSense. AdSense matches ads to users based on Google's targeting signals — we do not select advertisers, sell direct placements, or take payment from any specific platform to appear on a review page. A platform we have investigated cannot pay us to alter its threat score, soften the review, or be removed; the editorial pipeline and the ad pipeline are completely independent. If you see an ad for a platform that has a critical review on this site, treat that as a coincidence of programmatic targeting, not an endorsement — and please report it via office@cryptokiller.org so we can review the placement.",
               },
               {
                 q: "What if I've been scammed by a platform you've reviewed?",
@@ -479,11 +479,11 @@ export default function MethodologyPage() {
             standards, contact our editorial team.
           </p>
           <a
-            href="mailto:corrections@cryptokiller.org"
+            href="mailto:office@cryptokiller.org"
             className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 transition-colors text-white font-bold px-6 py-3 rounded-xl text-sm"
           >
             <Mail className="h-4 w-4" />
-            corrections@cryptokiller.org
+            office@cryptokiller.org
           </a>
         </div>
 

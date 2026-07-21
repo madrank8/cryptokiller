@@ -254,7 +254,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 // ─── /.well-known/security.txt (RFC 9116) ───
 // express.static ignores dotfiles by default, so this is served explicitly.
 const SECURITY_TXT = [
-  "Contact: mailto:security@cryptokiller.org",
+  "Contact: mailto:office@cryptokiller.org",
   "Expires: 2027-06-03T00:00:00.000Z",
   "Preferred-Languages: en",
   "Canonical: https://cryptokiller.org/.well-known/security.txt",
@@ -396,6 +396,7 @@ const OPENAPI_DOC = {
       "Read-only access to CryptoKiller's published crypto scam investigations and research. " +
       "No authentication is required. Threat scores are editorially independent: CryptoKiller " +
       "cannot be paid to remove or modify listings.",
+    contact: { name: "CryptoKiller", email: "office@cryptokiller.org", url: "https://cryptokiller.org/about" },
     license: { name: "Content is (c) DEX Algo Technologies Pte Ltd; attribution required." },
   },
   servers: [{ url: `${PUBLIC_ORIGIN}/api`, description: "Public API base" }],
