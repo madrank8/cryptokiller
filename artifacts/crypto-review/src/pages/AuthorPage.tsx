@@ -9,6 +9,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { personNode, WEBSITE_ID } from "@/lib/schemaBuilder";
+import { substituteStatTokensInReview } from "@/lib/statTokens";
 
 const BASE = "https://cryptokiller.org";
 
@@ -62,11 +63,14 @@ export default function AuthorPage() {
     enabled: !!persona,
   });
 
+  // Resolve `{{stat:KEY}}` tokens in verdict prose against each row's own
+  // review_stats fields (the /api/reviews rows carry them) before render.
   const authoredReviews = reviewsData
     ? reviewsData
         .filter(r => r.authorPersonaId === slug)
         .sort((a, b) => new Date(b.investigationDate).getTime() - new Date(a.investigationDate).getTime())
         .slice(0, MAX_ITEMS)
+        .map(r => substituteStatTokensInReview(r))
     : [];
 
   const authoredPosts = blogData?.items

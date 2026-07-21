@@ -18,4 +18,7 @@ export interface ReviewSummary {
   countriesTargeted: number;
   daysActive: number;
   celebritiesAbused: number;
+  weeklyVelocity: number;
+  firstDetected: string;
+  lastActive: string;
 }

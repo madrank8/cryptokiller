@@ -1,0 +1,57 @@
+CONTEXT
+This app renders crypto-scam review pages. Reviews are authored in a separate
+admin/CMS (Supabase) and pushed here via the /api/sync/review webhook. Each review
+row carries a `full_article` HTML blob plus structured fields (funnel_stages,
+item_list, red_flags, faq, summary, verdict, meta_description, dataset, etc.), and a
+per-review `review_stats` object.
+
+WHAT JUST CHANGED UPSTREAM
+The admin side used to bake brand statistics into reviews as literal numbers
+("4,846 ad creatives", "49 countries", "178 celebrities"). Those froze at write time
+and drifted as our ad-scraper ingests more data, so published pages contradicted our
+own current numbers. We migrated EVERY per-brand stat to a token that must be
+resolved at render time. There are NO new token keys — the same {{stat:KEY}} tokens
+are simply now present in far more of each review than before.
+
+YOUR TASK
+Guarantee this app's render-time token resolver substitutes per-brand {{stat:...}}
+tokens EVERYWHERE a review is displayed — in the full_article HTML and in every
+structured field. If any surface renders without resolution, a raw "{{stat:...}}"
+will now appear on the live page where a number used to be.
+
+PER-BRAND KEYS (resolve from the review's `review_stats`):
+  {{stat:ad_creatives}}        -> review_stats.ad_creatives
+  {{stat:countries_targeted}}  -> review_stats.countries_targeted
+  {{stat:celebrities_abused}}  -> review_stats.celebrities_abused  (this is the DEDUPED count — use it, not any raw brand total)
+  {{stat:weekly_velocity}}     -> review_stats.weekly_velocity
+  {{stat:days_active}}         -> review_stats.days_active
+  {{stat:first_detected}}      -> review_stats.first_detected  (date)
+  {{stat:last_active}}         -> review_stats.last_active      (date)
+
+MODIFIERS that may be appended and must be supported:
+  |raw   -> number, no thousands separator  (4846)
+  |short -> compact                          (4.8k)
+  |iso   -> ISO date                         (2025-01-08)
+  (no modifier) -> locale number (4,846) / long date (January 8, 2025)
+
+VERIFICATION (do this and report the result):
+  1. Pick a review synced after this change. Render its page.
+  2. Search the FINAL rendered HTML for the literal string "{{stat:".
+  3. Expected: ZERO matches.
+  4. If any appear, they're most likely in surfaces that used to be literals:
+     the hero stat cards (Ad Creatives / Countries Targeted / Celebrities Abused),
+     the sidebar stat rows, the "similar scams" comparison table, the methodology
+     line, the threat-score category "evidence" lines, or funnel_stages[].statValue.
+     Extend the resolver so it runs over those fields/components too.
+
+DO NOT TOUCH:
+  - {{platform_stat:...}} tokens — these are already resolved upstream at sync time;
+    you will not receive them raw. Leave any handling as-is.
+  - The threat score (e.g. "95/100") — it is intentionally a literal, not a token.
+    The admin side keeps it current via re-sync. Render it as written.
+  - Peer rows in the comparison table — those numbers belong to OTHER brands and are
+    intentionally literal. Only the reviewed brand's own stats are tokenized.
+
+Report back: which surfaces already resolved correctly, which (if any) leaked a raw
+token, and what you changed. Do not modify review content or the sync payload shape —
+only the render-time resolution.

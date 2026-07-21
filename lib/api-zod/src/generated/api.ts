@@ -30,6 +30,9 @@ export const ListReviewsResponseItem = zod.object({
   countriesTargeted: zod.number(),
   daysActive: zod.number(),
   celebritiesAbused: zod.number(),
+  weeklyVelocity: zod.number(),
+  firstDetected: zod.string(),
+  lastActive: zod.string(),
 });
 export const ListReviewsResponse = zod.array(ListReviewsResponseItem);
 
@@ -438,6 +441,12 @@ export const GetRelatedReviewsResponseItem = zod.object({
   threatScore: zod.number(),
   adCreatives: zod.number(),
   verdict: zod.string(),
+  countriesTargeted: zod.number(),
+  daysActive: zod.number(),
+  celebritiesAbused: zod.number(),
+  weeklyVelocity: zod.number(),
+  firstDetected: zod.string(),
+  lastActive: zod.string(),
 });
 export const GetRelatedReviewsResponse = zod.array(
   GetRelatedReviewsResponseItem,

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
 import { useListReviews } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { substituteStatTokensInReview } from "@/lib/statTokens";
 import type { ReviewSummary } from "@workspace/api-client-react";
 import {
   Shield, ShieldAlert, Globe, BarChart2, Clock,
@@ -542,10 +543,18 @@ export default function HomePage() {
   // defaults it via getListReviewsQueryKey(). Suppress the field-level error
   // rather than redeclaring the generated default (which would couple us to
   // the exact QueryKey shape). Applied consistently in InvestigationsPage too.
-  const { data: reviews, isLoading, error } = useListReviews({
+  const { data: rawReviews, isLoading, error } = useListReviews({
     // @ts-expect-error — queryKey defaults at runtime; omitted by design.
     query: { refetchInterval: 60_000 },
   });
+
+  // Resolve `{{stat:KEY}}` tokens in list-row prose (verdict) against each
+  // row's own review_stats fields before any child (ticker, hero search,
+  // trending, latest) renders it.
+  const reviews = useMemo(
+    () => rawReviews?.map((r) => substituteStatTokensInReview(r)),
+    [rawReviews],
+  );
 
   const jsonLd = useMemo(() => ({
     "@context": "https://schema.org",

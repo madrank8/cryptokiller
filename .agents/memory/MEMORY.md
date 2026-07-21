@@ -9,3 +9,4 @@
 - [crypto-review cache-freshness policy](crypto-review-cache-freshness.md) — DB-backed dynamic pages (renderPage returns lastModified) send max-age=0 must-revalidate; static keep SWR; homepage revalidating is intentional.
 - [crypto-review SSR review render paths](crypto-review-ssr-review-paths.md) — reviews SSR via two mutually-exclusive branches (full_article vs legacy); current data uses legacy, so per-review SSR additions must cover BOTH.
 - [crypto-review ↔ GitHub repo sync](crypto-review-github-repo-sync.md) — companion GitHub repo drifts; git writes blocked in main agent; inspect via GitHub API, land features by merging the open PR, not force-push.
+- [crypto-review stat tokens](crypto-review-stat-tokens.md) — {{stat:KEY}} can appear in ANY prose incl. verdict; every list/webmcp/SSR surface must substitute per-row against its own stats; API returns tokens raw.

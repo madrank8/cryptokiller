@@ -433,6 +433,45 @@ ${faqHtml}
   };
 }
 
+// Shared select fragment + per-row substitution for list surfaces (home,
+// investigations, author hub). The upstream CMS now emits `{{stat:KEY}}`
+// tokens in ALL prose fields — including `verdict`, which these list pages
+// render — so every list row must resolve tokens against ITS OWN joined
+// review_stats before the verdict reaches HTML. Rows without tokens pass
+// through unchanged (substituteStatTokens short-circuits).
+const LIST_ROW_STATS_COLUMNS = {
+  adCreatives: reviewStatsTable.adCreatives,
+  countriesTargeted: reviewStatsTable.countriesTargeted,
+  daysActive: reviewStatsTable.daysActive,
+  celebritiesAbused: reviewStatsTable.celebritiesAbused,
+  weeklyVelocity: reviewStatsTable.weeklyVelocity,
+  firstDetected: reviewStatsTable.firstDetected,
+  lastActive: reviewStatsTable.lastActive,
+} as const;
+
+type ListRowStats = {
+  adCreatives?: number | null;
+  countriesTargeted?: number | null;
+  daysActive?: number | null;
+  celebritiesAbused?: number | null;
+  weeklyVelocity?: number | null;
+  firstDetected?: string | null;
+  lastActive?: string | null;
+};
+
+function substituteListRowText(text: string | null | undefined, r: ListRowStats): string {
+  const stats: ReviewStats = {
+    adCreatives: r.adCreatives ?? null,
+    countriesTargeted: r.countriesTargeted ?? null,
+    daysActive: r.daysActive ?? null,
+    celebritiesAbused: r.celebritiesAbused ?? null,
+    weeklyVelocity: r.weeklyVelocity ?? null,
+    firstDetected: r.firstDetected ?? null,
+    lastActive: r.lastActive ?? null,
+  };
+  return stripMarkdownLinks(substituteStatTokens(text, stats));
+}
+
 async function renderHome(): Promise<RenderResult> {
   const [{ count: reviewCount }] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -446,9 +485,11 @@ async function renderHome(): Promise<RenderResult> {
       verdict: reviewsTable.verdict,
       platformName: platformsTable.name,
       updatedAt: reviewsTable.updatedAt,
+      ...LIST_ROW_STATS_COLUMNS,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+    .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
     .where(eq(reviewsTable.status, "published"))
     .orderBy(desc(reviewsTable.updatedAt))
     .limit(8);
@@ -464,7 +505,7 @@ async function renderHome(): Promise<RenderResult> {
   const recentList = recent
     .map(
       (r) =>
-        `<li><a href="/review/${esc(r.slug)}">${esc(r.platformName)}</a> — Threat ${r.threatScore}/100. ${esc(truncate(r.verdict || "Confirmed scam", 140))}</li>`,
+        `<li><a href="/review/${esc(r.slug)}">${esc(r.platformName)}</a> — Threat ${r.threatScore}/100. ${esc(truncate(substituteListRowText(r.verdict, r) || "Confirmed scam", 140))}</li>`,
     )
     .join("");
 
@@ -579,9 +620,11 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
       verdict: reviewsTable.verdict,
       platformName: platformsTable.name,
       updatedAt: reviewsTable.updatedAt,
+      ...LIST_ROW_STATS_COLUMNS,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+    .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
     .where(eq(reviewsTable.status, "published"))
     .orderBy(desc(reviewsTable.updatedAt))
     .limit(PER_PAGE)
@@ -601,7 +644,7 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
   const itemsHtml = rows
     .map(
       (r) =>
-        `<li><h3><a href="/review/${esc(r.slug)}">${esc(r.platformName)} Scam Review</a></h3><p>Threat score ${r.threatScore}/100. ${esc(truncate(r.verdict || "Confirmed scam", 200))}</p></li>`,
+        `<li><h3><a href="/review/${esc(r.slug)}">${esc(r.platformName)} Scam Review</a></h3><p>Threat score ${r.threatScore}/100. ${esc(truncate(substituteListRowText(r.verdict, r) || "Confirmed scam", 200))}</p></li>`,
     )
     .join("");
 
@@ -2530,9 +2573,11 @@ async function renderAuthor(slug: string): Promise<RenderResult> {
         threatScore: reviewsTable.threatScore,
         verdict: reviewsTable.verdict,
         investigationDate: reviewsTable.investigationDate,
+        ...LIST_ROW_STATS_COLUMNS,
       })
       .from(reviewsTable)
       .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+      .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
       .where(and(
         eq(reviewsTable.status, "published"),
         eq(reviewsTable.authorPersonaId, slug),
@@ -2560,7 +2605,7 @@ async function renderAuthor(slug: string): Promise<RenderResult> {
 <h2>Latest investigations by ${esc(persona.name)}</h2>
 <ul>
 ${authoredReviewRows.map(r =>
-  `<li><a href="/review/${encodeURIComponent(r.slug)}">${esc(r.platformName)} Review</a> — threat score ${r.threatScore}/100, verdict: ${esc(r.verdict ?? "")}</li>`
+  `<li><a href="/review/${encodeURIComponent(r.slug)}">${esc(r.platformName)} Review</a> — threat score ${r.threatScore}/100, verdict: ${esc(substituteListRowText(r.verdict, r))}</li>`
 ).join("\n")}
 </ul>
 <p><a href="/investigations">Browse all investigations</a></p>

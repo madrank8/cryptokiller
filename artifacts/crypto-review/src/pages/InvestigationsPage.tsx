@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useListReviews } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { substituteStatTokensInReview } from "@/lib/statTokens";
 import type { ReviewSummary } from "@workspace/api-client-react";
 import {
   Shield, ShieldAlert, Globe, BarChart2,
@@ -181,10 +182,17 @@ function LoadingSkeleton({ viewMode }: { viewMode: ViewMode }) {
 export default function InvestigationsPage() {
   // See HomePage.tsx for the rationale — Orval's `UseQueryOptions` demands
   // `queryKey` but the runtime defaults it via getListReviewsQueryKey().
-  const { data: reviews, isLoading, isError } = useListReviews({
+  const { data: rawReviews, isLoading, isError } = useListReviews({
     // @ts-expect-error — queryKey defaults at runtime; omitted by design.
     query: { refetchInterval: 60_000 },
   });
+
+  // Resolve `{{stat:KEY}}` tokens in list-row prose (verdict) against each
+  // row's own review_stats fields before anything renders or filters on it.
+  const reviews = useMemo(
+    () => rawReviews?.map((r) => substituteStatTokensInReview(r)),
+    [rawReviews],
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("threatScore");

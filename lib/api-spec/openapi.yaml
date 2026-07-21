@@ -228,6 +228,12 @@ components:
           type: integer
         celebritiesAbused:
           type: integer
+        weeklyVelocity:
+          type: integer
+        firstDetected:
+          type: string
+        lastActive:
+          type: string
       required:
         - id
         - slug
@@ -240,6 +246,9 @@ components:
         - countriesTargeted
         - daysActive
         - celebritiesAbused
+        - weeklyVelocity
+        - firstDetected
+        - lastActive
 
     FunnelStage:
       type: object
@@ -975,6 +984,18 @@ components:
           type: integer
         verdict:
           type: string
+        countriesTargeted:
+          type: integer
+        daysActive:
+          type: integer
+        celebritiesAbused:
+          type: integer
+        weeklyVelocity:
+          type: integer
+        firstDetected:
+          type: string
+        lastActive:
+          type: string
       required:
         - id
         - slug
@@ -982,6 +1003,12 @@ components:
         - threatScore
         - adCreatives
         - verdict
+        - countriesTargeted
+        - daysActive
+        - celebritiesAbused
+        - weeklyVelocity
+        - firstDetected
+        - lastActive
 
     SyncFunnelStage:
       type: object

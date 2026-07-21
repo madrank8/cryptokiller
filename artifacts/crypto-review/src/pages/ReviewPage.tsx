@@ -815,8 +815,17 @@ function ShareWidget({
 }
 
 function RelatedScams({ slug }: { slug: string }) {
-  const { data: related } = useGetRelatedReviews(slug);
+  const { data: relatedRaw } = useGetRelatedReviews(slug);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Peer verdict prose can carry that PEER's own {{stat:KEY}} tokens (the
+  // CMS now tokenizes every review's prose) — resolve each row against its
+  // own stats before render. The numeric cells (adCreatives) stay literal
+  // by design: they're real numbers from the peer's review_stats row.
+  const related = useMemo(
+    () => relatedRaw?.map((r) => substituteStatTokensInReview(r)),
+    [relatedRaw],
+  );
 
   if (!related || related.length === 0) return null;
 

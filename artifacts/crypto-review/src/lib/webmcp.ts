@@ -15,6 +15,8 @@
  * Feature-detected and SSR-safe: no-ops in Node and in browsers without WebMCP.
  */
 
+import { substituteStatTokensInReview } from "./statTokens";
+
 const SITE = "https://cryptokiller.org";
 
 /** Minimal structural types: WebMCP is not in lib.dom yet. */
@@ -79,10 +81,12 @@ const tools: WebMcpTool[] = [
       const data = await getJson("/api/reviews");
       const all = Array.isArray(data) ? (data as Array<Record<string, unknown>>) : [];
 
+      // Resolve `{{stat:KEY}}` tokens in row prose (verdict) against each
+      // row's own review_stats fields so agents never see raw tokens.
       const hits = (query
         ? all.filter((r) => matches(r.platformName, query) || matches(r.slug, query))
         : all
-      ).slice(0, limit);
+      ).slice(0, limit).map((r) => substituteStatTokensInReview(r));
 
       return textResult({
         query: query || null,
@@ -118,7 +122,11 @@ const tools: WebMcpTool[] = [
       const slug = asString(args.slug).trim();
       if (!slug) throw new Error("slug is required");
 
-      const r = (await getJson(`/api/reviews/${encodeURIComponent(slug)}`)) as Record<string, unknown>;
+      // Full review rows carry stats fields at top level — resolve
+      // `{{stat:KEY}}` tokens in verdict/summary before handing to agents.
+      const r = substituteStatTokensInReview(
+        (await getJson(`/api/reviews/${encodeURIComponent(slug)}`)) as Record<string, unknown>,
+      );
       return textResult({
         platform: r.platformName,
         threatScore: r.threatScore,

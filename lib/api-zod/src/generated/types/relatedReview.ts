@@ -13,4 +13,10 @@ export interface RelatedReview {
   threatScore: number;
   adCreatives: number;
   verdict: string;
+  countriesTargeted: number;
+  daysActive: number;
+  celebritiesAbused: number;
+  weeklyVelocity: number;
+  firstDetected: string;
+  lastActive: string;
 }

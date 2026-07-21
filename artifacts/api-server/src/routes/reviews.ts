@@ -89,6 +89,9 @@ router.get("/reviews", async (req, res): Promise<void> => {
       countriesTargeted: reviewStatsTable.countriesTargeted,
       daysActive: reviewStatsTable.daysActive,
       celebritiesAbused: reviewStatsTable.celebritiesAbused,
+      weeklyVelocity: reviewStatsTable.weeklyVelocity,
+      firstDetected: reviewStatsTable.firstDetected,
+      lastActive: reviewStatsTable.lastActive,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
@@ -104,6 +107,9 @@ router.get("/reviews", async (req, res): Promise<void> => {
     countriesTargeted: r.countriesTargeted ?? 0,
     daysActive: r.daysActive ?? 0,
     celebritiesAbused: r.celebritiesAbused ?? 0,
+    weeklyVelocity: r.weeklyVelocity ?? 0,
+    firstDetected: r.firstDetected ?? "",
+    lastActive: r.lastActive ?? "",
   })));
 });
 
@@ -603,6 +609,12 @@ router.get("/reviews/:slug/related", async (req, res): Promise<void> => {
       threatScore: reviewsTable.threatScore,
       verdict: reviewsTable.verdict,
       adCreatives: reviewStatsTable.adCreatives,
+      countriesTargeted: reviewStatsTable.countriesTargeted,
+      daysActive: reviewStatsTable.daysActive,
+      celebritiesAbused: reviewStatsTable.celebritiesAbused,
+      weeklyVelocity: reviewStatsTable.weeklyVelocity,
+      firstDetected: reviewStatsTable.firstDetected,
+      lastActive: reviewStatsTable.lastActive,
     })
     .from(reviewsTable)
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
@@ -614,6 +626,12 @@ router.get("/reviews/:slug/related", async (req, res): Promise<void> => {
   res.json(rows.map(r => ({
     ...r,
     adCreatives: r.adCreatives ?? 0,
+    countriesTargeted: r.countriesTargeted ?? 0,
+    daysActive: r.daysActive ?? 0,
+    celebritiesAbused: r.celebritiesAbused ?? 0,
+    weeklyVelocity: r.weeklyVelocity ?? 0,
+    firstDetected: r.firstDetected ?? "",
+    lastActive: r.lastActive ?? "",
     verdict: r.verdict ?? "",
   })));
 });
