@@ -472,6 +472,22 @@ function substituteListRowText(text: string | null | undefined, r: ListRowStats)
   return stripMarkdownLinks(substituteStatTokens(text, stats));
 }
 
+// Launch press coverage (July 2026 press-release distribution report).
+// Mirrors the AsSeenOn marquee in src/components/AsSeenOn.tsx — keep in sync.
+const PRESS_PR_SLUG = "cryptokiller-launches-real-time-global-database-to-expose-crypto-trading-fraud";
+const PRESS_COVERAGE: ReadonlyArray<{ name: string; href: string }> = [
+  { name: "KWWL", href: `https://kwwl.marketminute.com/article/marketersmedia-2026-7-21-${PRESS_PR_SLUG}` },
+  { name: "The Daily Dispatcher", href: `https://dailydispatcher.com/news/${PRESS_PR_SLUG}/556941` },
+  { name: "KTTC", href: `https://kttc.marketminute.com/article/marketersmedia-2026-7-21-${PRESS_PR_SLUG}` },
+  { name: "NY Headline", href: `https://nyheadline.com/press/${PRESS_PR_SLUG}/162560` },
+  { name: "WGEM", href: `https://wgem.marketminute.com/article/marketersmedia-2026-7-21-${PRESS_PR_SLUG}` },
+  { name: "The Headline", href: `https://intheheadline.com/news/${PRESS_PR_SLUG}/556941` },
+  { name: "KTIV", href: `https://ktiv.marketminute.com/article/marketersmedia-2026-7-21-${PRESS_PR_SLUG}` },
+  { name: "Market Sanctum", href: `https://marketsanctum.com/news/${PRESS_PR_SLUG}/556941` },
+  { name: "KXLT Fox 47", href: `https://kxlt.marketminute.com/article/marketersmedia-2026-7-21-${PRESS_PR_SLUG}` },
+  { name: "Fort Wayne's NBC", href: `https://fwnbc.marketminute.com/article/marketersmedia-2026-7-21-${PRESS_PR_SLUG}` },
+];
+
 async function renderHome(): Promise<RenderResult> {
   const [{ count: reviewCount }] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -516,6 +532,8 @@ async function renderHome(): Promise<RenderResult> {
 <p>Each investigation combines real-time ad surveillance, blockchain forensics, and OSINT to produce an evidence-based threat score from 0 to 100. Every score is auditable and links to the underlying ad creatives, registration patterns, and red flags.</p>
 <h2>Recently published investigations</h2>
 <ul>${recentList}</ul>
+<h2>As seen on</h2>
+<p>CryptoKiller's launch of its real-time global scam database was covered by ${PRESS_COVERAGE.map((p) => `<a href="${esc(p.href)}" rel="nofollow noopener noreferrer" target="_blank">${esc(p.name)}</a>`).join(", ")}.</p>
 ${analystDirectoryHtml()}
 <p><a href="/investigations">Browse all investigations</a> · <a href="/methodology">Read our methodology</a> · <a href="/report">Report a scam</a></p>
 </main>${siteFooterHtml()}`;

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import SiteHeader from "@/components/SiteHeader";
 import TrustBar from "@/components/TrustBar";
+import AsSeenOn from "@/components/AsSeenOn";
 import ResearchTeam from "@/components/ResearchTeam";
 import ScamActionSteps from "@/components/ScamActionSteps";
 import EditorialBand from "@/components/EditorialBand";
@@ -308,6 +309,8 @@ function HeroSection({ reviews }: { reviews: ReviewSummary[] }) {
         >
           💬 Or check any platform instantly on WhatsApp →
         </a>
+
+        <AsSeenOn />
       </div>
     </section>
   );
