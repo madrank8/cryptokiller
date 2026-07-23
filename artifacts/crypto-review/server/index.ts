@@ -684,6 +684,18 @@ app.get("/sitemap.xml", (_req: Request, res: Response) => {
   res.redirect(301, "/api/sitemap.xml");
 });
 
+// AI sitemap (LightSite AI integration). robots.txt advertises
+// https://cryptokiller.org/ai-sitemap.xml, but the document itself is hosted
+// on LightSite's infrastructure. 302 (not 301) so crawlers keep re-checking
+// the cryptokiller.org URL as the canonical entry point and we can retarget
+// or retire the vendor URL without fighting cached permanent redirects.
+// Registered before static + SSR so neither intercepts it.
+const AI_SITEMAP_URL =
+  "https://api.llm-discovery-api.com/functions/v1/llm-discovery/public/sitemap.xml?domain=cryptokiller.org";
+app.get("/ai-sitemap.xml", (_req: Request, res: Response) => {
+  res.redirect(302, AI_SITEMAP_URL);
+});
+
 // IndexNow ownership verification file. Search engines (Bing/Yandex/Seznam)
 // fetch https://<host>/<key>.txt and confirm the body matches the key before
 // honouring IndexNow submissions. Served at the domain root, before static +
