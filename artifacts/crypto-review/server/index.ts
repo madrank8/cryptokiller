@@ -690,11 +690,22 @@ app.get("/sitemap.xml", (_req: Request, res: Response) => {
 // the cryptokiller.org URL as the canonical entry point and we can retarget
 // or retire the vendor URL without fighting cached permanent redirects.
 // Registered before static + SSR so neither intercepts it.
-const AI_SITEMAP_URL =
-  "https://api.llm-discovery-api.com/functions/v1/llm-discovery/public/sitemap.xml?domain=cryptokiller.org";
+// The same rationale applies to the /.well-known AI-discovery documents
+// (ai-plugin.json, openapi.json, skills.json) below — all vendor-hosted,
+// all 302 so we can retarget or retire them freely.
+const LLM_DISCOVERY_BASE =
+  "https://api.llm-discovery-api.com/functions/v1/llm-discovery/public";
+const LLM_DISCOVERY_QUERY = "?domain=cryptokiller.org";
+const AI_SITEMAP_URL = `${LLM_DISCOVERY_BASE}/sitemap.xml${LLM_DISCOVERY_QUERY}`;
 app.get("/ai-sitemap.xml", (_req: Request, res: Response) => {
   res.redirect(302, AI_SITEMAP_URL);
 });
+
+for (const file of ["ai-plugin.json", "openapi.json", "skills.json"]) {
+  app.get(`/.well-known/${file}`, (_req: Request, res: Response) => {
+    res.redirect(302, `${LLM_DISCOVERY_BASE}/${file}${LLM_DISCOVERY_QUERY}`);
+  });
+}
 
 // IndexNow ownership verification file. Search engines (Bing/Yandex/Seznam)
 // fetch https://<host>/<key>.txt and confirm the body matches the key before
