@@ -28,6 +28,11 @@ User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 Allow: /api/sitemap.xml
+# AI discovery surface (LightSite AI integration + agent API):
+Allow: /ai-sitemap.xml
+Allow: /.well-known/ai-plugin.json
+Allow: /.well-known/openapi.json
+Allow: /.well-known/skills.json
 Disallow: /api/
 Disallow: /admin/
 Disallow: /dashboard/
@@ -68,3 +73,4 @@ Disallow: /auth/
 # SITEMAPS
 # ——————————————————————————————————————————————————————————————
 Sitemap: https://cryptokiller.org/api/sitemap.xml
+Sitemap: https://cryptokiller.org/ai-sitemap.xml
