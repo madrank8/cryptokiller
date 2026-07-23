@@ -222,7 +222,10 @@ const CONTENT_SECURITY_POLICY = [
   // emits is escaped JSON-LD (type application/ld+json), a data block not
   // governed by script-src. GA beacons go to google-analytics.com collect
   // endpoints, already covered by connect-src/img-src https:.
-  "script-src 'self' https://www.googletagmanager.com",
+  // cdn.lightsite.ai serves the LightSite AI discovery script (llm-delivery.js)
+  // loaded from index.html <head>; its API/Supabase calls are covered by
+  // connect-src https:.
+  "script-src 'self' https://www.googletagmanager.com https://cdn.lightsite.ai",
   // Inline styles are used throughout (SSR fallback markup + React style={{}}).
   // Fonts are self-hosted, so no external stylesheet origins are required.
   "style-src 'self' 'unsafe-inline'",

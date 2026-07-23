@@ -31,6 +31,15 @@ so no `unsafe-*` was added. GA beacons ride the pre-existing
 `connect-src`/`img-src https:` allowances. gtag.js remains an un-hashable
 cross-origin script (same SRI-finding class AdSense had) — accepted tradeoff.
 
+**Approved exception (Jul 2026):** LightSite AI discovery script — user
+explicitly pasted the vendor snippet. `script-src` also allows
+`https://cdn.lightsite.ai`; the snippet lives in `index.html` `<head>` (before
+the SSR-HEAD-INJECT marker) with a companion cross-origin AI-sitemap `<link>`.
+Its API/Supabase calls ride the pre-existing `connect-src https:`. Un-hashable
+vendor script (SRI infeasible — vendor mutates content under the same URL) —
+accepted tradeoff, same class as gtag.js. Vendor/CDN compromise would be
+XSS-equivalent; user accepted.
+
 Out-of-code spec items for this domain: CAA records + DNSSEC live at the DNS
 provider/registrar, not in app code. A wrong CAA record can block TLS renewal, so
 it must list the CA that Replit Deployments actually uses before being added.
