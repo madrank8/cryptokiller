@@ -3,13 +3,12 @@ name: crypto-review www subdomain & GSC robots quirks
 description: www.cryptokiller.org is NOT linked to the Replit deployment; Cloudflare proxies it and returns 525 → GSC "5xx robots.txt". Apex robots.txt "1 issue" in GSC is the intentional Content-Signal line.
 ---
 
-# www.cryptokiller.org status (as of 2026-07-26)
+# www.cryptokiller.org — RESOLVED 2026-07-26
 
-- DNS for apex + www both live on Cloudflare (proxied, orange-cloud; hosts resolve to 104.21.x/172.67.x).
-- Replit deployment has ONLY `cryptokiller.org` linked (`getDeploymentInfo().primaryUrl`); `www` is not a linked domain, so Replit's edge has no cert for it → Cloudflare→origin TLS handshake fails → **525** on `https://www.cryptokiller.org/*`.
-- `http://www` 301s to `https://www` (Cloudflare Always-Use-HTTPS), then 525s — so GSC shows 5xx for both www properties.
-- **Why:** canonical domain is apex (sitemaps, IndexNow, canonicals all use `https://cryptokiller.org`), so www was never provisioned.
-- **How to apply:** recommended fix is a Cloudflare Redirect Rule (www → apex 301, edge-level, no origin cert needed). If the user instead links www in Replit Publishing → Domains, the app must add a host-based 301 www→apex to avoid duplicate content. Re-verify with `curl -sI https://www.cryptokiller.org/robots.txt` — expect 301 to apex, not 525.
+- DNS for apex + www both live on Cloudflare (proxied, orange-cloud). Replit deployment has ONLY `cryptokiller.org` linked; `www` has no origin cert, so direct origin traffic for www would 525 (Cloudflare↔origin TLS handshake fails).
+- **Fix in place:** Cloudflare Single Redirect rule "Redirect from WWW to root" (template: `https://www.*` → `https://${1}`, 301). Verified: https+http www URLs 301 to apex with paths preserved. The www DNS record MUST stay proxied (orange) or the rule stops firing and browsers hit the certless origin.
+- **Why:** canonical domain is apex (sitemaps, IndexNow, canonicals all use `https://cryptokiller.org`); redirecting at Cloudflare's edge avoids provisioning www on Replit entirely.
+- **How to apply:** if www ever 525s again, first suspect the CF redirect rule was disabled/deleted or the www record was grey-clouded. Re-verify with `curl -sIL https://www.cryptokiller.org/robots.txt` — expect 301→apex→200. Note CF rule deploys propagate unevenly for ~1 min (mixed 301/525 across requests is normal right after deploy).
 
 # GSC robots.txt report quirks
 
