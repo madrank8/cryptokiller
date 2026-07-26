@@ -10,3 +10,4 @@
 - [crypto-review SSR review render paths](crypto-review-ssr-review-paths.md) — reviews SSR via two mutually-exclusive branches (full_article vs legacy); current data uses legacy, so per-review SSR additions must cover BOTH.
 - [crypto-review ↔ GitHub repo sync](crypto-review-github-repo-sync.md) — companion GitHub repo drifts; git writes blocked in main agent; inspect via GitHub API, land features by merging the open PR, not force-push.
 - [crypto-review stat tokens](crypto-review-stat-tokens.md) — {{stat:KEY}} can appear in ANY prose incl. verdict; every list/webmcp/SSR surface must substitute per-row against its own stats; API returns tokens raw.
+- [crypto-review www & GSC robots quirks](crypto-review-www-domain.md) — www not linked on Replit → Cloudflare 525 → GSC "5xx robots.txt"; fix = CF redirect rule; apex "1 issue" = intentional Content-Signal line.
