@@ -684,28 +684,127 @@ app.get("/sitemap.xml", (_req: Request, res: Response) => {
   res.redirect(301, "/api/sitemap.xml");
 });
 
-// AI sitemap (LightSite AI integration). robots.txt advertises
-// https://cryptokiller.org/ai-sitemap.xml, but the document itself is hosted
-// on LightSite's infrastructure. 302 (not 301) so crawlers keep re-checking
-// the cryptokiller.org URL as the canonical entry point and we can retarget
-// or retire the vendor URL without fighting cached permanent redirects.
-// Registered before static + SSR so neither intercepts it.
-// The same rationale applies to the /.well-known AI-discovery documents
-// (ai-plugin.json, openapi.json, skills.json) below — all vendor-hosted,
-// all 302 so we can retarget or retire them freely.
-const LLM_DISCOVERY_BASE =
-  "https://api.llm-discovery-api.com/functions/v1/llm-discovery/public";
-const LLM_DISCOVERY_QUERY = "?domain=cryptokiller.org";
-const AI_SITEMAP_URL = `${LLM_DISCOVERY_BASE}/sitemap.xml${LLM_DISCOVERY_QUERY}`;
+// ─── AI discovery surface — SELF-HOSTED ───
+// These four routes previously 302-redirected to LightSite AI's
+// api.llm-discovery-api.com. That made crawl-critical documents depend on a
+// third-party vendor's uptime and account state: robots.txt advertises
+// https://cryptokiller.org/ai-sitemap.xml as an official sitemap, and AI
+// agents (GPTBot, ClaudeBot, agent frameworks) probe the /.well-known
+// documents directly. Worse, the vendor's "AI sitemap" listed only
+// vendor-hosted URLs, which the sitemap protocol ignores as cross-host.
+// Everything below is now generated in this repo, so content drift is caught
+// in source review and no crawl signal depends on the vendor. The LightSite
+// delivery script in index.html remains (page-level enrichment only).
+// Registered before static + SSR so neither intercepts these paths.
+
+// /ai-sitemap.xml — same-host 301 to the canonical DB-built sitemap,
+// mirroring the /sitemap.xml redirect above. The full sitemap already lists
+// every URL an AI crawler should fetch; a separate "AI" URL set added nothing.
 app.get("/ai-sitemap.xml", (_req: Request, res: Response) => {
-  res.redirect(302, AI_SITEMAP_URL);
+  res.redirect(301, "/api/sitemap.xml");
 });
 
-for (const file of ["ai-plugin.json", "openapi.json", "skills.json"]) {
-  app.get(`/.well-known/${file}`, (_req: Request, res: Response) => {
-    res.redirect(302, `${LLM_DISCOVERY_BASE}/${file}${LLM_DISCOVERY_QUERY}`);
-  });
-}
+// /.well-known/openapi.json — identical to /openapi.json; served at the
+// conventional discovery path agent frameworks probe.
+app.get("/.well-known/openapi.json", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/openapi+json; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.json(OPENAPI_DOC);
+});
+
+// /.well-known/ai-plugin.json — AI plugin manifest pointing at OUR OpenAPI
+// spec and public API (not the vendor's).
+const AI_PLUGIN_MANIFEST = {
+  schema_version: "v1",
+  name_for_human: "CryptoKiller",
+  name_for_model: "cryptokiller",
+  description_for_human:
+    "CryptoKiller — independent crypto scam investigations, threat scores, and fraud-awareness research.",
+  description_for_model:
+    "Read-only access to CryptoKiller's published crypto scam investigations and research. " +
+    "List investigations, fetch full reviews by slug (including threat scores, verdicts, and " +
+    "fact-checked claims), browse related investigations and translations, and read research " +
+    "articles. Threat scores are editorially independent: CryptoKiller cannot be paid to remove " +
+    "or modify listings. No authentication is required.",
+  auth: { type: "none" },
+  api: {
+    type: "openapi",
+    url: `${PUBLIC_ORIGIN}/.well-known/openapi.json`,
+    is_user_authenticated: false,
+  },
+  logo_url: `${PUBLIC_ORIGIN}/logo.png`,
+  contact_email: "office@cryptokiller.org",
+  legal_info_url: `${PUBLIC_ORIGIN}/privacy`,
+} as const;
+app.get("/.well-known/ai-plugin.json", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.send(JSON.stringify(AI_PLUGIN_MANIFEST, null, 2));
+});
+
+// /.well-known/skills.json — lightweight tool catalog for agent frameworks.
+// Deliberately CURATED (not exhaustive): the primary content endpoints only.
+// The full surface, including translations and /healthz, is in OPENAPI_DOC,
+// which agents can read via openapi_url. Keep endpoints/refs in sync with it.
+const SKILLS_MANIFEST = {
+  schema_version: "1.0",
+  provider: {
+    name: "CryptoKiller",
+    url: PUBLIC_ORIGIN,
+    description:
+      "CryptoKiller — independent crypto scam investigations and fraud-awareness research.",
+  },
+  openapi_url: `${PUBLIC_ORIGIN}/.well-known/openapi.json`,
+  tools: [
+    {
+      id: "reviews.list",
+      name: "List investigations",
+      description:
+        "List all published scam investigations with slugs, threat scores, and verdicts.",
+      endpoint: `${PUBLIC_ORIGIN}/api/reviews`,
+      method: "GET",
+      openapi_ref: "#/paths/~1reviews/get",
+    },
+    {
+      id: "reviews.get",
+      name: "Get investigation",
+      description:
+        "Fetch a full published investigation by slug, including fact-checked claims and evidence.",
+      endpoint: `${PUBLIC_ORIGIN}/api/reviews/{slug}`,
+      method: "GET",
+      openapi_ref: "#/paths/~1reviews~1{slug}/get",
+    },
+    {
+      id: "reviews.related",
+      name: "Related investigations",
+      description: "Fetch investigations related to a given review slug.",
+      endpoint: `${PUBLIC_ORIGIN}/api/reviews/{slug}/related`,
+      method: "GET",
+      openapi_ref: "#/paths/~1reviews~1{slug}~1related/get",
+    },
+    {
+      id: "blog.list",
+      name: "List research articles",
+      description: "List published research articles and fraud-awareness guides.",
+      endpoint: `${PUBLIC_ORIGIN}/api/blog`,
+      method: "GET",
+      openapi_ref: "#/paths/~1blog/get",
+    },
+    {
+      id: "blog.get",
+      name: "Get research article",
+      description: "Fetch a full research article by slug.",
+      endpoint: `${PUBLIC_ORIGIN}/api/blog/{slug}`,
+      method: "GET",
+      openapi_ref: "#/paths/~1blog~1{slug}/get",
+    },
+  ],
+} as const;
+app.get("/.well-known/skills.json", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.send(JSON.stringify(SKILLS_MANIFEST, null, 2));
+});
 
 // IndexNow ownership verification file. Search engines (Bing/Yandex/Seznam)
 // fetch https://<host>/<key>.txt and confirm the body matches the key before

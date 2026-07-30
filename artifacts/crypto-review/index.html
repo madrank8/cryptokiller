@@ -32,8 +32,15 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="sitemap" type="application/xml" href="/api/sitemap.xml" />
 
-    <!-- LightSite AI Discovery Integration v2.3.0 -->
-    <link rel="sitemap" type="application/xml" title="AI Sitemap" href="https://api.llm-discovery-api.com/functions/v1/llm-discovery/public/sitemap.xml?domain=cryptokiller.org" />
+    <!-- LightSite AI Discovery Integration v2.3.0.
+         The AI sitemap and /.well-known discovery docs are SELF-HOSTED
+         (see server/index.ts) — no crawl-critical signal depends on the
+         vendor. Only this page-enrichment delivery script remains external.
+         The data-apikey below is a publishable client-side delivery key
+         (read-only, domain-scoped on LightSite's side, like a GA measurement
+         ID); it grants no write/config access, so exposure in HTML is
+         expected — do not rotate it just because it is visible here. -->
+    <link rel="sitemap" type="application/xml" title="AI Sitemap" href="https://cryptokiller.org/ai-sitemap.xml" />
     <script
       src="https://cdn.lightsite.ai/v2.3.0/llm-delivery.js"
       defer
