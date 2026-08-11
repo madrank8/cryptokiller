@@ -151,6 +151,30 @@ import { substituteStatTokensInReview } from "@/lib/statTokens";
 import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
 import { resolveReviewTier, tierFromScore } from "@/lib/reviewTier";
 import { buildItemReviewedJsonLdNode } from "@/lib/reviewItemReviewedSchema";
+import { buildAdEvidenceGraph } from "@/lib/adEvidenceSchema";
+
+// ─── SSR recent-ads snapshot ───────────────────────────────────────────────
+// The SSR server embeds the exact recent-ads snapshot its HTML + JSON-LD were
+// built from as <script type="application/json" id="ssr-recent-ads"
+// data-slug="..."> in <head> (see server/index.ts applyMeta). The hydrated
+// client prefers that snapshot over the API's copy — the two are fetched
+// through independent 5-minute caches and could otherwise disagree within a
+// cache window. Slug-guarded so SPA navigations to other reviews (no SSR
+// pass) fall back to the API data. The snapshot is authoritative even when
+// EMPTY ([] means "this render observed zero ads" and suppresses the grid
+// and JSON-LD, matching the ad-free first-byte HTML); only a missing or
+// slug-mismatched script falls back to the API copy.
+function readSsrRecentAdsSnapshot(slug: string): RecentAd[] | null {
+  if (typeof document === "undefined") return null;
+  const el = document.getElementById("ssr-recent-ads");
+  if (!el || el.getAttribute("data-slug") !== slug) return null;
+  try {
+    const parsed: unknown = JSON.parse(el.textContent || "null");
+    return Array.isArray(parsed) ? (parsed as RecentAd[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
   <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2.5 border-b border-slate-800 pb-3">
@@ -951,6 +975,14 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
 
   const isLoading = locale ? translationQuery.isLoading : masterQuery.isLoading;
   const error = locale ? translationQuery.error : masterQuery.error;
+
+  // Authoritative recent-ads snapshot: prefer the SSR-embedded copy (master
+  // pages only; slug-guarded) over the API's independently-cached copy so the
+  // visible grid and the hydrated JSON-LD always match the first-byte HTML.
+  const ssrRecentAds = useMemo(
+    () => (locale ? null : readSsrRecentAdsSnapshot(slug)),
+    [slug, locale],
+  );
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Phase 7/8 — Extract disclosure + stale metadata from the raw
@@ -1024,6 +1056,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     if (!review) return undefined;
 
     const pageUrl = pageUrlForLocale;
+    const recentAds = ssrRecentAds ?? review.recentAds ?? [];
 
     const desc = review.metaDescription || review.verdict || `Investigation of ${review.platformName} crypto scam.`;
     const orgRefId = orgRef();
@@ -1197,41 +1230,14 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         }));
     }
 
-    // Ad-evidence JSON-LD — mirrors server/prerender.ts (CSR replaces the SSR
-    // block after hydration, so the graphs must stay in lockstep). One
-    // CreativeWork per scraped ad creative; only observed fields, nothing
-    // fabricated. CTA safety policy: the only url ever emitted is the
-    // already-filtered Facebook post permalink — never a landing URL.
-    if (reviewNode && Array.isArray(review.recentAds) && review.recentAds.length > 0) {
-      // @id keyed by the stable creative UUID — see server/prerender.ts.
-      reviewNode.hasPart = review.recentAds.map((ad) => ({
-        "@id": `${pageUrl}#ad-evidence-${ad.id}`,
-      }));
-      review.recentAds.forEach((ad) => {
-        const celebrities = (ad.celebrity ?? "")
-          .split(",")
-          .map((n) => n.trim())
-          .filter(Boolean);
-        graph.push({
-          "@type": "CreativeWork",
-          "@id": `${pageUrl}#ad-evidence-${ad.id}`,
-          name: `Scam ad creative: ${ad.offer}`,
-          genre: ad.isVideo
-            ? "Paid social media video advertisement"
-            : "Paid social media advertisement",
-          description: `Fraudulent ad creative promoting "${ad.offer}", observed by CryptoKiller scrapers targeting ${ad.geo}${ad.scrapeCount ? ` (seen ${ad.scrapeCount}×)` : ""}.`,
-          isPartOf: { "@id": `${pageUrl}#review` },
-          ...(itemReviewedGraphNode ? { about: { "@id": `${pageUrl}#item-reviewed` } } : {}),
-          ...(ad.adCopy ? { text: ad.adCopy } : {}),
-          ...(ad.language ? { inLanguage: ad.language } : {}),
-          contentLocation: { "@type": "Country", name: ad.geo },
-          ...(ad.lastSeenAt ? { dateModified: ad.lastSeenAt } : {}),
-          ...(ad.postUrl ? { url: ad.postUrl } : {}),
-          ...(celebrities.length
-            ? { mentions: celebrities.map((n) => ({ "@type": "Person", name: n })) }
-            : {}),
-        });
-      });
+    // Ad-evidence JSON-LD — node shape comes from the shared builder in
+    // src/lib/adEvidenceSchema.ts (same code path as server/prerender.ts, so
+    // SSR and hydrated CSR graphs cannot drift), and the ads array is the
+    // SSR-embedded snapshot when available (see readSsrRecentAdsSnapshot).
+    if (reviewNode && recentAds.length > 0) {
+      const adEvidence = buildAdEvidenceGraph(pageUrl, recentAds, Boolean(itemReviewedGraphNode));
+      reviewNode.hasPart = adEvidence.hasPart;
+      for (const node of adEvidence.nodes) graph.push(node);
     }
 
     // Phase 5 — i18n graph links. EN master Review gets workTranslation[]
@@ -1273,7 +1279,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
       "@context": "https://schema.org",
       "@graph": graph,
     };
-  }, [review, slug, locale, pageUrlForLocale, pageInLanguage, masterUrl]);
+  }, [review, slug, locale, pageUrlForLocale, pageInLanguage, masterUrl, ssrRecentAds]);
 
   // OG locale map — same keys as LOCALE_HTML_LANG, output uses underscores
   // (Facebook / Open Graph convention). `en_US` is the default for the English master.
@@ -1607,7 +1613,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
             Live-derived per request from Supabase creatives matched by
             first-token of normalized_offer (see getRecentAdsForBrand).
             Silently absent when there are no matching scraped creatives. */}
-        <RecentAdsGrid ads={review.recentAds ?? []} />
+        <RecentAdsGrid ads={ssrRecentAds ?? review.recentAds ?? []} />
 
         {/* FRAUDULENT-AD EVIDENCE — structured creative screenshots grouped by
             target country with per-country detected counts (migration 0008).

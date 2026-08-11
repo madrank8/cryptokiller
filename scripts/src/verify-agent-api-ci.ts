@@ -106,6 +106,11 @@ async function waitForHttp(url: string, label: string, timeoutMs = 60_000): Prom
 }
 
 async function main(): Promise<void> {
+  // Fast, self-contained lockstep check for the recent-ads JSON-LD (task
+  // guard: SSR and hydrated CSR must build identical ad-evidence graphs).
+  await run("verify ad-evidence lockstep", "pnpm", ["run", "verify:ad-evidence"], {
+    cwd: WEB_DIR,
+  });
   // Step 1: build the crypto-review client + SSR server (discovery docs are
   // only served by the built server, never by Vite dev).
   await run("build crypto-review", "pnpm", ["run", "build"], { cwd: WEB_DIR });

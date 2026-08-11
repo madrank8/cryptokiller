@@ -12,7 +12,8 @@
     "start": "node --enable-source-maps ./dist/server/index.mjs",
     "preview:vite": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "indexnow:backfill": "tsx scripts/indexnow-backfill.ts"
+    "indexnow:backfill": "tsx scripts/indexnow-backfill.ts",
+    "verify:ad-evidence": "tsx scripts/verify-ad-evidence-lockstep.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",

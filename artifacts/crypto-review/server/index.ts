@@ -137,6 +137,14 @@ function applyMeta(template: string, r: RenderResult): string {
   if (r.jsonLd) {
     headInject += `<script type="application/ld+json" data-ssr-jsonld="1">${escapeJsonLd(r.jsonLd)}</script>`;
   }
+  // Authoritative recent-ads snapshot for this page render. The hydrated
+  // client prefers this over its own API fetch (independent 5-min cache) so
+  // the visible ad grid + CSR JSON-LD always match the first-byte HTML.
+  // Lives in <head> (outside #root) so React never touches it; usePageMeta's
+  // cleanup only targets script[data-ssr-jsonld], so this survives hydration.
+  if (r.recentAdsSnapshot) {
+    headInject += `<script type="application/json" id="ssr-recent-ads" data-slug="${escapeAttr(r.recentAdsSnapshot.slug)}">${escapeJsonLd(r.recentAdsSnapshot.ads)}</script>`;
+  }
   if (r.prevPage) {
     headInject += `<link rel="prev" href="${escapeAttr(r.prevPage)}" data-ssr="1" />`;
   }

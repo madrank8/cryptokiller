@@ -20,3 +20,7 @@ Supabase — the sync payload's `recent_ads_sample` is intentionally ignored (le
 dropped); do not resurrect stored samples without revisiting that decision. Any change to the
 RecentAd shape requires updating lib/api-spec/openapi.yaml + `pnpm --filter @workspace/api-spec
 run codegen` + `pnpm run typecheck:libs`, and is gated by the agent-api verify workflow.
+
+## Lockstep decision (grid ↔ JSON-LD, SSR ↔ CSR)
+- One shared builder produces the ad-evidence JSON-LD for both render paths, and each SSR review render embeds its recent-ads snapshot — even an empty one — which the hydrated client treats as authoritative over the API copy.
+- **Why:** SSR and CSR fetch recent ads through independent short-lived caches; without one authoritative per-render snapshot, a JS-executing crawler could see structured data disagree with the first-byte HTML. Empty must win too, or fresher API data conjures ads absent from the SSR page.

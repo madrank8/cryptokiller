@@ -53,6 +53,7 @@ import {
 } from "../src/lib/platformStatTokens.js";
 import { sanitizeRichHtml } from "./html-sanitizer.js";
 import { getRecentAdsForBrand } from "./supabase-recent-ads.js";
+import { buildAdEvidenceGraph } from "../src/lib/adEvidenceSchema.js";
 
 // Fetch the combined platform-aggregate snapshot used to substitute
 // {{platform_stat:KEY}} tokens on blog renders. Vercel-synced fields come
@@ -205,6 +206,13 @@ export interface RenderResult {
   // `og:locale:alternate` per sibling locale in a translated cluster.
   ogLocale?: string;
   ogLocaleAlternates?: string[];
+  // Recent-ads snapshot for the rendered review page. When set, the server
+  // embeds it as <script type="application/json" id="ssr-recent-ads"
+  // data-slug="..."> so the hydrated client reuses the EXACT snapshot the SSR
+  // HTML and JSON-LD were built from (single authoritative snapshot per page
+  // render — no drift between the visible grid / SSR JSON-LD and the
+  // post-hydration CSR JSON-LD, whose API fetch has an independent cache).
+  recentAdsSnapshot?: { slug: string; ads: unknown[] };
 }
 
 function esc(s: string | null | undefined): string {
@@ -1989,6 +1997,10 @@ ${preferredSourceHtml()}
     tier,
   );
 
+  // Ad-evidence graph fragment — shared builder with the CSR path (see
+  // src/lib/adEvidenceSchema.ts) so the node shape cannot drift.
+  const adEvidence = buildAdEvidenceGraph(canonical, recentAds, Boolean(itemReviewed));
+
   const graph: Record<string, unknown>[] = [
     legalEntityNode(),
     organizationNode(),
@@ -2106,50 +2118,14 @@ ${preferredSourceHtml()}
       // hasPart references the machine-readable ad-evidence nodes below
       // (the "Ads scraped this week" grid) so AI crawlers can attach the
       // first-hand scraped-creative evidence to this Review entity.
-      ...(recentAds.length
-        ? { hasPart: recentAds.map((ad) => ({ "@id": `${canonical}#ad-evidence-${ad.id}` })) }
-        : {}),
+      ...(adEvidence.hasPart.length ? { hasPart: adEvidence.hasPart } : {}),
     },
   ];
 
   // ── Ad-evidence JSON-LD (mirrors the recentAdsHtml grid above) ──────────
-  // One CreativeWork per scraped ad creative — schema.org has no Advertisement
-  // type, so CreativeWork + genre is the honest fit. Only fields we actually
-  // observed are emitted (offer, celebrities, geo, language, ad copy, last-seen
-  // date, scrape count); nothing is fabricated. CTA safety policy applies here
-  // too: the ONLY url ever emitted is the already-filtered Facebook post
-  // permalink (ad.postUrl) — never a landing URL; linkDomain stays plain text
-  // in the HTML and is deliberately NOT emitted as a url here.
-  // @id is keyed by the stable Supabase creative UUID (not list position) so
-  // the fragment always denotes the same creative even if the SSR and CSR
-  // fetches drift within their independent 5-minute cache windows.
-  recentAds.forEach((ad) => {
-    const celebrities = (ad.celebrity ?? "")
-      .split(",")
-      .map((n) => n.trim())
-      .filter(Boolean);
-    graph.push({
-      "@type": "CreativeWork",
-      "@id": `${canonical}#ad-evidence-${ad.id}`,
-      name: `Scam ad creative: ${ad.offer}`,
-      genre: ad.isVideo
-        ? "Paid social media video advertisement"
-        : "Paid social media advertisement",
-      description: `Fraudulent ad creative promoting "${ad.offer}", observed by CryptoKiller scrapers targeting ${ad.geo}${ad.scrapeCount ? ` (seen ${ad.scrapeCount}×)` : ""}.`,
-      isPartOf: { "@id": `${canonical}#review` },
-      ...(itemReviewed ? { about: { "@id": `${canonical}#item-reviewed` } } : {}),
-      ...(ad.adCopy ? { text: ad.adCopy } : {}),
-      ...(ad.language ? { inLanguage: ad.language } : {}),
-      contentLocation: { "@type": "Country", name: ad.geo },
-      // lastSeenAt = most recent scraper observation of the live creative.
-      ...(ad.lastSeenAt ? { dateModified: ad.lastSeenAt } : {}),
-      // Safe, CTA-filtered Facebook post permalink only (see supabase-recent-ads.ts).
-      ...(ad.postUrl ? { url: ad.postUrl } : {}),
-      ...(celebrities.length
-        ? { mentions: celebrities.map((n) => ({ "@type": "Person", name: n })) }
-        : {}),
-    });
-  });
+  // Node shape lives in src/lib/adEvidenceSchema.ts, shared with the CSR
+  // builder in ReviewPage.tsx so the two graphs can never drift.
+  for (const node of adEvidence.nodes) graph.push(node);
 
   if (faqItems.length) {
     graph.push({
@@ -2322,6 +2298,13 @@ ${preferredSourceHtml()}
     noTranslate,
     ogLocale: currentOgLocale,
     ogLocaleAlternates: ogLocaleAlternates.length > 0 ? ogLocaleAlternates : undefined,
+    // Master (EN) pages only — locale pages don't render recent ads SSR.
+    // Emitted even when EMPTY: an authoritative `[]` tells the hydrated
+    // client "this render observed zero ads", so a later non-empty API
+    // response (independent cache) cannot conjure a grid/JSON-LD that was
+    // absent from the first-byte HTML. Absence of the script (SPA
+    // navigation, locale pages) is what signals "no SSR snapshot exists".
+    recentAdsSnapshot: !translationRow ? { slug: row.slug, ads: recentAds } : undefined,
   };
 }
 
