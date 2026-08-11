@@ -1538,10 +1538,15 @@ async function renderReview(
             parts.push(`<h3 class="ra-offer">${esc(truncateSsr(ad.offer, 60))}</h3>`);
             if (ad.celebrity) parts.push(`<div class="ra-celeb"><span aria-hidden="true">🎭 </span>${esc(ad.celebrity)}</div>`);
             if (cardText) parts.push(`<p class="ra-copy" title="${esc(fullText)}">&ldquo;${esc(cardText)}&rdquo;</p>`);
+            // Landing domain is DISPLAY ONLY — never an href (CTA safety policy).
+            if (ad.linkDomain) parts.push(`<div class="ra-domain"><span aria-hidden="true">🔗 </span>${esc(ad.linkDomain)}</div>`);
             const foot: string[] = [];
             if (ad.scrapeCount >= 5) foot.push(`<span class="ra-scrapes">Scraped ${ad.scrapeCount}×</span>`);
-            const target = safeHttpUrlSsr(ad.linkUrl) ?? safeHttpUrlSsr(ad.postUrl);
-            if (target) foot.push(`<a href="${esc(target)}" target="_blank" rel="nofollow ugc noopener" class="ra-cta">View archived ad <span aria-hidden="true">→</span></a>`);
+            // CTA safety policy: ctaUrl is the ONLY permitted href (Facebook
+            // post permalink or Meta Ad Library search) — never a raw landing
+            // URL. See supabase-recent-ads.ts, which derives it.
+            const ctaHref = safeHttpUrlSsr(ad.ctaUrl);
+            if (ctaHref) foot.push(`<a href="${esc(ctaHref)}" target="_blank" rel="${esc(ad.ctaRel || "nofollow noopener")}" class="ra-cta">${esc(ad.ctaLabel ?? "View Facebook post")} <span aria-hidden="true">→</span></a>`);
             if (foot.length) parts.push(`<div class="ra-foot">${foot.join("")}</div>`);
             return `<article class="recent-ad">${parts.join("")}</article>`;
           })

@@ -9,9 +9,51 @@ export interface RecentAd {
   isVideo: boolean;
   lastSeenAt: string;
   scrapeCount: number;
-  linkUrl: string | null;
+  /** Landing hostname for DISPLAY ONLY — never rendered as an href. */
+  linkDomain: string | null;
+  /** Facebook post permalink (evidence); already CTA-safety filtered. */
   postUrl: string | null;
+  /** Safe CTA href: Facebook post permalink or Meta Ad Library search. */
+  ctaUrl: string | null;
+  ctaLabel: string | null;
+  ctaRel: string;
   adCopy: string | null;
+}
+
+// ─── CTA safety (docs/REPLIT_ADS_CTA_SAFETY_HANDOFF — Peak Luxentria audit) ───
+// Public "view ad" CTAs may ONLY be (1) a Facebook post permalink, or (2) a
+// Meta Ad Library search for the brand, or (3) omitted. Raw creative link_url,
+// brand landing URLs, and archive "live fallback" URLs are FORBIDDEN as hrefs:
+// they send readers into the live scam funnel from an investigative site.
+// Any URL matching /click, fbclid, token_fb, or pixel_fb is rejected outright.
+// The raw link_url never leaves this module — only its hostname, for display.
+const FORBIDDEN_CTA_PATTERN = /\/click(?:[/?#]|$)|fbclid|token_fb|pixel_fb/i;
+
+function safeFacebookPostUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw.trim());
+    if (u.protocol !== "https:") return null;
+    const host = u.hostname.toLowerCase();
+    if (host !== "facebook.com" && !host.endsWith(".facebook.com")) return null;
+    if (FORBIDDEN_CTA_PATTERN.test(u.toString())) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function adLibrarySearchUrl(brand: string): string {
+  return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&q=${encodeURIComponent(brand)}`;
+}
+
+function hostnameOf(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    return new URL(raw.trim()).hostname || null;
+  } catch {
+    return null;
+  }
 }
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -103,6 +145,7 @@ function toRecentAd(c: CreativeRow, text: CreativeTextRow | undefined): RecentAd
   const offer = c.normalized_offer?.trim() ?? "";
   const geo = (c.geo ?? "").trim().toUpperCase();
   if (!offer || !c.last_seen_at || !/^[A-Z]{2}$/.test(geo)) return null;
+  const postUrl = safeFacebookPostUrl(text?.post_url);
   return {
     id: c.id,
     offer,
@@ -112,8 +155,11 @@ function toRecentAd(c: CreativeRow, text: CreativeTextRow | undefined): RecentAd
     isVideo: Boolean(c.is_video),
     lastSeenAt: new Date(c.last_seen_at).toISOString(),
     scrapeCount: typeof c.scrape_count === "number" ? c.scrape_count : 0,
-    linkUrl: text?.link_url?.trim() || null,
-    postUrl: text?.post_url?.trim() || null,
+    linkDomain: hostnameOf(text?.link_url),
+    postUrl,
+    ctaUrl: postUrl ?? adLibrarySearchUrl(offer),
+    ctaLabel: postUrl ? "View Facebook post" : "View in Meta Ad Library",
+    ctaRel: "nofollow noopener",
     adCopy: text?.main_text?.trim() || null,
   };
 }

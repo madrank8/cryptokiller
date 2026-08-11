@@ -375,7 +375,7 @@ function truncate(text: string, n: number): string {
 // Protocol allowlist for any URL we render into an <a href>. Upstream data
 // is third-party-sourced (CryptoKiller → Supabase → us); a malicious or malformed
 // payload that smuggles a javascript: URL would otherwise turn the
-// "View archived ad" CTA into a click-to-execute vector. Returns null
+// recent-ads CTA into a click-to-execute vector. Returns null
 // for anything that isn't a valid http(s) URL.
 function safeHttpUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -409,7 +409,10 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
           const flag = geoFlag(ad.geo);
           const fullText = (ad.adCopy ?? "").trim();
           const cardText = fullText ? truncate(fullText, 140) : "";
-          const target = safeHttpUrl(ad.linkUrl) ?? safeHttpUrl(ad.postUrl);
+          // CTA safety policy: ctaUrl is the ONLY permitted href (Facebook
+          // post permalink or Meta Ad Library search). Raw landing URLs are
+          // never shipped by the API; linkDomain is display-only text.
+          const ctaHref = safeHttpUrl(ad.ctaUrl);
           return (
             <article
               key={ad.id}
@@ -450,15 +453,20 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
                   &ldquo;{cardText}&rdquo;
                 </p>
               )}
+              {ad.linkDomain && (
+                <div className="text-[11px] text-slate-500 truncate" title={ad.linkDomain}>
+                  <span aria-hidden="true">🔗 </span>{ad.linkDomain}
+                </div>
+              )}
               <div className="mt-auto pt-2 border-t border-slate-800/70 flex items-center justify-between gap-2 text-xs">
-                {target ? (
+                {ctaHref ? (
                   <a
-                    href={target}
+                    href={ctaHref}
                     target="_blank"
-                    rel="nofollow ugc noopener"
+                    rel={ad.ctaRel || "nofollow noopener"}
                     className="text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1"
                   >
-                    View archived ad <span aria-hidden="true">→</span>
+                    {ad.ctaLabel ?? "View Facebook post"} <span aria-hidden="true">→</span>
                   </a>
                 ) : <span />}
                 {ad.scrapeCount >= 5 && (

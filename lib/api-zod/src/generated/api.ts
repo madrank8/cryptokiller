@@ -403,15 +403,32 @@ export const GetReviewResponse = zod.object({
             .describe(
               "Number of times this creative has been observed by CryptoKiller scrapers.",
             ),
-          linkUrl: zod
+          linkDomain: zod
             .string()
             .nullish()
-            .describe("Landing URL the creative drives to."),
+            .describe(
+              'Hostname of the scam landing page (e.g. \"senviks.world\"). Display only — MUST NOT be rendered as an href. The raw landing URL is never shipped (CTA safety policy).',
+            ),
           postUrl: zod
             .string()
             .nullish()
             .describe(
-              'Facebook post permalink used by the \"View archived ad\" CTA.',
+              "Facebook post permalink (evidence). Already filtered through the CTA safety policy — null unless it is a clean https facebook.com URL free of \/click, fbclid, token_fb, pixel_fb.",
+            ),
+          ctaUrl: zod
+            .string()
+            .nullish()
+            .describe(
+              'The ONLY value renderers may use as the \"view ad\" CTA href. Either the Facebook post permalink or a Meta Ad Library search URL for the brand. Never a raw creative landing URL.',
+            ),
+          ctaLabel: zod
+            .string()
+            .nullish()
+            .describe('\"View Facebook post\" or \"View in Meta Ad Library\".'),
+          ctaRel: zod
+            .string()
+            .describe(
+              'rel attribute for the CTA anchor (\"nofollow noopener\").',
             ),
           adCopy: zod
             .string()
@@ -419,7 +436,7 @@ export const GetReviewResponse = zod.object({
             .describe("Ad body copy (typically truncated by upstream)."),
         })
         .describe(
-          "Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
+          "Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing domain (display only) + a safe CTA link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present. CTA safety: the only permitted outbound CTA href is `ctaUrl` (Facebook post permalink or Meta Ad Library search); raw landing URLs are never shipped.",
         ),
     )
     .describe(
@@ -872,15 +889,34 @@ export const GetReviewTranslationResponse = zod
                 .describe(
                   "Number of times this creative has been observed by CryptoKiller scrapers.",
                 ),
-              linkUrl: zod
+              linkDomain: zod
                 .string()
                 .nullish()
-                .describe("Landing URL the creative drives to."),
+                .describe(
+                  'Hostname of the scam landing page (e.g. \"senviks.world\"). Display only — MUST NOT be rendered as an href. The raw landing URL is never shipped (CTA safety policy).',
+                ),
               postUrl: zod
                 .string()
                 .nullish()
                 .describe(
-                  'Facebook post permalink used by the \"View archived ad\" CTA.',
+                  "Facebook post permalink (evidence). Already filtered through the CTA safety policy — null unless it is a clean https facebook.com URL free of \/click, fbclid, token_fb, pixel_fb.",
+                ),
+              ctaUrl: zod
+                .string()
+                .nullish()
+                .describe(
+                  'The ONLY value renderers may use as the \"view ad\" CTA href. Either the Facebook post permalink or a Meta Ad Library search URL for the brand. Never a raw creative landing URL.',
+                ),
+              ctaLabel: zod
+                .string()
+                .nullish()
+                .describe(
+                  '\"View Facebook post\" or \"View in Meta Ad Library\".',
+                ),
+              ctaRel: zod
+                .string()
+                .describe(
+                  'rel attribute for the CTA anchor (\"nofollow noopener\").',
                 ),
               adCopy: zod
                 .string()
@@ -888,7 +924,7 @@ export const GetReviewTranslationResponse = zod
                 .describe("Ad body copy (typically truncated by upstream)."),
             })
             .describe(
-              "Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing URL + Facebook post link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present.",
+              "Single CryptoKiller ad creative for the brand, live-derived from Supabase's `creatives` (joined with `creatives_with_text`). Surfaces named celebrity + offer name + ad copy + landing domain (display only) + a safe CTA link as first-hand investigation evidence (E-E-A-T signal). Nullable fields render only when present. CTA safety: the only permitted outbound CTA href is `ctaUrl` (Facebook post permalink or Meta Ad Library search); raw landing URLs are never shipped.",
             ),
         )
         .describe(
