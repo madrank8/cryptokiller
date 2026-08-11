@@ -1197,6 +1197,43 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         }));
     }
 
+    // Ad-evidence JSON-LD — mirrors server/prerender.ts (CSR replaces the SSR
+    // block after hydration, so the graphs must stay in lockstep). One
+    // CreativeWork per scraped ad creative; only observed fields, nothing
+    // fabricated. CTA safety policy: the only url ever emitted is the
+    // already-filtered Facebook post permalink — never a landing URL.
+    if (reviewNode && Array.isArray(review.recentAds) && review.recentAds.length > 0) {
+      // @id keyed by the stable creative UUID — see server/prerender.ts.
+      reviewNode.hasPart = review.recentAds.map((ad) => ({
+        "@id": `${pageUrl}#ad-evidence-${ad.id}`,
+      }));
+      review.recentAds.forEach((ad) => {
+        const celebrities = (ad.celebrity ?? "")
+          .split(",")
+          .map((n) => n.trim())
+          .filter(Boolean);
+        graph.push({
+          "@type": "CreativeWork",
+          "@id": `${pageUrl}#ad-evidence-${ad.id}`,
+          name: `Scam ad creative: ${ad.offer}`,
+          genre: ad.isVideo
+            ? "Paid social media video advertisement"
+            : "Paid social media advertisement",
+          description: `Fraudulent ad creative promoting "${ad.offer}", observed by CryptoKiller scrapers targeting ${ad.geo}${ad.scrapeCount ? ` (seen ${ad.scrapeCount}×)` : ""}.`,
+          isPartOf: { "@id": `${pageUrl}#review` },
+          ...(itemReviewedGraphNode ? { about: { "@id": `${pageUrl}#item-reviewed` } } : {}),
+          ...(ad.adCopy ? { text: ad.adCopy } : {}),
+          ...(ad.language ? { inLanguage: ad.language } : {}),
+          contentLocation: { "@type": "Country", name: ad.geo },
+          ...(ad.lastSeenAt ? { dateModified: ad.lastSeenAt } : {}),
+          ...(ad.postUrl ? { url: ad.postUrl } : {}),
+          ...(celebrities.length
+            ? { mentions: celebrities.map((n) => ({ "@type": "Person", name: n })) }
+            : {}),
+        });
+      });
+    }
+
     // Phase 5 — i18n graph links. EN master Review gets workTranslation[]
     // pointing at each locale Review's @id; each locale Review gets
     // translationOfWork → master + a translator Organization node. Mirrors

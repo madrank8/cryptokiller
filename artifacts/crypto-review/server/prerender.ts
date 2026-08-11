@@ -2103,8 +2103,53 @@ ${preferredSourceHtml()}
         };
       })(),
       reviewBody: reviewBodyText,
+      // hasPart references the machine-readable ad-evidence nodes below
+      // (the "Ads scraped this week" grid) so AI crawlers can attach the
+      // first-hand scraped-creative evidence to this Review entity.
+      ...(recentAds.length
+        ? { hasPart: recentAds.map((ad) => ({ "@id": `${canonical}#ad-evidence-${ad.id}` })) }
+        : {}),
     },
   ];
+
+  // ── Ad-evidence JSON-LD (mirrors the recentAdsHtml grid above) ──────────
+  // One CreativeWork per scraped ad creative — schema.org has no Advertisement
+  // type, so CreativeWork + genre is the honest fit. Only fields we actually
+  // observed are emitted (offer, celebrities, geo, language, ad copy, last-seen
+  // date, scrape count); nothing is fabricated. CTA safety policy applies here
+  // too: the ONLY url ever emitted is the already-filtered Facebook post
+  // permalink (ad.postUrl) — never a landing URL; linkDomain stays plain text
+  // in the HTML and is deliberately NOT emitted as a url here.
+  // @id is keyed by the stable Supabase creative UUID (not list position) so
+  // the fragment always denotes the same creative even if the SSR and CSR
+  // fetches drift within their independent 5-minute cache windows.
+  recentAds.forEach((ad) => {
+    const celebrities = (ad.celebrity ?? "")
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean);
+    graph.push({
+      "@type": "CreativeWork",
+      "@id": `${canonical}#ad-evidence-${ad.id}`,
+      name: `Scam ad creative: ${ad.offer}`,
+      genre: ad.isVideo
+        ? "Paid social media video advertisement"
+        : "Paid social media advertisement",
+      description: `Fraudulent ad creative promoting "${ad.offer}", observed by CryptoKiller scrapers targeting ${ad.geo}${ad.scrapeCount ? ` (seen ${ad.scrapeCount}×)` : ""}.`,
+      isPartOf: { "@id": `${canonical}#review` },
+      ...(itemReviewed ? { about: { "@id": `${canonical}#item-reviewed` } } : {}),
+      ...(ad.adCopy ? { text: ad.adCopy } : {}),
+      ...(ad.language ? { inLanguage: ad.language } : {}),
+      contentLocation: { "@type": "Country", name: ad.geo },
+      // lastSeenAt = most recent scraper observation of the live creative.
+      ...(ad.lastSeenAt ? { dateModified: ad.lastSeenAt } : {}),
+      // Safe, CTA-filtered Facebook post permalink only (see supabase-recent-ads.ts).
+      ...(ad.postUrl ? { url: ad.postUrl } : {}),
+      ...(celebrities.length
+        ? { mentions: celebrities.map((n) => ({ "@type": "Person", name: n })) }
+        : {}),
+    });
+  });
 
   if (faqItems.length) {
     graph.push({
