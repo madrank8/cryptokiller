@@ -20,6 +20,15 @@ import EditorialBand from "@/components/EditorialBand";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import SiteFooter from "@/components/SiteFooter";
 
+export function TinyshelfBadge() {
+  return (
+    <a href="https://www.tinyshelf.co/?ref=cryptokiller.org" title="Featured on tinyshelf">
+      <img src="https://www.tinyshelf.co/badge/tinyshelf-badge-dark-f4d1216a.svg"
+           alt="Featured on tinyshelf" width={216} height={64} />
+    </a>
+  );
+}
+
 const GridBg = () => (
   <div
     className="absolute inset-0 pointer-events-none opacity-[0.03]"
@@ -682,6 +691,9 @@ export default function HomePage() {
         <ResearchTeam />
         <ScamActionSteps />
         <EditorialBand />
+        <section aria-label="Featured on tinyshelf" className="flex justify-center px-4 py-8">
+          <TinyshelfBadge />
+        </section>
       </main>
       <WhatsAppFloatingButton />
 

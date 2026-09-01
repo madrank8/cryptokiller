@@ -544,6 +544,12 @@ async function renderHome(): Promise<RenderResult> {
 <p>CryptoKiller's launch of its real-time global scam database was covered by ${PRESS_COVERAGE.map((p) => `<a href="${esc(p.href)}" rel="nofollow noopener noreferrer" target="_blank">${esc(p.name)}</a>`).join(", ")}.</p>
 ${analystDirectoryHtml()}
 <p><a href="/investigations">Browse all investigations</a> · <a href="/methodology">Read our methodology</a> · <a href="/report">Report a scam</a></p>
+<section aria-label="Featured on tinyshelf">
+<a href="https://www.tinyshelf.co/?ref=cryptokiller.org" title="Featured on tinyshelf">
+  <img src="https://www.tinyshelf.co/badge/tinyshelf-badge-dark-f4d1216a.svg"
+       alt="Featured on tinyshelf" width="216" height="64"/>
+</a>
+</section>
 </main>${siteFooterHtml()}`;
 
   return {
