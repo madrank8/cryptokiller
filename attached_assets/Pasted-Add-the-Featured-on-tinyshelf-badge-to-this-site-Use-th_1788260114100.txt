@@ -1,0 +1,43 @@
+Add the "Featured on tinyshelf" badge to this site.
+
+Use this exact HTML, unchanged:
+
+<a href="https://www.tinyshelf.co/?ref=cryptokiller.org" title="Featured on tinyshelf">
+  <img src="https://www.tinyshelf.co/badge/tinyshelf-badge-dark-f4d1216a.svg"
+       alt="Featured on tinyshelf" width="216" height="64"/>
+</a>
+
+On a React or Next.js site, use this component instead. Keep the plain
+<a> and <img> tags: next/link adds nothing for an external link, and
+next/image refuses a cross-host image without remotePatterns config
+and would proxy a small badge through your site for nothing:
+
+export function TinyshelfBadge() {
+  return (
+    <a href="https://www.tinyshelf.co/?ref=cryptokiller.org" title="Featured on tinyshelf">
+      <img src="https://www.tinyshelf.co/badge/tinyshelf-badge-dark-f4d1216a.svg"
+           alt="Featured on tinyshelf" width={216} height={64} />
+    </a>
+  );
+}
+
+Place it on the site's root page (the page served at /), in a sensible
+spot such as the footer. Pick the spot yourself; if nothing fits, ask me
+where. If this badge style clashes with the site's design, ask me before
+switching: https://www.tinyshelf.co/badge lists the other styles. A
+style switch changes only the badge file in the img src; the href stays
+exactly as it is, including any ?ref= it carries.
+
+The verification checker rejects the badge unless all of these hold:
+- The link points at the https://www.tinyshelf.co landing page, never a
+  deeper tinyshelf URL. Query parameters are fine: keep a ?ref= that is
+  already in the href.
+- The link carries no rel="nofollow", rel="sponsored" or rel="ugc".
+- The anchor is part of the initial HTML the server responds with. A link
+  rendered client-side (by React, Vue or similar, after load) is invisible
+  to the checker, so on a client-rendered page this anchor must be
+  server-rendered.
+- The badge is served to every visitor, in every region, unconditionally,
+  not behind an A/B test, a geo variant or a cookie.
+
+When the badge is live, tell me, so I can re-run the check on tinyshelf.
