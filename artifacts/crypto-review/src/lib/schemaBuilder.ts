@@ -160,8 +160,15 @@ export function personNode(persona: WriterPersona): Record<string, unknown> {
     url: `${BASE}/author/${slugId}`,
     jobTitle: persona.role,
     description: persona.bio,
-    worksFor: { "@id": ORG_ID },
-    memberOf: { "@id": ORG_ID },
+    ...(persona.image
+      ? {
+          image: {
+            "@type": "ImageObject",
+            url: `${BASE}/${persona.image.replace(/^\/+/, "")}`,
+            caption: `${persona.name} headshot`,
+          },
+        }
+      : {}),
     knowsAbout: persona.specialties,
     ...(persona.sameAs && persona.sameAs.length ? { sameAs: persona.sameAs } : {}),
     ...(persona.credentials
@@ -173,6 +180,24 @@ export function personNode(persona: WriterPersona): Record<string, unknown> {
           },
         }
       : {}),
+  };
+}
+
+export function teamItemListNode(
+  personas: WriterPersona[],
+  pageUrl: string,
+  name = "CryptoKiller team",
+): Record<string, unknown> {
+  return {
+    "@type": "ItemList",
+    "@id": `${pageUrl}#team`,
+    name,
+    numberOfItems: personas.length,
+    itemListElement: personas.map((persona, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: personRef(persona),
+    })),
   };
 }
 

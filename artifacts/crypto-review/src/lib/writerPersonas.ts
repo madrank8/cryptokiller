@@ -1,3 +1,9 @@
+export type TeamCategory =
+  | "Leadership"
+  | "Technology & Research"
+  | "Editorial Oversight"
+  | "Analysts & Writers";
+
 export interface WriterPersona {
   name: string;
   slug: string;
@@ -8,16 +14,31 @@ export interface WriterPersona {
   avatarBg: string;
   bio: string;
   fullBio: string;
-  yearsExperience: string;
-  published: string;
-  // Verified external profile URLs (LinkedIn, author page, etc.) emitted
-  // as schema.org Person.sameAs. YMYL E-E-A-T signal — Google's Quality
-  // Raters Guidelines explicitly call out verifiable author identity as
-  // a trust requirement for financial/investment content. NEVER invent
-  // URLs; leave off when not yet confirmed.
+  yearsExperience?: string;
+  published?: string;
   sameAs?: string[];
+  image?: string;
+  teamCategory?: TeamCategory;
+  dexProfileUrl?: string;
+  sourceImageUrl?: string;
+  publicTeam?: boolean;
+  linkedin?: string;
+  editorialReviewer?: boolean;
 }
 
+const DEX_TEAM_SOURCE = "https://dex.ag/team/";
+
+/**
+ * Shared identity registry used by author routes, bylines, team directories,
+ * SSR, and structured data.
+ *
+ * Public-team biographies, credentials, profile links, and sourceImageUrl
+ * values are conservative summaries of the linked DEX team profiles. DEX is
+ * the source of these claims; CryptoKiller does not independently verify them.
+ *
+ * Database-facing keys for existing authors must remain stable. In particular,
+ * `pepi` and `majithia` intentionally keep their short historical IDs/slugs.
+ */
 export const WRITER_PERSONAS: Record<string, WriterPersona> = {
   webb: {
     name: "M. Webb",
@@ -27,14 +48,10 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     credentials: "Blockchain Forensics · OSINT · Cybercrime Investigation",
     specialties: ["Deepfake Detection", "AI Fraud", "Social Engineering", "Identity Theft"],
     avatarBg: "bg-indigo-900",
-    bio: "Former cybercrime unit analyst who spent 5 years tracing stolen crypto before joining CryptoKiller to expose scam operations at scale.",
-    fullBio: "M. Webb spent over five years working in a national cybercrime unit, tracing stolen cryptocurrency across decentralized networks and helping law enforcement agencies build cases against organized fraud rings. After watching the same scam playbooks get recycled across borders — fake trading platforms, celebrity-endorsed deepfakes, pig-butchering funnels — Webb joined CryptoKiller to move from reactive casework to proactive exposure. Today, Webb leads threat assessment across every platform CryptoKiller tracks, specializing in wallet flow analysis, OSINT-based attribution, and deepfake detection. Webb has published over 340 investigations and developed the internal scam classification framework the team uses to score emerging threats.",
-    yearsExperience: "9 years",
-    published: "340+ investigations published",
-    sameAs: [
-      "https://www.linkedin.com/in/m-webb-cryptokiller/",
-      "https://cryptokiller.org/author/webb",
-    ],
+    bio: "Threat analyst focused on crypto fraud, wallet activity, open-source intelligence, and deepfake-enabled scams.",
+    fullBio: "M. Webb is a legacy CryptoKiller analyst identity used on previously published investigations. This profile remains available so historic bylines are not silently reassigned to another person.",
+    yearsExperience: "Legacy profile",
+    publicTeam: false,
   },
   nair: {
     name: "P. Nair",
@@ -44,14 +61,10 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     credentials: "Forensic Accounting · Market Manipulation · Regulatory Compliance",
     specialties: ["Fake Dashboards", "Ponzi Schemes", "Trading Scams", "Money Laundering"],
     avatarBg: "bg-emerald-900",
-    bio: "Previously worked in Trust & Safety at a major social media platform, now focused on exposing fraudulent crypto ad campaigns before they reach victims.",
-    fullBio: "P. Nair spent four years on the Trust & Safety team at a major social media platform, reviewing flagged ads and building detection rules for financial fraud campaigns. Nair saw first-hand how crypto scam operators exploit ad targeting — spinning up hundreds of lookalike campaigns, impersonating celebrities, and using fabricated dashboards to lure victims. After leaving the platform side, Nair joined CryptoKiller to apply that insider knowledge to ad intelligence and forensic accounting. Nair monitors social media ad platforms across dozens of countries, identifying celebrity impersonation schemes and phishing funnels at scale. Nair has published over 218 investigations and specializes in fake trading dashboards and Ponzi-style payout structures.",
-    yearsExperience: "7 years",
-    published: "218 investigations published",
-    sameAs: [
-      "https://www.linkedin.com/in/p-nair-cryptokiller/",
-      "https://cryptokiller.org/author/nair",
-    ],
+    bio: "Financial-crime researcher focused on fraudulent advertising, fake trading platforms, and money-laundering patterns.",
+    fullBio: "P. Nair is a legacy CryptoKiller analyst identity used on previously published investigations. This profile remains available so historic bylines are not silently reassigned to another person.",
+    yearsExperience: "Legacy profile",
+    publicTeam: false,
   },
   ortiz: {
     name: "D. Ortiz",
@@ -61,47 +74,374 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     credentials: "Smart Contract Auditing · DeFi Security · Penetration Testing",
     specialties: ["Rug Pulls", "Token Exploits", "Wallet Drainers", "Flash Loan Attacks"],
     avatarBg: "bg-amber-900",
-    bio: "Investigative journalist turned DeFi security researcher, focused on documenting rug pulls and token exploits with evidence everyday investors can understand.",
-    fullBio: "D. Ortiz started as an investigative journalist covering financial crime in Latin America, then moved into DeFi security research after watching friends lose savings to a rug pull in 2021. That experience — seeing real people hurt by schemes that could have been spotted with basic on-chain analysis — drove Ortiz to learn smart contract auditing and penetration testing. At CryptoKiller, Ortiz authors long-form investigation reports that break down complex exploits into language everyday investors can follow. Ortiz covers rug pulls, token exploits, wallet drainers, and flash loan attacks, with a focus on consumer protection and regulatory gaps. Ortiz has published over 167 investigations.",
-    yearsExperience: "6 years",
-    published: "167 investigations published",
+    bio: "Digital-forensics specialist focused on DeFi exploits, malicious smart contracts, wallet drainers, and rug pulls.",
+    fullBio: "D. Ortiz is a legacy CryptoKiller analyst identity used on previously published investigations. This profile remains available so historic bylines are not silently reassigned to another person.",
+    yearsExperience: "Legacy profile",
+    publicTeam: false,
+  },
+  "richard-melton": {
+    name: "Richard Melton",
+    slug: "richard-melton",
+    initials: "RM",
+    role: "CEO & Founder",
+    credentials: "Technology · Finance · Company Leadership",
+    specialties: ["Company Leadership", "Financial Technology", "Digital Assets"],
+    avatarBg: "bg-red-900",
+    bio: "Founder and chief executive of DEX Algo Technologies, with a background spanning technology and finance.",
+    fullBio: "Richard Melton is the founder and CEO of DEX Algo Technologies. His DEX team profile describes a background in technology and finance and says he established DEX to bridge traditional finance and cryptocurrency.",
+    image: "/team/richard-melton.webp",
+    teamCategory: "Leadership",
+    dexProfileUrl: "https://dex.ag/team/richard-melton/",
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/imgonline-com-ua-Black-White-fAvLaOSNkWZxgIZ.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/richard-melton-972872249/",
     sameAs: [
-      "https://www.linkedin.com/in/d-ortiz-cryptokiller/",
-      "https://cryptokiller.org/author/ortiz",
+      "https://www.linkedin.com/in/richard-melton-972872249/",
+      "https://dex.ag/team/richard-melton/",
     ],
+  },
+  "david-huang": {
+    name: "David Huang",
+    slug: "david-huang",
+    initials: "DH",
+    role: "Chief Financial Officer",
+    credentials: "20+ Years in Finance · Financial Management · Strategy",
+    specialties: ["Financial Management", "Corporate Strategy", "Traditional Finance"],
+    avatarBg: "bg-amber-900",
+    bio: "Finance executive whose DEX profile cites more than 20 years of experience in financial management and strategic decision-making.",
+    fullBio: "David Huang is the chief financial officer at DEX Algo Technologies. His DEX team profile cites more than 20 years in finance and previous financial vice-president roles at Great Eastern and Far East Organization.",
+    yearsExperience: "20+ years",
+    image: "/team/david-huang.webp",
+    teamCategory: "Leadership",
+    dexProfileUrl: "https://dex.ag/team/david-huang/",
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/imgonline-com-ua-Black-White-hZCAeLqryC7Ng.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/david-huang-a358a3249/",
+    sameAs: [
+      "https://www.linkedin.com/in/david-huang-a358a3249/",
+      "https://dex.ag/team/david-huang/",
+    ],
+  },
+  "james-taylor": {
+    name: "James Taylor",
+    slug: "james-taylor",
+    initials: "JT",
+    role: "Chief Technology Officer",
+    credentials: "9+ Years in Finance · Software Development · Agile",
+    specialties: ["Software Development", "Agile Delivery", "Financial Technology"],
+    avatarBg: "bg-blue-900",
+    bio: "Technology leader with software-development and Agile experience in the financial industry.",
+    fullBio: "James Taylor is the chief technology officer at DEX Algo Technologies. His DEX team profile cites more than nine years in the financial industry, with experience designing and implementing software applications and working with Agile methods.",
+    yearsExperience: "9+ years",
+    image: "/team/james-taylor.webp",
+    teamCategory: "Technology & Research",
+    dexProfileUrl: "https://dex.ag/team/james-taylor/",
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/imgonline-com-ua-Black-White-J9m5OWdGbh3dlto.jpg",
+    publicTeam: true,
+    sameAs: ["https://dex.ag/team/james-taylor/"],
+  },
+  "maria-wieck": {
+    name: "Maria Wieck",
+    slug: "maria-wieck",
+    initials: "MW",
+    role: "Algorithm Developer",
+    credentials: "Statistical Analysis · Machine Learning · Crypto Trading Algorithms",
+    specialties: ["Algorithm Development", "Statistical Analysis", "Machine Learning"],
+    avatarBg: "bg-violet-900",
+    bio: "Algorithm developer whose DEX profile highlights statistical analysis, machine learning, and crypto-trading systems.",
+    fullBio: "Maria Wieck develops algorithms for cryptocurrency trading. Her DEX team profile highlights statistical-analysis and machine-learning skills and a focus on keeping her technical knowledge current.",
+    image: "/team/maria-wieck.webp",
+    teamCategory: "Technology & Research",
+    dexProfileUrl: "https://dex.ag/team/maria-wieck/",
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/imgonline-com-ua-Black-White-9mU5NLKGHiZP0r.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/maria-wieck-302946249/",
+    sameAs: [
+      "https://www.linkedin.com/in/maria-wieck-302946249/",
+      "https://dex.ag/team/maria-wieck/",
+    ],
+  },
+  "john-feldt": {
+    name: "John Feldt",
+    slug: "john-feldt",
+    initials: "JF",
+    role: "Editorial Standards Reviewer & Crypto Analyst",
+    credentials: "6+ Years in Crypto · Digital Asset Analysis · Editorial Review",
+    specialties: ["Editorial Review", "Cryptocurrency Analysis", "Market Research"],
+    avatarBg: "bg-sky-900",
+    bio: "Crypto analyst with more than six years of industry experience who serves as CryptoKiller's named editorial standards reviewer.",
+    fullBio: "John Feldt is a crypto analyst and CryptoKiller's editorial standards reviewer. His DEX team profile cites more than six years in cryptocurrency analysis across multiple companies, with a focus on digital currencies and industry trends. At CryptoKiller, his reviewer role is separate from article authorship: he reviews editorial standards and source handling before publication.",
+    yearsExperience: "6+ years",
+    image: "/team/john-feldt.webp",
+    teamCategory: "Editorial Oversight",
+    dexProfileUrl: "https://dex.ag/team/john-feldt/",
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/imgonline-com-ua-Black-White-PmH2jCKtVTzGdD.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/john-feldt-240838249/",
+    sameAs: [
+      "https://www.linkedin.com/in/john-feldt-240838249/",
+      "https://dex.ag/team/john-feldt/",
+    ],
+    editorialReviewer: true,
+  },
+  "gary-mcfarlane": {
+    name: "Gary McFarlane",
+    slug: "gary-mcfarlane",
+    initials: "GM",
+    role: "Editor-in-Chief",
+    credentials: "Financial Analysis · Cryptocurrency · Editorial Leadership",
+    specialties: ["Editorial Leadership", "Financial Analysis", "Cryptocurrency"],
+    avatarBg: "bg-emerald-900",
+    bio: "Financial analyst and editor whose DEX profile highlights extensive cryptocurrency knowledge and editorial leadership.",
+    fullBio: "Gary McFarlane is editor-in-chief of the DEX crypto and finance news division. His DEX team profile describes him as an accomplished financial analyst with extensive knowledge of cryptocurrency.",
+    image: "/team/gary-mcfarlane.webp",
+    teamCategory: "Editorial Oversight",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Gary-McFarlane-BW.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/gary-mcfarlane-9b3a5b13/",
+    sameAs: ["https://www.linkedin.com/in/gary-mcfarlane-9b3a5b13/"],
+  },
+  "james-spillane": {
+    name: "James Spillane",
+    slug: "james-spillane",
+    initials: "JS",
+    role: "Senior Editor",
+    credentials: "BSc Physics, Imperial College London · Crypto & Blockchain Editing",
+    specialties: ["News Editing", "Guides", "Cryptocurrency", "Blockchain"],
+    avatarBg: "bg-indigo-900",
+    bio: "Senior news and guides editor who writes about cryptocurrency and blockchain.",
+    fullBio: "James Spillane is a senior news and guides editor who writes about cryptocurrency and blockchain. His DEX team profile cites a bachelor's degree in physics from Imperial College London and service as a cadet in the University of London Officers' Training Corps.",
+    image: "/team/james-spillane.webp",
+    teamCategory: "Editorial Oversight",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/James-Spillane-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/james-spillane-359654217/",
+    sameAs: ["https://www.linkedin.com/in/james-spillane-359654217/"],
+  },
+  "alan-draper": {
+    name: "Alan Draper",
+    slug: "alan-draper",
+    initials: "AD",
+    role: "Cryptocurrency Editor",
+    credentials: "Crypto Guides · Reviews · Accuracy & Timeliness",
+    specialties: ["Cryptocurrency Editing", "Guide Accuracy", "Content Review"],
+    avatarBg: "bg-cyan-900",
+    bio: "Cryptocurrency editor focused on keeping guides and reviews accurate, relevant, and timely.",
+    fullBio: "Alan Draper is a United Kingdom-based cryptocurrency editor. His DEX team profile says he oversees a team responsible for maintaining the accuracy, relevance, and timeliness of cryptocurrency guides and reviews.",
+    image: "/team/alan-draper.webp",
+    teamCategory: "Editorial Oversight",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Alan-Draper-bw-portrait.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/alan-draper-b39b7ab0/",
+    sameAs: ["https://www.linkedin.com/in/alan-draper-b39b7ab0/"],
+  },
+  "arslan-butt": {
+    name: "Arslan Butt",
+    slug: "arslan-butt",
+    initials: "AB",
+    role: "Senior Financial Writer",
+    credentials: "MBA Finance · MPhil Behavioral Finance · Derivatives Analysis",
+    specialties: ["Cryptocurrency", "Forex", "Commodities", "Market Indices"],
+    avatarBg: "bg-orange-900",
+    bio: "Senior financial writer and derivatives analyst covering crypto, forex, commodities, and indices.",
+    fullBio: "Arslan Butt is a senior financial writer, live-webinar speaker, and derivatives analyst covering cryptocurrency, forex, commodities, and indices. His DEX team profile cites an MBA in finance and an MPhil in behavioral finance.",
+    image: "/team/arslan-butt.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Ali-Butt-bw-1.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/arslan-butt/",
+    sameAs: ["https://www.linkedin.com/in/arslan-butt/"],
+  },
+  "connor-brooke": {
+    name: "Connor Brooke",
+    slug: "connor-brooke",
+    initials: "CB",
+    role: "Financial Writer",
+    credentials: "Wealth Management · Equity Investing · Startup Consulting",
+    specialties: ["Wealth Management", "Equity Investing", "Financial Writing"],
+    avatarBg: "bg-teal-900",
+    bio: "Scottish financial professional and writer focused on wealth management and equity investing.",
+    fullBio: "Connor Brooke is a Scottish financial professional based in Glasgow. His DEX team profile highlights wealth-management and equity-investing experience and describes his work as a full-time writer and startup consultant.",
+    image: "/team/connor-brooke.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Connor-Brooke-bw-portrait.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/connor-brooke-06a010142/",
+    sameAs: ["https://www.linkedin.com/in/connor-brooke-06a010142/"],
+  },
+  "alejandro-arrieche": {
+    name: "Alejandro Arrieche",
+    slug: "alejandro-arrieche",
+    initials: "AA",
+    role: "Financial Analyst & Writer",
+    credentials: "7+ Years · Crypto & Stocks · Market Trends & News",
+    specialties: ["Financial Analysis", "Cryptocurrency", "Stocks", "Market Trends"],
+    avatarBg: "bg-lime-900",
+    bio: "Financial analyst and freelance writer with more than seven years covering cryptocurrency, stocks, market trends, and news.",
+    fullBio: "Alejandro Arrieche is a financial analyst and freelance writer. His DEX team profile cites more than seven years of experience covering cryptocurrency and stock-market trends and news, with bylines at The Modest Wallet, Buyshares, Capital.com, and LearnBonds.",
+    yearsExperience: "7+ years",
+    image: "/team/alejandro-arrieche.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Alejandro-Arrieche-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/alejandro-arrieche/",
+    sameAs: ["https://www.linkedin.com/in/alejandro-arrieche/"],
+  },
+  "amy-clark": {
+    name: "Amy Clark",
+    slug: "amy-clark",
+    initials: "AC",
+    role: "Software & Technology Writer",
+    credentials: "Software Editing · Content Optimization · Technology Writing",
+    specialties: ["Software", "Technology", "Content Editing", "Reader Guidance"],
+    avatarBg: "bg-fuchsia-900",
+    bio: "Software and technology writer focused on optimizing and updating reader-facing content.",
+    fullBio: "Amy Clark is a software and technology writer. Her DEX team profile identifies her as a software editor at Finixio, notes previous freelance writing, and cites contributions to Systeme.io, DEX.AG, and The Tech Report.",
+    image: "/team/amy-clark.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Amy-Clark-BW-1.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/amy-clark-85a4a6a3/",
+    sameAs: ["https://www.linkedin.com/in/amy-clark-85a4a6a3/"],
+  },
+  "jamie-mcneill": {
+    name: "Jamie McNeill",
+    slug: "jamie-mcneill",
+    initials: "JM",
+    role: "DeFi Writer",
+    credentials: "Decentralized Finance · Consensus · Blockchain Governance",
+    specialties: ["DeFi", "Consensus Systems", "Blockchain Governance", "Emerging Technology"],
+    avatarBg: "bg-purple-900",
+    bio: "Writer focused on decentralized finance, blockchain consensus, governance, and emerging technology.",
+    fullBio: "Jamie McNeill writes about decentralized finance and emerging technology. His DEX team profile highlights knowledge of blockchain consensus and governance systems.",
+    image: "/team/jamie-mcneill.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Jamie-McNeill-bw.jpg",
+    publicTeam: true,
+  },
+  "joel-frank": {
+    name: "Joel Frank",
+    slug: "joel-frank",
+    initials: "JF",
+    role: "Cryptocurrency Analyst",
+    credentials: "Economics Degree · Financial & Crypto Markets · Analysis Since 2018",
+    specialties: ["Cryptocurrency Markets", "Financial Markets", "Decentralization"],
+    avatarBg: "bg-green-900",
+    bio: "Cryptocurrency analyst providing financial and crypto-market analysis since 2018.",
+    fullBio: "Joel Frank is a cryptocurrency analyst with an economics degree. His DEX team profile says he has provided analysis of financial and cryptocurrency markets since 2018 and follows decentralization technologies.",
+    yearsExperience: "Since 2018",
+    image: "/team/joel-frank.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Joel-Frank-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/joelpeterfrank/",
+    sameAs: ["https://www.linkedin.com/in/joelpeterfrank/"],
   },
   pepi: {
-    name: "K. Pepi",
+    name: "Kane Pepi",
     slug: "pepi",
     initials: "KP",
-    role: "Financial Crime Researcher & Author",
-    credentials: "AML Compliance · Money Laundering Research · Doctoral-Level Financial Crime Studies",
-    specialties: ["Money Laundering", "Terrorist Financing", "AML Compliance Failures", "Digital Asset Seizure"],
+    role: "Crypto & Finance Writer",
+    credentials: "Asset Analysis · Portfolio Management · Financial Crime Prevention",
+    specialties: ["Cryptocurrency", "Asset Valuation", "Portfolio Management", "Financial Crime"],
     avatarBg: "bg-rose-900",
-    bio: "Peer-reviewed researcher in money laundering and terrorist financing, with academic work on how law enforcement detects and seizes criminal proceeds tied to digital assets.",
-    fullBio: "K. Pepi is a peer-reviewed author and researcher specializing in money laundering and terrorist financing, based in the United Kingdom. Pepi's published research has examined money laundering threats, vulnerabilities, and AML controls within the UK bookmaker sector, with a particular focus on Fixed-Odds Betting Terminals. With a bachelor's degree in finance, a master's degree in financial crime, and doctoral-level research exploring how UK law enforcement detects, prevents, and seizes criminal proceeds tied to digital assets, Pepi brings rigorous academic depth to CryptoKiller's investigations. Pepi's current research interests include CDD and EDD compliance failures in regulated industries and the relationship between financial crime and artificial intelligence — expertise that directly informs CryptoKiller's analysis of how scam operations exploit regulatory blind spots.",
-    yearsExperience: "7 years",
-    published: "120+ investigations published",
-    sameAs: [
-      "https://www.linkedin.com/in/k-pepi-cryptokiller/",
-      "https://cryptokiller.org/author/pepi",
-    ],
+    bio: "Finance and cryptocurrency writer focused on asset analysis, portfolio management, and financial-crime prevention.",
+    fullBio: "Kane Pepi is a finance and cryptocurrency writer. His DEX team profile cites more than 2,000 public articles, guides, and market insights and highlights expertise in asset valuation and analysis, portfolio management, and financial-crime prevention.",
+    published: "2,000+ public articles, guides, and market insights",
+    image: "/team/kane-pepi.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Kane-Pepi-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/kane-pepi-63b5a0146/",
+    sameAs: ["https://www.linkedin.com/in/kane-pepi-63b5a0146/"],
   },
   majithia: {
-    name: "Y. Majithia",
+    name: "Yash Majithia",
     slug: "majithia",
     initials: "YM",
-    role: "Senior Crypto Journalist & Analyst",
-    credentials: "Crypto Journalism · Content & Editorial Strategy · SEO, AEO & GEO",
-    specialties: ["FinTech Analysis", "B2B Crypto Content", "Editorial Strategy", "Scam Exposure Reporting"],
+    role: "Crypto Writer & Analyst",
+    credentials: "Financial Analysis · On-Chain Analysis · Technical Analysis",
+    specialties: ["Cryptocurrency", "On-Chain Analysis", "Technical Analysis", "Industry News"],
     avatarBg: "bg-sky-900",
-    bio: "Senior crypto journalist and content strategist who helps B2B tech and FinTech companies build authority — now channeling that expertise into exposing crypto scams at CryptoKiller.",
-    fullBio: "Y. Majithia is a senior crypto journalist and analyst based in Mumbai, with deep expertise in content and editorial strategy for B2B tech and FinTech companies. Majithia has spent years helping companies in the crypto and financial technology space connect the dots in their industry — building authority through well-researched, high-impact content. That same skill set now drives CryptoKiller's editorial output: turning complex scam operations into clear, evidence-based reports that rank in search results and reach potential victims before the scammers do. Majithia brings a unique combination of SEO, AEO, and GEO expertise to the team, ensuring CryptoKiller's investigations are not only accurate but discoverable at the moment someone searches for a suspicious platform.",
-    yearsExperience: "8 years",
-    published: "95+ investigations published",
-    sameAs: [
-      "https://www.linkedin.com/in/y-majithia-cryptokiller/",
-      "https://cryptokiller.org/author/majithia",
-    ],
+    bio: "Crypto writer and analyst with a background in financial analysis, reporting, on-chain analysis, and technical analysis.",
+    fullBio: "Yash Majithia is a cryptocurrency writer and analyst with a background in financial analysis and reporting. His DEX team profile cites more than one year publishing for cryptocurrency publications and highlights on-chain analysis, technical analysis, and industry developments.",
+    yearsExperience: "1+ year",
+    image: "/team/yash-majithia.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Yash-Majithia-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/yashnm/",
+    sameAs: ["https://www.linkedin.com/in/yashnm/"],
+  },
+  "matt-williams": {
+    name: "Matt Williams",
+    slug: "matt-williams",
+    initials: "MW",
+    role: "Crypto & Fintech Writer",
+    credentials: "Cryptocurrency · Fintech · Educational Content",
+    specialties: ["Cryptocurrency", "Fintech", "Online Business", "Educational Content"],
+    avatarBg: "bg-yellow-900",
+    bio: "Crypto and fintech writer who creates educational content and follows market and online-business trends.",
+    fullBio: "Matt Williams is a cryptocurrency and fintech writer. His DEX team profile describes an interest in stocks and fintech, creating educational content, identifying trends, and helping readers build sustainable online side incomes.",
+    image: "/team/matt-williams.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Matt-Williams-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/matthew-williams-59a006246/",
+    sameAs: ["https://www.linkedin.com/in/matthew-williams-59a006246/"],
+  },
+  "michael-abetz": {
+    name: "Michael Abetz",
+    slug: "michael-abetz",
+    initials: "MA",
+    role: "Crypto Writer",
+    credentials: "Cryptocurrency Investing · Trading · Decentralized Finance",
+    specialties: ["Cryptocurrency", "Trading", "Decentralized Finance"],
+    avatarBg: "bg-stone-800",
+    bio: "Freelance cryptocurrency writer focused on investing, trading, and decentralized-finance topics.",
+    fullBio: "Michael Abetz is a freelance cryptocurrency writer focused on decentralized-finance topics. His DEX team profile says his interest in cryptocurrency investing and trading began during the 2017 bull market.",
+    image: "/team/michael-abetz.webp",
+    teamCategory: "Analysts & Writers",
+    dexProfileUrl: DEX_TEAM_SOURCE,
+    sourceImageUrl: "https://dex.ag/wp-content/uploads/2023/07/Michael-Abetz-bw.jpg",
+    publicTeam: true,
+    linkedin: "https://www.linkedin.com/in/michael-abetz-b24005246/",
+    sameAs: ["https://www.linkedin.com/in/michael-abetz-b24005246/"],
   },
 };
+
+export const PUBLIC_TEAM = Object.values(WRITER_PERSONAS).filter(
+  (persona) => persona.publicTeam === true,
+);
+
+const TEAM_PREVIEW_SLUGS = ["john-feldt", "pepi", "majithia"] as const;
+
+export const TEAM_PREVIEW = TEAM_PREVIEW_SLUGS.map(
+  (slug) => WRITER_PERSONAS[slug],
+);
+
+export const EDITORIAL_REVIEWER =
+  Object.values(WRITER_PERSONAS).find((persona) => persona.editorialReviewer) ??
+  WRITER_PERSONAS["john-feldt"];
+
+export function editorialReviewerFor(
+  author?: WriterPersona,
+): WriterPersona | undefined {
+  return author?.slug === EDITORIAL_REVIEWER.slug
+    ? undefined
+    : EDITORIAL_REVIEWER;
+}
+
+export const TEAM_SOURCE_URL = DEX_TEAM_SOURCE;

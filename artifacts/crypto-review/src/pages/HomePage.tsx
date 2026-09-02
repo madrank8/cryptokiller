@@ -19,6 +19,8 @@ import ScamActionSteps from "@/components/ScamActionSteps";
 import EditorialBand from "@/components/EditorialBand";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import SiteFooter from "@/components/SiteFooter";
+import { TEAM_PREVIEW } from "@/lib/writerPersonas";
+import { personNode, teamItemListNode } from "@/lib/schemaBuilder";
 
 export function TinyshelfBadge() {
   return (
@@ -621,6 +623,8 @@ export default function HomePage() {
           "query-input": "required name=search_term_string",
         },
       },
+      teamItemListNode(TEAM_PREVIEW, "https://cryptokiller.org/", "Featured CryptoKiller team members"),
+      ...TEAM_PREVIEW.map(personNode),
       {
         "@type": "FAQPage",
         "@id": "https://cryptokiller.org/#faq",

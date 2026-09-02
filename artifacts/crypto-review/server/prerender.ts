@@ -20,7 +20,14 @@ import {
   formatLocaleDate,
   STALE_TRANSLATION_THRESHOLD_MS,
 } from "@workspace/i18n";
-import { WRITER_PERSONAS, type WriterPersona } from "../src/lib/writerPersonas.js";
+import {
+  EDITORIAL_REVIEWER,
+  PUBLIC_TEAM,
+  TEAM_PREVIEW,
+  WRITER_PERSONAS,
+  editorialReviewerFor,
+  type WriterPersona,
+} from "../src/lib/writerPersonas.js";
 import { substituteStatTokens, substituteStatTokensInReview, type ReviewStats } from "../src/lib/statTokens.js";
 import { stripMarkdownLinks, stripMarkdownLinksDeep } from "../src/lib/markdownLinks.js";
 import {
@@ -30,6 +37,7 @@ import {
   legalEntityNode,
   personNode,
   personRef,
+  teamItemListNode,
 } from "../src/lib/schemaBuilder.js";
 import {
   resolveAbout,
@@ -284,22 +292,6 @@ function resolveAuthorPersona(personaId: string | null | undefined): {
   return { ref, node };
 }
 
-// Named human reviewer for YMYL E-E-A-T. Emitted as `reviewedBy` on the Review
-// and BlogPosting JSON-LD nodes so Google sees a real, accountable person who
-// signed off on the content (distinct from the persona who authored it). The
-// @id is stable and the url points at the public /ai-disclosure page that
-// documents our editorial standards. Only ever serialized inside the escaped
-// <script type="application/ld+json"> — never rendered into the page body.
-const REVIEWER_PERSON = {
-  "@type": "Person",
-  "@id": `${BASE}/#reviewer-john-feldt`,
-  name: "John Feldt",
-  jobTitle: "Editorial Standards Reviewer",
-  url: `${BASE}/ai-disclosure`,
-  sameAs: ["https://www.linkedin.com/in/john-feldt-240838249/"],
-  worksFor: { "@id": ORG_ID },
-};
-
 function siteHeaderHtml(): string {
   return `<header role="banner"><nav aria-label="Primary"><a href="/">CryptoKiller</a> · <a href="/investigations">Investigations</a> · <a href="/blog">Blog</a> · <a href="/methodology">Methodology</a> · <a href="/recovery">Recovery</a> · <a href="/report">Report a Scam</a> · <a href="/about">About</a></nav></header>`;
 }
@@ -325,20 +317,45 @@ function preferredSourceHtml(): string {
  * JS-rendered client tree. Plain anchors (no rel="author") — these list the
  * team, they are not the author of the listing page.
  */
-function analystDirectoryHtml(headingId = "analysts-heading"): string {
-  const items = Object.values(WRITER_PERSONAS)
-    .map(
-      (a) =>
-        `<li><a href="/author/${a.slug}"><strong>${esc(a.name)}</strong></a> — ${esc(a.role)}. ${esc(a.credentials)}. ${esc(a.bio)}</li>`,
-    )
+function analystDirectoryHtml(
+  personas: WriterPersona[] = PUBLIC_TEAM,
+  headingId = "team-heading",
+  heading = "Our team",
+): string {
+  const categories = Array.from(
+    new Set(personas.map((persona) => persona.teamCategory ?? "Analysts & Writers")),
+  );
+  const groups = categories
+    .map((category) => {
+      const items = personas
+        .filter((persona) => (persona.teamCategory ?? "Analysts & Writers") === category)
+        .map((persona) => {
+          const links = [
+            persona.linkedin
+              ? `<a href="${esc(persona.linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn</a>`
+              : "",
+            persona.dexProfileUrl
+              ? `<a href="${esc(persona.dexProfileUrl)}" target="_blank" rel="noopener noreferrer">DEX source profile</a>`
+              : "",
+          ].filter(Boolean).join(" · ");
+          const image = persona.image
+            ? `<img src="${esc(persona.image)}" alt="${esc(persona.name)} headshot" width="120" height="120" loading="lazy">`
+            : "";
+          return `<li>${image}<h4><a href="/author/${persona.slug}">${esc(persona.name)}</a></h4><p><strong>${esc(persona.role)}</strong></p><p>${esc(persona.credentials)}</p><p>${esc(persona.bio)}</p>${links ? `<p>${links}</p>` : ""}</li>`;
+        })
+        .join("");
+      return `<section><h3>${esc(category)}</h3><ul>${items}</ul></section>`;
+    })
     .join("");
-  return `<section aria-labelledby="${headingId}"><h2 id="${headingId}">Our analysts</h2><p>Every CryptoKiller investigation is authored by a named analyst — never anonymous AI output. Each profile links to that analyst's full background and published investigations.</p><ul>${items}</ul></section>`;
+  return `<section aria-labelledby="${headingId}"><h2 id="${headingId}">${esc(heading)}</h2><p>CryptoKiller is operated by DEX Algo Technologies. Biographical and credential claims in these profiles are summarized from the linked public DEX team sources.</p>${groups}</section>`;
 }
 
 interface StaticSection {
   heading: string;
   paragraphs: string[];
   list?: string[];
+  /** Trusted, server-authored markup for sections that need links or media. */
+  html?: string;
 }
 
 interface StaticFaq {
@@ -358,6 +375,7 @@ interface StaticPageInput {
   jsonLd?: Record<string, unknown>;
   /** When true, inject the crawlable analyst directory before the FAQ. */
   analystDirectory?: boolean;
+  additionalGraphNodes?: Record<string, unknown>[];
 }
 
 function renderStaticPage(p: StaticPageInput): RenderResult {
@@ -369,7 +387,7 @@ function renderStaticPage(p: StaticPageInput): RenderResult {
       const list = s.list && s.list.length
         ? `<ul>${s.list.map((li) => `<li>${esc(li)}</li>`).join("")}</ul>`
         : "";
-      return `<section><h2>${esc(s.heading)}</h2>${paras}${list}</section>`;
+      return `<section><h2>${esc(s.heading)}</h2>${s.html ?? ""}${paras}${list}</section>`;
     })
     .join("");
 
@@ -411,6 +429,13 @@ ${faqHtml}
       isPartOf: { "@id": WEBSITE_ID },
       inLanguage: "en",
     },
+    ...(p.analystDirectory
+      ? [
+          teamItemListNode(PUBLIC_TEAM, canonical, "CryptoKiller and DEX Algo Technologies team"),
+          ...PUBLIC_TEAM.map(personNode),
+        ]
+      : []),
+    ...(p.additionalGraphNodes ?? []),
   ];
 
   if (p.faq && p.faq.length) {
@@ -542,7 +567,7 @@ async function renderHome(): Promise<RenderResult> {
 <ul>${recentList}</ul>
 <h2>As seen on</h2>
 <p>CryptoKiller's launch of its real-time global scam database was covered by ${PRESS_COVERAGE.map((p) => `<a href="${esc(p.href)}" rel="nofollow noopener noreferrer" target="_blank">${esc(p.name)}</a>`).join(", ")}.</p>
-${analystDirectoryHtml()}
+${analystDirectoryHtml(TEAM_PREVIEW, "team-heading", "Meet the team")}
 <p><a href="/investigations">Browse all investigations</a> · <a href="/methodology">Read our methodology</a> · <a href="/report">Report a scam</a></p>
 <section aria-label="Featured on tinyshelf">
 <a href="https://www.tinyshelf.co/?ref=cryptokiller.org" title="Featured on tinyshelf">
@@ -583,6 +608,8 @@ ${analystDirectoryHtml()}
           isPartOf: { "@id": WEBSITE_ID },
           inLanguage: "en",
         },
+        teamItemListNode(TEAM_PREVIEW, `${BASE}/`, "Featured CryptoKiller team members"),
+        ...TEAM_PREVIEW.map(personNode),
       ],
     },
   };
@@ -1309,6 +1336,7 @@ async function renderReview(
   // CSR side in src/pages/ReviewPage.tsx (line ~563): persona id → registry
   // entry, fall back to undefined when the id is missing or unknown.
   const reviewPersona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
+  const reviewEditorialReviewer = editorialReviewerFor(reviewPersona);
 
   // <title> — tier-aware. Only include the score when it's non-zero;
   // shipping "Threat Score 0/100" on a review that lost its score during
@@ -1899,8 +1927,11 @@ async function renderReview(
   // Trust block mirrors the client review page's crawlable editorial/
   // methodology copy (src/pages/ReviewPage.tsx ~lines 1324-1337) so non-JS
   // crawlers see the same E-E-A-T signals on the modern full-article path.
+  const reviewTrustHtml = reviewEditorialReviewer
+    ? `<p>Editorial review by <a href="/author/${reviewEditorialReviewer.slug}">${esc(reviewEditorialReviewer.name)}</a>, ${esc(reviewEditorialReviewer.role)} · Methodology: <a href="/methodology">cryptokiller.org/methodology</a></p>`
+    : `<p>Methodology: <a href="/methodology">cryptokiller.org/methodology</a></p>`;
   const fullArticleBylineHtml = `<p data-review-byline><strong>Investigation by:</strong> ${bylineAuthorHtml}${bylinePublished ? ` · Published ${bylinePublished}` : ""}${showBylineUpdated ? ` · Updated ${bylineUpdated}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""} · <a href="/methodology">How we score scams</a></p>
-<div data-review-trust><p>Reviewed by our editorial team · Methodology: <a href="/methodology">cryptokiller.org/methodology</a></p><p>All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency. <a href="/methodology">How we investigate →</a></p></div>`;
+<div data-review-trust>${reviewTrustHtml}<p>All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency. <a href="/methodology">How we investigate →</a></p></div>`;
 
   const bodyHtml = fullArticleBodyHtml
     ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
@@ -1958,6 +1989,7 @@ ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragrap
 <p><strong>Investigation by:</strong> ${reviewPersona
   ? `<a href="/author/${reviewPersona.slug}" rel="author">${esc(reviewPersona.name)}</a>`
   : esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>
+${reviewEditorialReviewer ? `<p><strong>Editorial review by:</strong> <a href="/author/${reviewEditorialReviewer.slug}">${esc(reviewEditorialReviewer.name)}</a>, ${esc(reviewEditorialReviewer.role)}</p>` : ""}
 ${preferredSourceHtml()}
 <p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p>
 </article>
@@ -2012,6 +2044,7 @@ ${preferredSourceHtml()}
     organizationNode(),
     websiteNode(),
     authorNode,
+    ...(reviewEditorialReviewer ? [personNode(reviewEditorialReviewer)] : []),
     ...(itemReviewed ? [itemReviewed] : []),
     breadcrumbList([
       { label: "Home", href: `${BASE}/` },
@@ -2048,7 +2081,7 @@ ${preferredSourceHtml()}
       isPartOf: { "@id": WEBSITE_ID },
       publisher: { "@id": ORG_ID },
       author: authorRef,
-      reviewedBy: REVIEWER_PERSON,
+      ...(reviewEditorialReviewer ? { reviewedBy: personRef(reviewEditorialReviewer) } : {}),
       ...(datePublished ? { datePublished } : {}),
       ...(dateModified ? { dateModified } : {}),
       ...(row.wordCount ? { wordCount: row.wordCount } : {}),
@@ -2387,6 +2420,7 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
   }
 
   const persona = row.authorPersonaId ? WRITER_PERSONAS[row.authorPersonaId] : undefined;
+  const blogEditorialReviewer = editorialReviewerFor(persona);
   const authorName = persona?.name || "CryptoKiller Research Team";
   const heroImage = row.heroImageUrl || DEFAULT_OG_IMAGE;
   const summaryText = clean(row.summary || row.metaDescription || "");
@@ -2479,6 +2513,7 @@ async function renderBlogPost(slug: string): Promise<RenderResult> {
 <article>
 <h1>${esc(row.headline || row.title)}</h1>
 <p><strong>By</strong> ${bylineAuthor}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.wordCount ? ` · ${row.wordCount}-word read` : ""}</p>
+${blogEditorialReviewer ? `<p><strong>Editorial review by</strong> <a href="/author/${blogEditorialReviewer.slug}">${esc(blogEditorialReviewer.name)}</a>, ${esc(blogEditorialReviewer.role)}</p>` : ""}
 ${blogAiDisclosureHtml}
 ${summaryText ? `<p>${esc(truncate(summaryText, 500))}</p>` : ""}
 ${articleBodyHtml}
@@ -2533,7 +2568,7 @@ ${preferredSourceHtml()}
     isPartOf: { "@id": WEBSITE_ID },
     publisher: { "@id": ORG_ID },
     author: persona ? personRef(persona) : authorNode,
-    reviewedBy: REVIEWER_PERSON,
+    ...(blogEditorialReviewer ? { reviewedBy: personRef(blogEditorialReviewer) } : {}),
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
     wordCount: row.wordCount || undefined,
@@ -2564,6 +2599,7 @@ ${preferredSourceHtml()}
   ];
 
   if (persona) graph.push(authorNode);
+  if (blogEditorialReviewer) graph.push(personNode(blogEditorialReviewer));
 
   graph.push(articleNode);
 
@@ -2685,10 +2721,14 @@ ${authoredPostRows.map(p =>
 <nav aria-label="Breadcrumb"><a href="/">Home</a> · ${esc(persona.name)}</nav>
 <article>
 <h1>${esc(persona.name)}</h1>
+${persona.image ? `<img src="${esc(persona.image)}" alt="${esc(persona.name)} headshot" width="240" height="240">` : ""}
 <p><strong>${esc(persona.role)}</strong> · ${esc(persona.credentials)}</p>
 <p>${esc(persona.fullBio || persona.bio)}</p>
 <p><strong>Specialties:</strong> ${persona.specialties.map(esc).join(", ")}</p>
-<p>${esc(persona.published)} · ${esc(persona.yearsExperience)} of experience</p>
+${persona.published ? `<p><strong>Published work:</strong> ${esc(persona.published)}</p>` : ""}
+${persona.yearsExperience ? `<p><strong>Experience:</strong> ${esc(persona.yearsExperience)}</p>` : ""}
+${persona.dexProfileUrl ? `<p>Biography and background claims are summarized from the <a href="${esc(persona.dexProfileUrl)}" target="_blank" rel="noopener noreferrer">public DEX team source</a> and are not presented as independently verified by CryptoKiller.</p>` : ""}
+${persona.linkedin ? `<p><a href="${esc(persona.linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn profile</a></p>` : ""}
 </article>
 ${investigationsSection}
 ${articlesSection}
@@ -2963,9 +3003,9 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
         },
         {
           heading: "Accountability",
+          html: `<article data-editorial-reviewer><img src="${esc(EDITORIAL_REVIEWER.image ?? "")}" width="96" height="96" alt="${esc(EDITORIAL_REVIEWER.name)}" loading="lazy"><h3>${esc(EDITORIAL_REVIEWER.name)}</h3><p>${esc(EDITORIAL_REVIEWER.role)}</p><p>${esc(EDITORIAL_REVIEWER.name)}'s editorial-review role is distinct from article authorship. He reviews source handling and editorial standards before publication.</p><p><a href="/author/${EDITORIAL_REVIEWER.slug}">Reviewer profile</a>${EDITORIAL_REVIEWER.linkedin ? ` · <a href="${esc(EDITORIAL_REVIEWER.linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn profile</a>` : ""}</p></article>`,
           paragraphs: [
-            "John Feldt is our Editorial Standards Reviewer and is publicly accountable for our editorial standards. His professional profile is at https://www.linkedin.com/in/john-feldt-240838249/.",
-            "Individual analysts publish under consistent personas to protect their operational security, because scam operations are frequently run by organised groups that retaliate against investigators. Personas are stable and accountable — they are a security measure, not anonymity. The publisher of record for every investigation is DEX Algo Technologies Pte Ltd.",
+            "Some historic investigations publish under stable operational personas retained for accurate bylines. Current public team profiles use source-attributed names and biographies. The publisher of record for every investigation is DEX Algo Technologies Pte Ltd.",
           ],
         },
         {
@@ -2975,6 +3015,7 @@ const STATIC_PAGES: Record<string, () => RenderResult> = {
           ],
         },
       ],
+      additionalGraphNodes: [personNode(EDITORIAL_REVIEWER)],
     }),
 
   "/recovery": () =>

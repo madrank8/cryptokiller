@@ -1,15 +1,23 @@
 import {
   Shield, Users, Eye, Target, BookOpen, Code,
-  TrendingUp, MapPin, ShieldCheck, Mail, ArrowRight
+  TrendingUp, MapPin, Mail, ArrowRight, Linkedin, ExternalLink
 } from "lucide-react";
 import { Link } from "wouter";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
-import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import { PUBLIC_TEAM } from "@/lib/writerPersonas";
+import {
+  legalEntityNode,
+  organizationNode,
+  personNode,
+  teamItemListNode,
+  websiteNode,
+} from "@/lib/schemaBuilder";
+import TeamAvatar from "@/components/TeamAvatar";
 
-const analysts = Object.values(WRITER_PERSONAS);
+const ABOUT_URL = "https://cryptokiller.org/about";
 
 export default function AboutPage() {
   const crumbs = [
@@ -24,6 +32,9 @@ export default function AboutPage() {
     jsonLd: {
       "@context": "https://schema.org",
       "@graph": [
+        legalEntityNode(),
+        organizationNode(),
+        websiteNode(),
         breadcrumbJsonLd(crumbs),
         {
           "@type": "WebPage",
@@ -66,6 +77,8 @@ export default function AboutPage() {
             },
           ],
         },
+        teamItemListNode(PUBLIC_TEAM, ABOUT_URL, "CryptoKiller and DEX Algo Technologies team"),
+        ...PUBLIC_TEAM.map(personNode),
       ],
     },
   });
@@ -210,75 +223,96 @@ export default function AboutPage() {
             <div className="bg-slate-800 p-2 rounded-lg">
               <Target className="h-5 w-5 text-red-400" />
             </div>
-            <h2 className="text-2xl font-black text-white">Investigation Team</h2>
+            <h2 className="text-2xl font-black text-white">Our Team</h2>
             <div className="flex-1 h-px bg-slate-800 ml-3" />
           </div>
 
-          <p className="text-slate-400 text-sm leading-relaxed max-w-3xl mb-8">
-            Our analysts come from cybercrime units, platform Trust & Safety teams, and
-            investigative journalism. They joined CryptoKiller because they wanted to stop
-            reacting to scams after the damage was done — and start exposing them before
-            they reach their next victim.
+          <p className="text-slate-400 text-sm leading-relaxed max-w-3xl mb-12">
+            CryptoKiller is operated by DEX Algo Technologies. This directory
+            presents the shared company's leadership, technical, editorial, and
+            writing team. Biographical and credential claims below are attributed
+            to the linked public DEX team sources.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            {analysts.map((a) => (
-              <Link
-                key={a.slug}
-                href={`/author/${a.slug}`}
-                className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-colors block"
-              >
-                <div className="flex items-center gap-4 mb-5">
-                  <div
-                    className={`${a.avatarBg} w-14 h-14 rounded-full flex items-center justify-center shrink-0`}
-                  >
-                    <span className="text-white font-bold text-base tracking-wide">
-                      {a.initials}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-white font-bold text-lg leading-tight">{a.name}</h3>
-                    <p className="text-slate-400 text-xs">{a.role}</p>
-                  </div>
+          {Array.from(new Set(PUBLIC_TEAM.map(a => a.teamCategory))).map((category) => {
+            const categoryAnalysts = PUBLIC_TEAM.filter(a => a.teamCategory === category);
+
+            if (categoryAnalysts.length === 0) return null;
+
+            return (
+              <div key={category} className="mb-12 last:mb-0">
+                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  {category}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {categoryAnalysts.map((a) => {
+                    const linkedin = a.linkedin || a.sameAs?.find(url => url.includes("linkedin.com"));
+                    return (
+                      <div
+                        key={a.slug}
+                        className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 hover:bg-slate-900/80 hover:border-slate-700 transition-all duration-300 flex flex-col h-full"
+                      >
+                        <div className="flex items-start gap-4 mb-5">
+                          <Link href={`/author/${a.slug}`} className="shrink-0">
+                            <TeamAvatar persona={a} />
+                          </Link>
+                          <div className="flex-1 min-w-0 pt-1">
+                            <Link href={`/author/${a.slug}`} className="block hover:opacity-80 transition-opacity">
+                              <h3 className="text-white font-bold text-lg leading-tight">
+                                {a.name}
+                              </h3>
+                            </Link>
+                            <p className="text-slate-400 text-sm mt-0.5">{a.role}</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Credentials</p>
+                          <p className="text-slate-300 text-xs font-mono leading-relaxed bg-slate-950/50 p-3 rounded-lg border border-slate-800/50">
+                            {a.credentials}
+                          </p>
+                        </div>
+
+                        <p className="text-slate-400 text-sm leading-relaxed mb-6 flex-1">
+                          {a.bio}
+                        </p>
+
+                        <div className="border-t border-slate-800/60 pt-5 mt-auto flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {linkedin && (
+                              <a
+                                href={linkedin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-500 hover:text-[#0A66C2] transition-colors"
+                                aria-label={`${a.name} LinkedIn profile`}
+                              >
+                                <Linkedin className="h-4 w-4" />
+                              </a>
+                            )}
+                            {a.dexProfileUrl && (
+                              <a
+                                href={a.dexProfileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-white transition-colors"
+                              >
+                                Source <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                          <Link href={`/author/${a.slug}`} className="text-xs text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1.5 transition-colors">
+                            Full Profile <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-
-                <p className="text-slate-500 text-xs font-mono leading-relaxed mb-3">
-                  {a.credentials}
-                </p>
-
-                <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                  {a.bio}
-                </p>
-
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {a.specialties.map((s) => (
-                    <span
-                      key={s}
-                      className="text-[11px] text-slate-400 font-medium border border-slate-700/60 rounded-full px-2.5 py-0.5"
-                    >
-                      {s}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="border-t border-slate-800 pt-4 flex items-center justify-between">
-                  <p className="text-xs text-slate-500">
-                    <span className="text-white font-semibold">{a.published}</span>
-                  </p>
-                  <span className="text-xs text-red-400 font-semibold inline-flex items-center gap-1">
-                    View profile <ArrowRight className="h-3 w-3" />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-start gap-2.5 justify-center max-w-2xl mx-auto">
-            <ShieldCheck className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-slate-600 leading-relaxed text-center">
-              Analyst profiles use initials to protect operational security. CryptoKiller analysts work anonymously to avoid retaliation from scam operations they investigate.
-            </p>
-          </div>
+              </div>
+            );
+          })}
         </section>
 
         <section className="mb-16">

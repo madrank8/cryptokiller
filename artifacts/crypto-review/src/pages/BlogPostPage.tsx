@@ -9,8 +9,12 @@ import SiteFooter from "@/components/SiteFooter";
 import PreferredSourceButton from "@/components/PreferredSourceButton";
 import AuthorBox from "@/components/AuthorBox";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
-import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import {
+  editorialReviewerFor,
+  WRITER_PERSONAS,
+} from "@/lib/writerPersonas";
 import { BLOG_SCHEMA_MAP } from "@/lib/blogSchemaMap";
+import { normalizeCuratedBlogSchema } from "@/lib/normalizeCuratedBlogSchema";
 import { organizationNode, websiteNode, personNode, personRef, orgRef, websiteRef } from "@/lib/schemaBuilder";
 import {
   resolveAbout,
@@ -240,12 +244,15 @@ export default function BlogPostPage() {
 
   const heroImage = useMemo(() => post ? resolveHeroImage(post) : null, [post]);
   const persona = post?.authorPersonaId ? WRITER_PERSONAS[post.authorPersonaId] : undefined;
+  const editorialReviewer = editorialReviewerFor(persona);
 
   const jsonLd = useMemo(() => {
     if (!post) return { "@context": "https://schema.org", ...breadcrumbJsonLd(crumbs) };
 
     const curatedSchema = slug ? BLOG_SCHEMA_MAP[slug] : undefined;
-    if (curatedSchema) return curatedSchema as Record<string, unknown>;
+    if (curatedSchema) {
+      return normalizeCuratedBlogSchema(curatedSchema, persona, editorialReviewer);
+    }
 
     const pageUrl = `${BASE}/blog/${slug}`;
 
@@ -276,6 +283,9 @@ export default function BlogPostPage() {
     if (persona) {
       graph.push(personNode(persona));
     }
+    if (editorialReviewer) {
+      graph.push(personNode(editorialReviewer));
+    }
 
     graph.push({
       "@type": "WebPage",
@@ -299,6 +309,7 @@ export default function BlogPostPage() {
       datePublished: post.publishedAt,
       dateModified: post.updatedAt,
       author: persona ? personRef(persona) : orgRef(),
+      ...(editorialReviewer ? { reviewedBy: personRef(editorialReviewer) } : {}),
       publisher: orgRef(),
       mainEntityOfPage: { "@id": `${pageUrl}#webpage` },
       wordCount: post.wordCount,
@@ -335,7 +346,7 @@ export default function BlogPostPage() {
     for (const quote of quotationNodes) graph.push(quote);
 
     return { "@context": "https://schema.org", "@graph": graph };
-  }, [post, persona, heroImage, slug, crumbs]);
+  }, [post, persona, editorialReviewer, heroImage, slug, crumbs]);
 
   usePageMeta({
     title: post ? pickBlogPostTitle(post) : "Blog | CryptoKiller",
@@ -478,6 +489,18 @@ export default function BlogPostPage() {
 
             <div className="mt-12 border-t border-slate-800 pt-8">
               <AuthorBox {...(persona || {})} />
+              {editorialReviewer && (
+                <p className="mt-4 text-xs text-slate-500">
+                  Editorial review by{" "}
+                  <Link
+                    href={`/author/${editorialReviewer.slug}`}
+                    className="text-slate-400 underline decoration-dotted underline-offset-2 hover:text-slate-200"
+                  >
+                    {editorialReviewer.name}
+                  </Link>
+                  , {editorialReviewer.role}
+                </p>
+              )}
             </div>
 
             {/* HOW THIS WAS CREATED — AI disclosure (2026-07-05 Vercel

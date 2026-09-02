@@ -146,7 +146,11 @@ import SiteFooter from "@/components/SiteFooter";
 import PreferredSourceButton from "@/components/PreferredSourceButton";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { organizationNode, websiteNode, orgRef, legalEntityNode, personNode, personRef } from "@/lib/schemaBuilder";
-import { WRITER_PERSONAS } from "@/lib/writerPersonas";
+import {
+  editorialReviewerFor,
+  EDITORIAL_REVIEWER,
+  WRITER_PERSONAS,
+} from "@/lib/writerPersonas";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
 import { stripMarkdownLinksDeep } from "@/lib/markdownLinks";
 import { resolveReviewTier, tierFromScore } from "@/lib/reviewTier";
@@ -1036,6 +1040,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
   const authorPersona = review?.authorPersonaId
     ? WRITER_PERSONAS[review.authorPersonaId]
     : undefined;
+  const editorialReviewer = editorialReviewerFor(authorPersona);
   const bylineName = authorPersona?.name || review?.author || "CryptoKiller Research Team";
   const bylineHref = authorPersona ? `/author/${authorPersona.slug}` : "/methodology";
   const bylineLinkLabel = authorPersona ? "View profile ↗" : "Methodology ↗";
@@ -1094,7 +1099,11 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
     // closes the parallel CSR mismatch (drift hunter risk #6, 2026-05-03).
     // Falls back to Organization when authorPersonaId is null on legacy rows.
     const personNodes = authorPersona ? [personNode(authorPersona)] : [];
+    if (editorialReviewer) {
+      personNodes.push(personNode(editorialReviewer));
+    }
     const authorValue = authorPersona ? personRef(authorPersona) : orgRefId;
+    const reviewerValue = editorialReviewer ? personRef(editorialReviewer) : undefined;
 
     const graph: Record<string, unknown>[] = [
       legalEntityNode(),
@@ -1122,6 +1131,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         description: desc,
         url: pageUrl,
         author: authorValue,
+        ...(reviewerValue ? { reviewedBy: reviewerValue } : {}),
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -1144,6 +1154,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         description: desc,
         url: pageUrl,
         author: authorValue,
+        ...(reviewerValue ? { reviewedBy: reviewerValue } : {}),
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -1161,6 +1172,7 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
         description: `Is ${review.platformName} a scam? CryptoKiller investigation with threat score, ad evidence, and victim reports.`,
         url: pageUrl,
         author: authorValue,
+        ...(reviewerValue ? { reviewedBy: reviewerValue } : {}),
         publisher: orgRefId,
         datePublished: review.investigationDate,
         dateModified: review.investigationDate,
@@ -1570,7 +1582,19 @@ function ReviewContent({ slug, locale }: { slug: string; locale?: string }) {
 
           <div className="mb-8 space-y-1.5">
             <p className="text-xs text-slate-500">
-              Reviewed by our editorial team · Methodology:{" "}
+              {editorialReviewer && (
+                <>
+                  Editorial review by{" "}
+                  <a
+                    href={`/author/${editorialReviewer.slug}`}
+                    className="text-slate-400 hover:text-slate-200 underline decoration-dotted underline-offset-2 transition-colors"
+                  >
+                    {editorialReviewer.name}
+                  </a>
+                  , {editorialReviewer.role} ·{" "}
+                </>
+              )}
+              Methodology:{" "}
               <a href="/methodology" className="text-slate-400 hover:text-slate-200 underline decoration-dotted underline-offset-2 transition-colors">
                 cryptokiller.org/methodology
               </a>

@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import {
-  Shield, ArrowLeft, BookOpen, Award, Clock, MapPin, AlertTriangle, FileText
+  ArrowLeft, BookOpen, Award, Clock, AlertTriangle, FileText, Linkedin, ExternalLink
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/SiteHeader";
@@ -10,6 +10,7 @@ import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
 import { WRITER_PERSONAS } from "@/lib/writerPersonas";
 import { personNode, WEBSITE_ID } from "@/lib/schemaBuilder";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
+import TeamAvatar from "@/components/TeamAvatar";
 
 const BASE = "https://cryptokiller.org";
 
@@ -41,7 +42,9 @@ export default function AuthorPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
 
-  const persona = Object.values(WRITER_PERSONAS).find(p => p.slug === slug);
+  const personaEntry = Object.entries(WRITER_PERSONAS).find(([, p]) => p.slug === slug);
+  const personaId = personaEntry?.[0];
+  const persona = personaEntry?.[1];
 
   const { data: reviewsData } = useQuery<ReviewSummary[]>({
     queryKey: ["/api/reviews"],
@@ -67,7 +70,7 @@ export default function AuthorPage() {
   // review_stats fields (the /api/reviews rows carry them) before render.
   const authoredReviews = reviewsData
     ? reviewsData
-        .filter(r => r.authorPersonaId === slug)
+        .filter(r => r.authorPersonaId === personaId)
         .sort((a, b) => new Date(b.investigationDate).getTime() - new Date(a.investigationDate).getTime())
         .slice(0, MAX_ITEMS)
         .map(r => substituteStatTokensInReview(r))
@@ -75,7 +78,7 @@ export default function AuthorPage() {
 
   const authoredPosts = blogData?.items
     ? blogData.items
-        .filter(p => p.authorPersonaId === slug)
+        .filter(p => p.authorPersonaId === personaId)
         .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
         .slice(0, MAX_ITEMS)
     : [];
@@ -159,52 +162,89 @@ export default function AuthorPage() {
           ]}
         />
 
-        <div className="flex flex-col sm:flex-row items-start gap-6 mb-10">
-          <div
-            className={`${persona.avatarBg} w-20 h-20 rounded-full flex items-center justify-center shrink-0`}
-          >
-            <span className="text-white font-bold text-2xl tracking-wide">
-              {persona.initials}
-            </span>
+        <div className="flex flex-col sm:flex-row items-start gap-8 mb-12 bg-slate-900/40 p-8 rounded-3xl border border-slate-800">
+          <div className="shrink-0">
+            <TeamAvatar
+              persona={persona}
+              className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-slate-800 shadow-xl"
+              initialsClassName="text-3xl sm:text-4xl"
+              priority
+            />
           </div>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white mb-1">
-              {persona.name}
-            </h1>
-            <p className="text-lg text-slate-400 mb-2">{persona.role}</p>
-            <p className="text-sm text-slate-500 font-mono">{persona.credentials}</p>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-3">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-red-500 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+                    Team Profile
+                  </span>
+                  {persona.teamCategory && (
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                      {persona.teamCategory}
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-3xl sm:text-5xl font-black text-white mb-2 tracking-tight">
+                  {persona.name}
+                </h1>
+                <p className="text-xl text-slate-400 font-medium">{persona.role}</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {(persona.linkedin || persona.sameAs?.find(url => url.includes("linkedin.com"))) && (
+                  <a
+                    href={persona.linkedin || persona.sameAs?.find(url => url.includes("linkedin.com"))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-800 hover:bg-[#0A66C2] hover:text-white text-slate-400 transition-colors border border-slate-700"
+                    aria-label={`${persona.name} LinkedIn`}
+                  >
+                    <Linkedin className="h-5 w-5" />
+                  </a>
+                )}
+                {persona.dexProfileUrl && (
+                  <a
+                    href={persona.dexProfileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-colors border border-slate-700 text-sm"
+                  >
+                    DEX source <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 bg-slate-950/50 p-4 rounded-xl border border-slate-800/60 inline-block">
+              <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Background highlights</p>
+              <p className="text-sm text-slate-300 font-mono">{persona.credentials}</p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
           {[
-            {
+            ...(persona.published ? [{
               icon: <BookOpen className="h-5 w-5" />,
               color: "text-red-400",
               bg: "bg-red-500/10 border-red-900/30",
               stat: persona.published.split(" ")[0],
-              label: "Investigations",
-            },
-            {
+              label: "Public articles & guides",
+            }] : []),
+            ...(persona.yearsExperience ? [{
               icon: <Clock className="h-5 w-5" />,
               color: "text-amber-400",
               bg: "bg-amber-500/10 border-amber-900/30",
               stat: persona.yearsExperience,
               label: "Experience",
-            },
+            }] : []),
             {
               icon: <Award className="h-5 w-5" />,
               color: "text-blue-400",
               bg: "bg-blue-500/10 border-blue-900/30",
               stat: `${persona.specialties.length}`,
               label: "Specialties",
-            },
-            {
-              icon: <Shield className="h-5 w-5" />,
-              color: "text-green-400",
-              bg: "bg-green-500/10 border-green-900/30",
-              stat: "Active",
-              label: "Status",
             },
           ].map((item, i) => (
             <div
@@ -323,14 +363,16 @@ export default function AuthorPage() {
           </section>
         )}
 
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 flex items-start gap-3 mb-10">
-          <MapPin className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-500 leading-relaxed">
-            CryptoKiller analyst profiles use initials to protect operational security.
-            Our analysts work under partial anonymity to avoid retaliation from scam
-            operations they investigate.
-          </p>
-        </div>
+        {persona.dexProfileUrl && (
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 mb-10">
+            <h4 className="text-sm font-bold text-white mb-1">Source attribution</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Biography and background claims on this profile are summarized from the
+              linked public DEX team source and are not presented as independently
+              verified by CryptoKiller.
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center gap-4">
           <Link

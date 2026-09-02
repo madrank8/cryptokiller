@@ -6,8 +6,9 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import Breadcrumbs, { breadcrumbJsonLd } from "@/components/Breadcrumbs";
-
-const REVIEWER_LINKEDIN = "https://www.linkedin.com/in/john-feldt-240838249/";
+import TeamAvatar from "@/components/TeamAvatar";
+import { EDITORIAL_REVIEWER } from "@/lib/writerPersonas";
+import { personNode } from "@/lib/schemaBuilder";
 
 const pipeline = [
   {
@@ -69,6 +70,7 @@ export default function AiDisclosurePage() {
           publisher: { "@type": "Organization", name: "CryptoKiller", url: "https://cryptokiller.org" },
           inLanguage: "en",
         },
+        personNode(EDITORIAL_REVIEWER),
       ],
     },
   });
@@ -192,31 +194,45 @@ export default function AiDisclosurePage() {
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-6">
-            <h3 className="text-white font-bold text-lg mb-1">John Feldt</h3>
-            <p className="text-slate-400 text-sm mb-4">Editorial Standards Reviewer</p>
+            <div className="flex items-center gap-4 mb-4">
+              <TeamAvatar persona={EDITORIAL_REVIEWER} className="h-16 w-16" />
+              <div>
+                <h3 className="text-white font-bold text-lg mb-1">{EDITORIAL_REVIEWER.name}</h3>
+                <p className="text-slate-400 text-sm">{EDITORIAL_REVIEWER.role}</p>
+              </div>
+            </div>
             <p className="text-slate-400 text-sm leading-relaxed mb-4">
-              John Feldt is publicly accountable for our editorial standards and signs off on the
-              investigations we publish.
+              John Feldt's editorial-review role is distinct from article authorship. He reviews
+              source handling and editorial standards before publication.
             </p>
-            <a
-              href={REVIEWER_LINKEDIN}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors font-semibold"
-            >
-              LinkedIn profile
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            <div className="flex flex-wrap gap-4">
+              <a
+                href={`/author/${EDITORIAL_REVIEWER.slug}`}
+                className="inline-flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors font-semibold"
+              >
+                Reviewer profile
+              </a>
+              {EDITORIAL_REVIEWER.linkedin && (
+                <a
+                  href={EDITORIAL_REVIEWER.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+                >
+                  LinkedIn profile
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6">
               <h4 className="text-white font-bold text-sm mb-2">Analyst personas</h4>
               <p className="text-slate-400 text-sm leading-relaxed">
-                Individual analysts publish under consistent personas to protect their operational
-                security, because scam operations are frequently run by organised groups that
-                retaliate against investigators. Personas are stable and accountable — they are a
-                security measure, not anonymity.
+                Some historic investigations publish under stable operational personas retained
+                for accurate bylines. Current public team profiles use source-attributed names and
+                biographies.
               </p>
             </div>
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6">
