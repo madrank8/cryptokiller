@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 import { pingIndexNow } from "../indexnow";
 import { blogUrl } from "../canonical-urls";
+import { blogIndexNowUrlsForSync } from "../indexnow-publish";
 
 const router: IRouter = Router();
 
@@ -185,9 +186,9 @@ async function handleBlogSync(req: import("express").Request, res: import("expre
     // Fire-and-forget IndexNow ping — published posts only, never drafts.
     // URL from canonical-urls (the same builder the sitemap uses) so it can't
     // drift. Never awaited / never throws into the request lifecycle.
-    if ((content.status ?? "draft") === "published") {
-      pingIndexNow([canonicalUrl]);
-    }
+    pingIndexNow(
+      blogIndexNowUrlsForSync(content.slug, content.status),
+    );
 
     res.json({
       success: true,

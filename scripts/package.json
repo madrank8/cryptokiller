@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "verify:ssr": "tsx ./src/verify-ssr.ts",
+    "verify:indexnow:live": "tsx ../artifacts/api-server/scripts/indexnow-verify.ts",
     "gsc:summary": "tsx ./src/gsc-summary.ts",
     "verify:agent-api": "tsx ./src/verify-agent-api.ts",
     "verify:agent-api:ci": "tsx ./src/verify-agent-api-ci.ts",

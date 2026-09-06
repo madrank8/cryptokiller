@@ -5,7 +5,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import compression from "compression";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import { renderPage, type RenderResult } from "./prerender.js";
-import { getIndexNowKey } from "./indexnow.js";
+import { getIndexNowOwnership } from "./indexnow.js";
 
 const nhm = new NodeHtmlMarkdown();
 
@@ -818,10 +818,13 @@ app.get("/.well-known/skills.json", (_req: Request, res: Response) => {
 // fetch https://<host>/<key>.txt and confirm the body matches the key before
 // honouring IndexNow submissions. Served at the domain root, before static +
 // the SSR catch-all. Only registered when INDEXNOW_KEY is set.
-const indexNowKey = getIndexNowKey();
-if (indexNowKey) {
-  app.get(`/${indexNowKey}.txt`, (_req: Request, res: Response) => {
-    res.type("text/plain").send(indexNowKey);
+const indexNowOwnership = getIndexNowOwnership();
+if (indexNowOwnership) {
+  app.get(indexNowOwnership.path, (_req: Request, res: Response) => {
+    res.status(indexNowOwnership.status);
+    res.setHeader("Content-Type", indexNowOwnership.contentType);
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.send(indexNowOwnership.body);
   });
 }
 

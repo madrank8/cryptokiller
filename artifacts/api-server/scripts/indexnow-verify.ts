@@ -1,53 +1,78 @@
-// IndexNow wiring verification — standalone, run on demand:
-//
-//   ./scripts/node_modules/.bin/tsx artifacts/api-server/scripts/indexnow-verify.ts
-//   (or: npx tsx artifacts/api-server/scripts/indexnow-verify.ts)
-//
-// It is harmless: it builds canonical URLs via the SAME helpers the publish
-// hooks and the sitemap use, then submits them live to IndexNow (which just
-// asks Bing/Yandex/etc. to recrawl already-public pages). It does NOT touch the
-// database. A 200/202 from the endpoint means the submission was accepted; the
-// search engines then fetch https://cryptokiller.org/{INDEXNOW_KEY}.txt to
-// confirm ownership before honoring the URLs.
-//
-// Slugs below are real published URLs (verified present in /api/sitemap.xml).
-// Pair them with the live sitemap drift check to prove the pinged URLs are
-// byte-identical to what is indexed.
+// Secret-safe live IndexNow health check. This never prints the key or its
+// derived ownership URL. It verifies ownership first, then submits known public
+// canonical URLs and their changed collection hubs.
 
-import { reviewUrls, blogUrl } from "../src/canonical-urls";
-import { submitUrls } from "../src/indexnow";
+import {
+  BLOG_HUB,
+  HOST,
+  INVESTIGATIONS_HUB,
+  blogUrl,
+  reviewUrls,
+} from "../src/canonical-urls";
+import {
+  getIndexNowKey,
+  submitUrls,
+} from "../src/indexnow";
 
 async function main(): Promise<void> {
-  if (!process.env.INDEXNOW_KEY) {
-    console.error("FAIL: INDEXNOW_KEY is not set in the environment.");
+  const key = getIndexNowKey();
+  if (!key) {
+    console.error(
+      "FAIL: INDEXNOW_KEY is missing or invalid in the current environment.",
+    );
     process.exit(1);
   }
 
-  // Master review + a real published es translation (senvix has both),
-  // a master-only review, and a published blog post.
-  const urls = [
-    ...reviewUrls("senvix", [{ locale: "es", slug: "senvix" }]),
-    ...reviewUrls("floventra"),
-    blogUrl("pig-butchering-scam"),
-  ];
+  const ownershipBase = (
+    process.env.INDEXNOW_VERIFY_BASE_URL ?? HOST
+  ).replace(/\/+$/, "");
+  const ownershipResponse = await fetch(
+    `${ownershipBase}/${encodeURIComponent(key)}.txt`,
+    {
+      headers: { "cache-control": "no-cache" },
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  const ownershipBody = await ownershipResponse.text();
+  const contentTypeOk =
+    ownershipResponse.headers.get("content-type")?.startsWith("text/plain") ??
+    false;
+  const bodyMatches = ownershipBody === key;
 
-  console.log("Canonical URLs built by the shared helpers:");
-  for (const u of urls) console.log("  " + u);
-  console.log("");
-
-  const status = await submitUrls(urls);
-  console.log("IndexNow endpoint HTTP status:", status);
-
-  if (status === 200 || status === 202) {
-    console.log("PASS: IndexNow accepted the submission.");
-    process.exit(0);
+  console.log(
+    `Ownership file: status=${ownershipResponse.status} contentTypeOk=${contentTypeOk} bodyMatches=${bodyMatches}`,
+  );
+  if (!ownershipResponse.ok || !contentTypeOk || !bodyMatches) {
+    console.error(
+      "FAIL: configured IndexNow ownership response does not match the secret.",
+    );
+    process.exit(1);
   }
 
-  console.error("FAIL: IndexNow did not accept the submission (expected 200/202).");
-  process.exit(1);
+  const urls = [
+    ...reviewUrls("senvix", [{ locale: "es", slug: "senvix" }]),
+    INVESTIGATIONS_HUB,
+    ...reviewUrls("floventra"),
+    blogUrl("pig-butchering-scam"),
+    BLOG_HUB,
+  ];
+  console.log(`Submitting ${urls.length} canonical content and hub URLs.`);
+
+  const status = await submitUrls(urls);
+  console.log(`IndexNow endpoint status=${status ?? "request-failed"}`);
+  if (status !== 200 && status !== 202) {
+    console.error(
+      "FAIL: IndexNow did not accept the submission; check ownership availability and endpoint status.",
+    );
+    process.exit(1);
+  }
+
+  console.log("PASS: ownership and submission are both verifiable.");
 }
 
-main().catch((err) => {
-  console.error("FAIL: verification threw:", err);
+main().catch(() => {
+  console.error(
+    "FAIL: IndexNow verification threw; credentials were intentionally omitted.",
+  );
   process.exit(1);
 });

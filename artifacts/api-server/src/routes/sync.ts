@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 import { pingIndexNow } from "../indexnow";
-import { reviewUrls } from "../canonical-urls";
+import { reviewIndexNowUrlsForSync } from "../indexnow-publish";
 import { upsertVercelSyncRow, type VercelSyncPayload } from "../lib/platform-aggregates";
 import { createHash } from "crypto";
 
@@ -487,9 +487,13 @@ router.post("/sync/review", async (req, res): Promise<void> => {
     // submission. URLs come from canonical-urls (the single source of truth
     // shared with the sitemap), so a pinged URL is byte-identical to the
     // indexed URL. Never awaited / never throws into the request lifecycle.
-    if ((review.status ?? "published") === "published") {
-      pingIndexNow(reviewUrls(review.slug, translationRefs));
-    }
+    pingIndexNow(
+      reviewIndexNowUrlsForSync(
+        review.slug,
+        review.status,
+        translationRefs,
+      ),
+    );
 
     res.json({
       ok: true,

@@ -67,3 +67,6 @@ export function blogUrl(slug: string): string {
 
 /** Investigations hub landing page. */
 export const INVESTIGATIONS_HUB = `${HOST}/investigations`;
+
+/** Blog collection landing page. */
+export const BLOG_HUB = `${HOST}/blog`;

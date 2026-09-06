@@ -27,6 +27,7 @@ const API_DIR = path.join(ROOT, "artifacts/api-server");
 
 const WEB_PORT = Number(process.env.VERIFY_WEB_PORT ?? 45871);
 const API_PORT = Number(process.env.VERIFY_API_PORT ?? 45872);
+const INDEXNOW_CI_KEY = "indexnow-ci-placeholder";
 
 const children: ChildProcess[] = [];
 
@@ -105,6 +106,24 @@ async function waitForHttp(url: string, label: string, timeoutMs = 60_000): Prom
   throw new Error(`${label} did not become ready at ${url} within ${timeoutMs}ms (${lastError})`);
 }
 
+async function verifyIndexNowOwnership(baseUrl: string): Promise<void> {
+  const response = await fetch(
+    `${baseUrl}/${encodeURIComponent(INDEXNOW_CI_KEY)}.txt`,
+    { signal: AbortSignal.timeout(5_000) },
+  );
+  const body = await response.text();
+  const contentTypeOk =
+    response.headers.get("content-type")?.startsWith("text/plain") ?? false;
+  if (response.status !== 200 || !contentTypeOk || body !== INDEXNOW_CI_KEY) {
+    throw new Error(
+      `IndexNow ownership route mismatch (status=${response.status}, contentTypeOk=${contentTypeOk}, bodyMatches=${body === INDEXNOW_CI_KEY})`,
+    );
+  }
+  console.log(
+    "[verify-agent-api-ci] IndexNow ownership route returns the exact secret body",
+  );
+}
+
 async function main(): Promise<void> {
   // Fast, self-contained lockstep check for the recent-ads JSON-LD (task
   // guard: SSR and hydrated CSR must build identical ad-evidence graphs).
@@ -120,6 +139,12 @@ async function main(): Promise<void> {
   // Render the real SSR functions against the development database and verify
   // crawler-visible home/list/blog/related anchors before bundling.
   await run("verify crawlable discovery links", "pnpm", ["run", "verify:discovery-ssr"], {
+    cwd: WEB_DIR,
+  });
+  // Capture outbound IndexNow requests without a real key or network access.
+  // Covers ownership path/body, publish-state guards, hubs, batching, and
+  // credential-safe failure logging.
+  await run("verify IndexNow contract", "pnpm", ["run", "verify:indexnow"], {
     cwd: WEB_DIR,
   });
   // This fixture check remains effective even when the current dataset has too
@@ -143,11 +168,19 @@ async function main(): Promise<void> {
     "crypto-review SSR",
     "node",
     ["--max-old-space-size=512", "--enable-source-maps", "./dist/server/index.mjs"],
-    { cwd: WEB_DIR, env: { PORT: String(WEB_PORT), NODE_ENV: "production" } },
+    {
+      cwd: WEB_DIR,
+      env: {
+        PORT: String(WEB_PORT),
+        NODE_ENV: "production",
+        INDEXNOW_KEY: INDEXNOW_CI_KEY,
+      },
+    },
   );
 
   await waitForHttp(`http://127.0.0.1:${API_PORT}/api/health`, "api-server");
   await waitForHttp(`http://127.0.0.1:${WEB_PORT}/.well-known/api-catalog`, "crypto-review SSR");
+  await verifyIndexNowOwnership(`http://127.0.0.1:${WEB_PORT}`);
 
   // Step 4: run the actual drift check against the local servers.
   await run("verify-agent-api", "pnpm", ["run", "verify:agent-api"], {
