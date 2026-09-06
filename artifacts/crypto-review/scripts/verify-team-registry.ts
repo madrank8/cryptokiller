@@ -1,6 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
+  AUTHOR_PROFILE_SLUGS,
+  LEGACY_AUTHOR_SLUGS,
+  PUBLIC_AUTHOR_SLUGS,
+} from "@workspace/site-content";
+import {
   EDITORIAL_REVIEWER,
   editorialReviewerFor,
   PUBLIC_TEAM,
@@ -41,6 +46,30 @@ function check(condition: unknown, message: string): void {
 }
 
 check(PUBLIC_TEAM.length === 18, `expected 18 public team members, found ${PUBLIC_TEAM.length}`);
+check(
+  AUTHOR_PROFILE_SLUGS.length === 21,
+  `expected 21 indexable author profiles, found ${AUTHOR_PROFILE_SLUGS.length}`,
+);
+check(
+  new Set(AUTHOR_PROFILE_SLUGS).size === AUTHOR_PROFILE_SLUGS.length,
+  "indexable author profile slugs are not unique",
+);
+check(
+  JSON.stringify([...AUTHOR_PROFILE_SLUGS].sort()) ===
+    JSON.stringify(Object.keys(WRITER_PERSONAS).sort()),
+  "shared sitemap author slugs do not exactly match the writer persona registry",
+);
+check(
+  JSON.stringify(PUBLIC_TEAM.map((person) => person.slug).sort()) ===
+    JSON.stringify([...PUBLIC_AUTHOR_SLUGS].sort()),
+  "public team profiles do not exactly match the shared public author slugs",
+);
+check(
+  LEGACY_AUTHOR_SLUGS.every(
+    (slug) => WRITER_PERSONAS[slug].publicTeam === false,
+  ),
+  "legacy author profiles must stay outside the public team directory",
+);
 check(
   JSON.stringify(PUBLIC_TEAM.map((person) => person.name).sort()) === JSON.stringify(EXPECTED_NAMES),
   "public team names do not match the approved 18-person source roster",

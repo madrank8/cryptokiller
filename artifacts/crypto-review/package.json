@@ -20,6 +20,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "@workspace/db": "workspace:*",
     "@workspace/i18n": "workspace:*",
+    "@workspace/site-content": "workspace:*",
     "compression": "^1.8.1",
     "drizzle-orm": "catalog:",
     "express": "^5",

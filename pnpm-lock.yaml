@@ -194,6 +194,9 @@ importers:
       '@workspace/i18n':
         specifier: workspace:*
         version: link:../../lib/i18n
+      '@workspace/site-content':
+        specifier: workspace:*
+        version: link:../../lib/site-content
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -261,6 +264,9 @@ importers:
       '@workspace/i18n':
         specifier: workspace:*
         version: link:../../lib/i18n
+      '@workspace/site-content':
+        specifier: workspace:*
+        version: link:../../lib/site-content
       compression:
         specifier: ^1.8.1
         version: 1.8.1
@@ -712,6 +718,8 @@ importers:
         version: 0.31.9
 
   lib/i18n: {}
+
+  lib/site-content: {}
 
   scripts:
     dependencies:

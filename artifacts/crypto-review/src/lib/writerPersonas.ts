@@ -1,3 +1,8 @@
+import {
+  PUBLIC_AUTHOR_SLUGS,
+  type AuthorProfileSlug,
+} from "@workspace/site-content";
+
 export type TeamCategory =
   | "Leadership"
   | "Technology & Research"
@@ -39,7 +44,7 @@ const DEX_TEAM_SOURCE = "https://dex.ag/team/";
  * Database-facing keys for existing authors must remain stable. In particular,
  * `pepi` and `majithia` intentionally keep their short historical IDs/slugs.
  */
-export const WRITER_PERSONAS: Record<string, WriterPersona> = {
+const WRITER_PERSONA_DATA = {
   webb: {
     name: "M. Webb",
     slug: "webb",
@@ -420,10 +425,13 @@ export const WRITER_PERSONAS: Record<string, WriterPersona> = {
     linkedin: "https://www.linkedin.com/in/michael-abetz-b24005246/",
     sameAs: ["https://www.linkedin.com/in/michael-abetz-b24005246/"],
   },
-};
+} satisfies Record<AuthorProfileSlug, WriterPersona>;
 
-export const PUBLIC_TEAM = Object.values(WRITER_PERSONAS).filter(
-  (persona) => persona.publicTeam === true,
+export const WRITER_PERSONAS: Record<string, WriterPersona> =
+  WRITER_PERSONA_DATA;
+
+export const PUBLIC_TEAM = PUBLIC_AUTHOR_SLUGS.map(
+  (slug) => WRITER_PERSONAS[slug],
 );
 
 const TEAM_PREVIEW_SLUGS = ["john-feldt", "pepi", "majithia"] as const;

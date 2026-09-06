@@ -14,6 +14,7 @@ import {
   reviewTranslationsTable,
 } from "@workspace/db";
 import { LOCALE_HREFLANG as SITEMAP_LOCALE_HREFLANG } from "@workspace/i18n";
+import { AUTHOR_PROFILE_SLUGS } from "@workspace/site-content";
 import { logger } from "../lib/logger";
 import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
 import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
@@ -717,11 +718,6 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   const ITEMS_PER_PAGE = 20;
   const investigationPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
 
-  // Author profile pages — sourced from the static WRITER_PERSONAS list in
-  // the frontend. These are stable trust-building pages that reinforce E-E-A-T
-  // for YMYL content; keeping them in the sitemap ensures consistent discovery.
-  const AUTHOR_SLUGS = ["webb", "nair", "ortiz", "pepi", "majithia"];
-
   const staticPages = [
     { loc: "/", changefreq: "daily", priority: "1.0", lastmod: globalLastmodStr },
     { loc: "/investigations", changefreq: "daily", priority: "0.9", lastmod: investigationsLastmod },
@@ -736,8 +732,8 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
     // linked from the footer, but historically absent from the sitemap.
     // Trust/transparency page in the same class as privacy/terms.
     { loc: "/ai-disclosure", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
-    ...AUTHOR_SLUGS.map(s => ({
-      loc: `/author/${s}`,
+    ...AUTHOR_PROFILE_SLUGS.map((slug) => ({
+      loc: `/author/${slug}`,
       changefreq: "monthly",
       priority: "0.6",
       lastmod: globalLastmodStr,

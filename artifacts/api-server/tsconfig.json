@@ -15,6 +15,9 @@
     },
     {
       "path": "../../lib/i18n"
+    },
+    {
+      "path": "../../lib/site-content"
     }
   ]
 }
