@@ -14,7 +14,10 @@ import {
   reviewTranslationsTable,
 } from "@workspace/db";
 import { LOCALE_HREFLANG as SITEMAP_LOCALE_HREFLANG } from "@workspace/i18n";
-import { AUTHOR_PROFILE_SLUGS } from "@workspace/site-content";
+import {
+  AUTHOR_PROFILE_SLUGS,
+  RELATED_INVESTIGATIONS_LIMIT,
+} from "@workspace/site-content";
 import { logger } from "../lib/logger";
 import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
 import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
@@ -104,7 +107,7 @@ router.get("/reviews", async (req, res): Promise<void> => {
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
     .where(eq(reviewsTable.status, "published"))
-    .orderBy(asc(reviewsTable.investigationDate));
+    .orderBy(asc(reviewsTable.investigationDate), asc(reviewsTable.slug));
 
   res.json(rows.map(r => ({
     ...r,
@@ -627,8 +630,12 @@ router.get("/reviews/:slug/related", async (req, res): Promise<void> => {
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
     .where(and(eq(reviewsTable.status, "published"), ne(reviewsTable.id, current.id)))
-    .orderBy(desc(reviewsTable.threatScore))
-    .limit(6);
+    .orderBy(
+      desc(reviewsTable.threatScore),
+      asc(reviewsTable.investigationDate),
+      asc(reviewsTable.slug),
+    )
+    .limit(RELATED_INVESTIGATIONS_LIMIT);
 
   res.json(rows.map(r => ({
     ...r,

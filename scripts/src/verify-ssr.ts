@@ -14,6 +14,10 @@ type AuditResult = {
 
 const BASE_URL = (process.env.SSR_AUDIT_BASE_URL ?? "https://cryptokiller.org").replace(/\/+$/, "");
 const GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+const HOMEPAGE_REVIEW_LINK_TARGET = 20;
+const INVESTIGATIONS_PAGE_SIZE = 50;
+const RELATED_LINK_MINIMUM = 6;
+const RELATED_LINK_MAXIMUM = 10;
 
 const STATIC_PATHS = [
   "/",
@@ -34,6 +38,162 @@ function uniq(values: string[]): string[] {
 function extractLocsFromSitemap(xml: string): string[] {
   const matches = [...xml.matchAll(/<loc>(.*?)<\/loc>/gi)];
   return matches.map((m) => m[1].trim()).filter(Boolean);
+}
+
+type HtmlAnchor = {
+  rel: string[];
+  path: string;
+};
+
+function extractAnchors(html: string): HtmlAnchor[] {
+  const parsed: HtmlAnchor[] = [];
+  for (const match of html.matchAll(/<a\b[^>]*>/gi)) {
+    const tag = match[0];
+    const href = tag.match(/\bhref=(["'])(.*?)\1/i)?.[2];
+    if (!href) continue;
+    const rel =
+      tag
+        .match(/\brel=(["'])(.*?)\1/i)?.[2]
+        ?.toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean) ?? [];
+    try {
+      const url = new URL(href, BASE_URL);
+      parsed.push({ rel, path: `${url.pathname}${url.search}` });
+    } catch {
+      // Other route checks cover malformed markup. Discovery auditing only
+      // needs valid crawler-visible anchors.
+    }
+  }
+  return parsed;
+}
+
+function uniquePaths(html: string, prefix: string): string[] {
+  return [
+    ...new Set(
+      extractAnchors(html)
+        .map((anchor) => anchor.path.split("?")[0])
+        .filter((path) => path.startsWith(prefix)),
+    ),
+  ];
+}
+
+async function auditDiscoveryLinks(sitemapPaths: string[]): Promise<string[]> {
+  const failures: string[] = [];
+  const publishedReviewPaths = uniq(
+    sitemapPaths.filter((path) => /^\/review\/[^/]+$/.test(path)),
+  );
+  const publishedBlogPaths = uniq(
+    sitemapPaths.filter((path) => /^\/blog\/[^/]+$/.test(path)),
+  );
+
+  if (publishedReviewPaths.length === 0) {
+    return ["sitemap exposes no published /review/ URLs to validate"];
+  }
+
+  try {
+    const home = await fetchText(`${BASE_URL}/`);
+    const actual = uniquePaths(home.text, "/review/").length;
+    const expected = Math.min(
+      HOMEPAGE_REVIEW_LINK_TARGET,
+      publishedReviewPaths.length,
+    );
+    if (actual < expected) {
+      failures.push(
+        `homepage exposes ${actual} unique review links; expected at least ${expected}`,
+      );
+    }
+  } catch (error) {
+    failures.push(`homepage discovery fetch failed: ${(error as Error).message}`);
+  }
+
+  try {
+    const pageOne = await fetchText(`${BASE_URL}/investigations`);
+    const pageOneLinks = uniquePaths(pageOne.text, "/review/");
+    const expectedPageOne = Math.min(
+      INVESTIGATIONS_PAGE_SIZE,
+      publishedReviewPaths.length,
+    );
+    if (pageOneLinks.length < expectedPageOne) {
+      failures.push(
+        `/investigations exposes ${pageOneLinks.length} unique review links; expected at least ${expectedPageOne}`,
+      );
+    }
+
+    if (publishedReviewPaths.length > INVESTIGATIONS_PAGE_SIZE) {
+      const pageTwo = await fetchText(`${BASE_URL}/investigations?page=2`);
+      const pageTwoLinks = uniquePaths(pageTwo.text, "/review/");
+      const expectedPageTwo = Math.min(
+        INVESTIGATIONS_PAGE_SIZE,
+        publishedReviewPaths.length - INVESTIGATIONS_PAGE_SIZE,
+      );
+      if (pageTwoLinks.length < expectedPageTwo) {
+        failures.push(
+          `/investigations?page=2 exposes ${pageTwoLinks.length} unique review links; expected at least ${expectedPageTwo}`,
+        );
+      }
+      const overlap = pageTwoLinks.filter((path) => pageOneLinks.includes(path));
+      if (overlap.length > 0) {
+        failures.push(
+          `/investigations pages 1 and 2 overlap on ${overlap.length} review link(s)`,
+        );
+      }
+      const hasPreviousAnchor = extractAnchors(pageTwo.text).some(
+        (anchor) =>
+          anchor.path === "/investigations" && anchor.rel.includes("prev"),
+      );
+      if (!hasPreviousAnchor) {
+        failures.push(
+          "/investigations?page=2 has no real rel=prev anchor to /investigations",
+        );
+      }
+    }
+  } catch (error) {
+    failures.push(
+      `investigations discovery fetch failed: ${(error as Error).message}`,
+    );
+  }
+
+  try {
+    const blog = await fetchText(`${BASE_URL}/blog`);
+    const blogLinks = uniquePaths(blog.text, "/blog/");
+    if (blogLinks.length < publishedBlogPaths.length) {
+      failures.push(
+        `/blog exposes ${blogLinks.length} unique post links; sitemap has ${publishedBlogPaths.length}`,
+      );
+    }
+  } catch (error) {
+    failures.push(`blog discovery fetch failed: ${(error as Error).message}`);
+  }
+
+  try {
+    const currentPath = publishedReviewPaths[0];
+    const review = await fetchText(`${BASE_URL}${currentPath}`);
+    const section =
+      review.text.match(
+        /<section[^>]*data-related-investigations[^>]*>[\s\S]*?<\/section>/i,
+      )?.[0] ?? "";
+    const relatedLinks = uniquePaths(section, "/review/");
+    const expectedMinimum = Math.min(
+      RELATED_LINK_MINIMUM,
+      Math.max(0, publishedReviewPaths.length - 1),
+    );
+    if (
+      relatedLinks.length < expectedMinimum ||
+      relatedLinks.length > RELATED_LINK_MAXIMUM
+    ) {
+      failures.push(
+        `${currentPath} exposes ${relatedLinks.length} related review links; expected ${expectedMinimum}–${RELATED_LINK_MAXIMUM}`,
+      );
+    }
+    if (relatedLinks.includes(currentPath)) {
+      failures.push(`${currentPath} includes itself as a related review link`);
+    }
+  } catch (error) {
+    failures.push(`related-link discovery fetch failed: ${(error as Error).message}`);
+  }
+
+  return failures;
 }
 
 function stripHtmlToWords(html: string): number {
@@ -278,14 +438,15 @@ async function main(): Promise<void> {
   const sitemapUrl = `${BASE_URL}/sitemap.xml`;
 
   const routes: string[] = [...STATIC_PATHS];
+  let sitemapPaths: string[] = [];
 
   try {
     const { status, text } = await fetchText(sitemapUrl);
     if (status === 200) {
-      const locs = extractLocsFromSitemap(text)
+      sitemapPaths = extractLocsFromSitemap(text)
         .filter((u) => u.startsWith(BASE_URL))
         .map((u) => u.replace(BASE_URL, ""));
-      routes.push(...locs);
+      routes.push(...sitemapPaths);
     }
   } catch {
     // Non-fatal: static routes are still audited.
@@ -326,6 +487,7 @@ async function main(): Promise<void> {
     robots.text,
   );
   const robotsOk = robots.status === 200 && robotsHasContentSignal;
+  const discoveryFailures = await auditDiscoveryLinks(sitemapPaths);
 
   const failed = results.filter((r) => !r.passed);
   console.log(`SSR audit base: ${BASE_URL}`);
@@ -344,7 +506,15 @@ async function main(): Promise<void> {
     console.log(`FAIL ${r.url} :: ${r.reason ?? "unknown"}`);
   }
 
-  if (!robotsOk || failed.length > 0) {
+  if (discoveryFailures.length === 0) {
+    console.log("PASS crawlable discovery links");
+  } else {
+    for (const failure of discoveryFailures) {
+      console.log(`FAIL discovery :: ${failure}`);
+    }
+  }
+
+  if (!robotsOk || failed.length > 0 || discoveryFailures.length > 0) {
     process.exit(1);
   }
 }

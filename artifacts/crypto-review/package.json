@@ -14,6 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "indexnow:backfill": "tsx scripts/indexnow-backfill.ts",
     "verify:ad-evidence": "tsx scripts/verify-ad-evidence-lockstep.ts",
+    "verify:discovery-ssr": "tsx scripts/verify-discovery-ssr.ts",
     "verify:team": "tsx scripts/verify-team-registry.ts"
   },
   "dependencies": {

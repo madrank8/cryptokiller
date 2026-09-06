@@ -3,6 +3,7 @@ import { useListReviews } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
 import type { ReviewSummary } from "@workspace/api-client-react";
+import { INVESTIGATIONS_ITEMS_PER_PAGE } from "@workspace/site-content";
 import {
   Shield, ShieldAlert, Globe, BarChart2,
   Search, ArrowRight, ArrowUpDown,
@@ -20,7 +21,6 @@ type SortKey = "threatScore" | "newest" | "adCreatives" | "countriesTargeted" | 
 type ThreatFilter = "all" | "critical" | "high" | "medium" | "low";
 type ViewMode = "grid" | "list";
 
-const ITEMS_PER_PAGE = 20;
 const BASE = "https://cryptokiller.org";
 
 function getPageFromUrl(): number {
@@ -242,9 +242,12 @@ export default function InvestigationsPage() {
   }, [reviews, searchQuery, sortBy, threatFilter]);
 
   const dataLoaded = filtered.length > 0 || (reviews && reviews.length === 0);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / INVESTIGATIONS_ITEMS_PER_PAGE));
   const clampedPage = dataLoaded ? Math.min(currentPage, totalPages) : currentPage;
-  const paged = filtered.slice((clampedPage - 1) * ITEMS_PER_PAGE, clampedPage * ITEMS_PER_PAGE);
+  const paged = filtered.slice(
+    (clampedPage - 1) * INVESTIGATIONS_ITEMS_PER_PAGE,
+    clampedPage * INVESTIGATIONS_ITEMS_PER_PAGE,
+  );
 
   useEffect(() => {
     if (dataLoaded && clampedPage !== currentPage) {
@@ -299,9 +302,9 @@ export default function InvestigationsPage() {
       pageNode.mainEntity = {
         "@type": "ItemList",
         numberOfItems: filtered.length,
-        itemListElement: filtered.slice(0, 20).map((r, idx) => ({
+        itemListElement: paged.map((r, idx) => ({
           "@type": "ListItem",
-          position: idx + 1,
+          position: (clampedPage - 1) * INVESTIGATIONS_ITEMS_PER_PAGE + idx + 1,
           url: `${BASE}/review/${r.slug}`,
           name: `${r.platformName} Scam Review`,
         })),
@@ -316,7 +319,7 @@ export default function InvestigationsPage() {
         pageNode,
       ],
     };
-  }, [clampedPage, filtered, crumbs]);
+  }, [clampedPage, filtered.length, paged, crumbs]);
 
   usePageMeta({
     title: clampedPage > 1
@@ -510,7 +513,7 @@ export default function InvestigationsPage() {
           <>
             <div className="flex items-center justify-between mb-5">
               <p className="text-sm text-slate-500">
-                Showing <span className="text-slate-300 font-medium">{(clampedPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(clampedPage * ITEMS_PER_PAGE, filtered.length)}</span> of{" "}
+                Showing <span className="text-slate-300 font-medium">{(clampedPage - 1) * INVESTIGATIONS_ITEMS_PER_PAGE + 1}–{Math.min(clampedPage * INVESTIGATIONS_ITEMS_PER_PAGE, filtered.length)}</span> of{" "}
                 <span className="text-slate-300 font-medium">{filtered.length}</span> investigations
               </p>
             </div>

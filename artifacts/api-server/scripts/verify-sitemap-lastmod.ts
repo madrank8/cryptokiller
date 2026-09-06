@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   buildInvestigationPaginationPages,
   buildSitemapHubLastmods,
+  INVESTIGATIONS_ITEMS_PER_PAGE,
   renderSitemapPage,
 } from "../src/lib/sitemap-pages.ts";
 
@@ -39,12 +40,13 @@ assert.equal(
   "a newer blog post must advance only the blog hub lastmod",
 );
 
-const fixturePages = buildInvestigationPaginationPages(45);
+const fixtureReviewCount = INVESTIGATIONS_ITEMS_PER_PAGE * 2 + 5;
+const fixturePages = buildInvestigationPaginationPages(fixtureReviewCount);
 
 assert.deepEqual(
   fixturePages.map((page) => page.loc),
   ["/investigations?page=2", "/investigations?page=3"],
-  "45 reviews should produce exactly the page 2 and page 3 sitemap entries",
+  `${fixtureReviewCount} reviews should produce exactly the page 2 and page 3 sitemap entries`,
 );
 assert.ok(
   fixturePages.every((page) => page.lastmod === undefined),

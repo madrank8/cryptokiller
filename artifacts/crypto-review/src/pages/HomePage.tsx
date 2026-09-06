@@ -3,6 +3,7 @@ import { useListReviews } from "@workspace/api-client-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { substituteStatTokensInReview } from "@/lib/statTokens";
 import type { ReviewSummary } from "@workspace/api-client-react";
+import { HOMEPAGE_LATEST_REVIEW_LINKS } from "@workspace/site-content";
 import {
   Shield, ShieldAlert, Globe, BarChart2, Clock,
   ArrowRight, Search, Eye, AlertTriangle,
@@ -428,8 +429,13 @@ function LatestReviews({ reviews }: { reviews: ReviewSummary[] | undefined }) {
   if (!reviews || reviews.length === 0) return null;
 
   const latest = [...reviews]
-    .sort((a, b) => new Date(b.investigationDate).getTime() - new Date(a.investigationDate).getTime())
-    .slice(0, 10);
+    .sort((a, b) => {
+      const dateDelta =
+        new Date(b.investigationDate).getTime() -
+        new Date(a.investigationDate).getTime();
+      return dateDelta || a.slug.localeCompare(b.slug);
+    })
+    .slice(0, HOMEPAGE_LATEST_REVIEW_LINKS);
 
   return (
     <section id="latest" className="container mx-auto px-4 max-w-6xl py-16 border-t border-slate-800">

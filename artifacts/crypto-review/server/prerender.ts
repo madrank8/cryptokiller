@@ -1,5 +1,5 @@
 // build-cache-bust: 2026-05-19T11:40Z
-import { eq, and, desc, sql, asc, count } from "drizzle-orm";
+import { eq, and, desc, sql, asc, count, ne } from "drizzle-orm";
 import {
   db,
   reviewsTable,
@@ -20,6 +20,11 @@ import {
   formatLocaleDate,
   STALE_TRANSLATION_THRESHOLD_MS,
 } from "@workspace/i18n";
+import {
+  HOMEPAGE_LATEST_REVIEW_LINKS,
+  INVESTIGATIONS_ITEMS_PER_PAGE,
+  RELATED_INVESTIGATIONS_LIMIT,
+} from "@workspace/site-content";
 import {
   EDITORIAL_REVIEWER,
   PUBLIC_TEAM,
@@ -62,6 +67,7 @@ import {
 import { sanitizeRichHtml } from "./html-sanitizer.js";
 import { getRecentAdsForBrand } from "./supabase-recent-ads.js";
 import { buildAdEvidenceGraph } from "../src/lib/adEvidenceSchema.js";
+import { renderRelatedInvestigationsHtml } from "./discovery-links.js";
 
 // Fetch the combined platform-aggregate snapshot used to substitute
 // {{platform_stat:KEY}} tokens on blog renders. Vercel-synced fields come
@@ -533,6 +539,7 @@ async function renderHome(): Promise<RenderResult> {
       threatScore: reviewsTable.threatScore,
       verdict: reviewsTable.verdict,
       platformName: platformsTable.name,
+      investigationDate: reviewsTable.investigationDate,
       updatedAt: reviewsTable.updatedAt,
       ...LIST_ROW_STATS_COLUMNS,
     })
@@ -540,12 +547,17 @@ async function renderHome(): Promise<RenderResult> {
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
     .where(eq(reviewsTable.status, "published"))
-    .orderBy(desc(reviewsTable.updatedAt))
-    .limit(8);
+    .orderBy(
+      desc(reviewsTable.investigationDate),
+      asc(reviewsTable.slug),
+    )
+    .limit(HOMEPAGE_LATEST_REVIEW_LINKS);
 
-  const lastModified = recent[0]?.updatedAt
-    ? new Date(recent[0].updatedAt).toUTCString()
-    : undefined;
+  const latestRenderedUpdate = recent.reduce<Date | undefined>((latest, review) => {
+    const updatedAt = new Date(review.updatedAt);
+    return !latest || updatedAt > latest ? updatedAt : latest;
+  }, undefined);
+  const lastModified = latestRenderedUpdate?.toUTCString();
 
   const title = "CryptoKiller — Crypto Scam Checker & Investigations";
   const description =
@@ -618,8 +630,6 @@ ${analystDirectoryHtml(TEAM_PREVIEW, "team-heading", "Meet the team")}
 async function renderInvestigationsList(query: URLSearchParams): Promise<RenderResult> {
   const rawPage = query.get("page");
   const parsedNum = rawPage !== null ? Number(rawPage) : NaN;
-  const PER_PAGE = 20;
-
   // Malformed or zero/negative page param → 301 to /investigations
   if (rawPage !== null && (Number.isNaN(parsedNum) || !Number.isFinite(parsedNum) || parsedNum < 1 || !Number.isInteger(parsedNum))) {
     return {
@@ -655,7 +665,10 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     .from(reviewsTable)
     .where(eq(reviewsTable.status, "published"));
 
-  const totalPages = Math.max(1, Math.ceil(count / PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(count / INVESTIGATIONS_ITEMS_PER_PAGE),
+  );
 
   // Out-of-range page → 301 to the last valid page
   if (pageNum > totalPages) {
@@ -685,9 +698,13 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
     .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
     .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
     .where(eq(reviewsTable.status, "published"))
-    .orderBy(desc(reviewsTable.updatedAt))
-    .limit(PER_PAGE)
-    .offset((pageNum - 1) * PER_PAGE);
+    .orderBy(
+      desc(reviewsTable.threatScore),
+      asc(reviewsTable.investigationDate),
+      asc(reviewsTable.slug),
+    )
+    .limit(INVESTIGATIONS_ITEMS_PER_PAGE)
+    .offset((pageNum - 1) * INVESTIGATIONS_ITEMS_PER_PAGE);
 
   const title =
     pageNum > 1
@@ -713,7 +730,7 @@ async function renderInvestigationsList(query: URLSearchParams): Promise<RenderR
   const bodyHtml = `${siteHeaderHtml()}<main>
 <h1>Crypto Scam Investigations</h1>
 <p>${count.toLocaleString()} published investigations. Showing page ${pageNum} of ${totalPages}.</p>
-<ol start="${(pageNum - 1) * PER_PAGE + 1}">${itemsHtml}</ol>
+<ol start="${(pageNum - 1) * INVESTIGATIONS_ITEMS_PER_PAGE + 1}">${itemsHtml}</ol>
 <nav aria-label="Pagination">${prevPage ? `<a rel="prev" href="${esc(prevPage)}">Previous</a> · ` : ""}${nextPage ? `<a rel="next" href="${esc(nextPage)}">Next</a>` : ""}</nav>
 </main>${siteFooterHtml()}`;
 
@@ -771,8 +788,7 @@ async function renderBlogList(): Promise<RenderResult> {
       })
       .from(blogPostsTable)
       .where(eq(blogPostsTable.status, "published"))
-      .orderBy(desc(blogPostsTable.updatedAt))
-      .limit(50),
+      .orderBy(desc(blogPostsTable.updatedAt), asc(blogPostsTable.slug)),
     fetchPlatformAggregatesForRender(),
   ]);
   const rows = stripMarkdownLinksDeep(
@@ -1102,7 +1118,7 @@ async function renderReview(
   //    rendered into the server HTML, so Google saw ~10% of the actual
   //    investigation content.
   // eslint-disable-next-line prefer-const
-  let [redFlags, faqItems, keyFindings, funnelStages, recentAds] = await Promise.all([
+  let [redFlags, faqItems, keyFindings, funnelStages, recentAds, relatedReviews] = await Promise.all([
     db
       .select({
         emoji: redFlagsTable.emoji,
@@ -1143,6 +1159,32 @@ async function renderReview(
     // original language, landing URL) is in the HTML Google and AI
     // Overviews crawl. Empty array → section omitted.
     getRecentAdsForBrand(row.platformName),
+    // Keep the first-byte related-review graph in lockstep with
+    // GET /reviews/:slug/related: published peers, highest threat first,
+    // deterministic date/slug tie-breakers, and the shared six-link cap.
+    db
+      .select({
+        slug: reviewsTable.slug,
+        platformName: platformsTable.name,
+        threatScore: reviewsTable.threatScore,
+        verdict: reviewsTable.verdict,
+        ...LIST_ROW_STATS_COLUMNS,
+      })
+      .from(reviewsTable)
+      .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+      .leftJoin(reviewStatsTable, eq(reviewStatsTable.reviewId, reviewsTable.id))
+      .where(
+        and(
+          eq(reviewsTable.status, "published"),
+          ne(reviewsTable.id, row.id),
+        ),
+      )
+      .orderBy(
+        desc(reviewsTable.threatScore),
+        asc(reviewsTable.investigationDate),
+        asc(reviewsTable.slug),
+      )
+      .limit(RELATED_INVESTIGATIONS_LIMIT),
   ]);
 
   // ── Defensive funnel_stages dedup ─────────────────────────────────────
@@ -1932,6 +1974,15 @@ async function renderReview(
     : `<p>Methodology: <a href="/methodology">cryptokiller.org/methodology</a></p>`;
   const fullArticleBylineHtml = `<p data-review-byline><strong>Investigation by:</strong> ${bylineAuthorHtml}${bylinePublished ? ` · Published ${bylinePublished}` : ""}${showBylineUpdated ? ` · Updated ${bylineUpdated}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""} · <a href="/methodology">How we score scams</a></p>
 <div data-review-trust>${reviewTrustHtml}<p>All threat scores are based on verifiable ad evidence from Meta Ad Library and Google Ads Transparency. <a href="/methodology">How we investigate →</a></p></div>`;
+  const relatedInvestigationsHtml = renderRelatedInvestigationsHtml(
+    row.slug,
+    relatedReviews.map((related) => ({
+      slug: related.slug,
+      platformName: related.platformName,
+      threatScore: related.threatScore,
+      verdict: substituteListRowText(related.verdict, related),
+    })),
+  );
 
   const bodyHtml = fullArticleBodyHtml
     ? // ── Modern path (post-Task 7D rows): writer-emitted full_article ──
@@ -1950,6 +2001,7 @@ ${fullArticleBodyHtml}
 </article>
 ${recentAdsHtml}
 ${adEvidenceHtml}
+${relatedInvestigationsHtml}
 ${preferredSourceHtml()}
 <nav aria-label="Investigation footer"><p><a href="/investigations">Back to all investigations</a> · <a href="/methodology">How we score scams</a> · <a href="/report">Report a related scam</a></p></nav>
 </main>${siteFooterHtml()}`
@@ -1986,6 +2038,7 @@ ${faqHtml}
 ${sourcesHtml}
 ${notForYouHtml}
 ${disclaimerText ? `<section><h2>Editorial notes &amp; disclaimer</h2>${paragraphize(disclaimerText)}</section>` : ""}
+${relatedInvestigationsHtml}
 <p><strong>Investigation by:</strong> ${reviewPersona
   ? `<a href="/author/${reviewPersona.slug}" rel="author">${esc(reviewPersona.name)}</a>`
   : esc(row.author || "CryptoKiller Research Team")}${datePublished ? ` · Published ${new Date(datePublished).toISOString().split("T")[0]}` : ""}${row.readingMinutes ? ` · ${row.readingMinutes}-minute read` : ""}${row.wordCount ? ` · ${row.wordCount.toLocaleString()} words` : ""}</p>

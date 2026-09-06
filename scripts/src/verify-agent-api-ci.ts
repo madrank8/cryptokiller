@@ -117,6 +117,11 @@ async function main(): Promise<void> {
   await run("verify author sitemap parity", "pnpm", ["run", "verify:team"], {
     cwd: WEB_DIR,
   });
+  // Render the real SSR functions against the development database and verify
+  // crawler-visible home/list/blog/related anchors before bundling.
+  await run("verify crawlable discovery links", "pnpm", ["run", "verify:discovery-ssr"], {
+    cwd: WEB_DIR,
+  });
   // This fixture check remains effective even when the current dataset has too
   // few reviews to emit /investigations?page=2 in the generated sitemap.
   await run("verify sitemap lastmod policy", "pnpm", ["run", "verify:sitemap-lastmod"], {

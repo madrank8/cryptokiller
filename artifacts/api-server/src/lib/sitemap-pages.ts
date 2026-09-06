@@ -1,11 +1,13 @@
+import { INVESTIGATIONS_ITEMS_PER_PAGE } from "@workspace/site-content";
+
+export { INVESTIGATIONS_ITEMS_PER_PAGE };
+
 export interface SitemapPage {
   loc: string;
   changefreq: string;
   priority: string;
   lastmod?: string;
 }
-
-export const INVESTIGATIONS_ITEMS_PER_PAGE = 20;
 
 type DateValue = Date | string | null | undefined;
 
