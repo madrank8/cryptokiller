@@ -117,6 +117,11 @@ async function main(): Promise<void> {
   await run("verify author sitemap parity", "pnpm", ["run", "verify:team"], {
     cwd: WEB_DIR,
   });
+  // This fixture check remains effective even when the current dataset has too
+  // few reviews to emit /investigations?page=2 in the generated sitemap.
+  await run("verify sitemap lastmod policy", "pnpm", ["run", "verify:sitemap-lastmod"], {
+    cwd: API_DIR,
+  });
   // Step 1: build the crypto-review client + SSR server (discovery docs are
   // only served by the built server, never by Vite dev).
   await run("build crypto-review", "pnpm", ["run", "build"], { cwd: WEB_DIR });

@@ -13,3 +13,4 @@
 - [Recent-ads CTA safety policy](crypto-review-recent-ads-cta.md) — "view ad" hrefs may only be FB permalink or Ad Library search; raw link_url never leaves the lockstep supabase-recent-ads pair.
 - [crypto-review www & GSC robots quirks](crypto-review-www-domain.md) — www fixed via CF "WWW→root" 301 rule (www record must stay proxied; never link www on Replit); apex "1 issue" = intentional Content-Signal line.
 - [DEX team source-link policy](dex-team-source-links.md) — most guessed individual DEX team URLs 404; use only live profiles, otherwise link the team directory.
+- [Sitemap lastmod truthfulness](sitemap-lastmod-truthfulness.md) — use only changes rendered on that URL; omit dates for sorted page slices without persisted revision history.

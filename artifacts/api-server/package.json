@@ -7,7 +7,8 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify:sitemap-lastmod": "node --experimental-strip-types --no-warnings=ExperimentalWarning ./scripts/verify-sitemap-lastmod.ts"
   },
   "dependencies": {
     "@knownagents/sdk": "^1.11.0",

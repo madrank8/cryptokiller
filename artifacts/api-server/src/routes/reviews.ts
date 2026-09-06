@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, desc, ne, and, max } from "drizzle-orm";
+import { eq, asc, desc, ne, and } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   platformsTable,
@@ -18,6 +18,12 @@ import { AUTHOR_PROFILE_SLUGS } from "@workspace/site-content";
 import { logger } from "../lib/logger";
 import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
 import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
+import {
+  buildInvestigationPaginationPages,
+  buildSitemapHubLastmods,
+  renderSitemapPage,
+  type SitemapPage,
+} from "../lib/sitemap-pages";
 import {
   HOST,
   LOCALE_URL_SEGMENT,
@@ -656,7 +662,7 @@ function xmlLoc(url: string): string {
 // @workspace/i18n (SITEMAP_LOCALE_HREFLANG, imported above).
 
 router.get("/sitemap.xml", async (_req, res): Promise<void> => {
-  const [rows, blogRows, latestDates, translationRows] = await Promise.all([
+  const [rows, blogRows, translationRows] = await Promise.all([
     db
       .select({
         id: reviewsTable.id,
@@ -674,16 +680,6 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
       .from(blogPostsTable)
       .where(eq(blogPostsTable.status, "published"))
       .orderBy(desc(blogPostsTable.updatedAt)),
-    Promise.all([
-      db
-        .select({ latest: max(reviewsTable.updatedAt) })
-        .from(reviewsTable)
-        .where(eq(reviewsTable.status, "published")),
-      db
-        .select({ latest: max(blogPostsTable.updatedAt) })
-        .from(blogPostsTable)
-        .where(eq(blogPostsTable.status, "published")),
-    ]),
     // Phase 6 — published review_translations. Grouped per-review-id so we
     // can attach xhtml:link clusters to each master URL AND emit a `<url>`
     // entry per locale with the same reciprocal cluster.
@@ -698,45 +694,36 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
       .where(eq(reviewTranslationsTable.status, "published")),
   ]);
 
-  const latestReviewDate = latestDates[0][0]?.latest;
-  const latestBlogDate = latestDates[1][0]?.latest;
-  const globalLastmod = [latestReviewDate, latestBlogDate]
-    .filter(Boolean)
-    .map((d) => new Date(d!).getTime())
-    .sort((a, b) => b - a)[0];
-  const globalLastmodStr = globalLastmod
-    ? new Date(globalLastmod).toISOString().split("T")[0]
-    : new Date().toISOString().split("T")[0];
+  const latestReviewDate = rows[0]?.updatedAt;
+  const latestBlogDate = blogRows[0]?.updatedAt;
+  const {
+    homepageLastmod,
+    investigationsLastmod,
+    blogLastmod,
+  } = buildSitemapHubLastmods({ latestReviewDate, latestBlogDate });
 
-  const investigationsLastmod = latestReviewDate
-    ? new Date(latestReviewDate).toISOString().split("T")[0]
-    : globalLastmodStr;
-  const blogLastmod = latestBlogDate
-    ? new Date(latestBlogDate).toISOString().split("T")[0]
-    : globalLastmodStr;
-
-  const ITEMS_PER_PAGE = 20;
-  const investigationPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
-
-  const staticPages = [
-    { loc: "/", changefreq: "daily", priority: "1.0", lastmod: globalLastmodStr },
+  // Only publish a lastmod when it can be tied to changes on that URL. The blog
+  // renders its full published collection, while homepage and investigations
+  // are sorted/truncated review views that lack page-revision timestamps.
+  // Trust pages and author profiles also lack page-specific revision metadata.
+  const staticPages: SitemapPage[] = [
+    { loc: "/", changefreq: "daily", priority: "1.0", lastmod: homepageLastmod },
     { loc: "/investigations", changefreq: "daily", priority: "0.9", lastmod: investigationsLastmod },
     { loc: "/blog", changefreq: "daily", priority: "0.8", lastmod: blogLastmod },
-    { loc: "/methodology", changefreq: "monthly", priority: "0.8", lastmod: globalLastmodStr },
-    { loc: "/report", changefreq: "monthly", priority: "0.7", lastmod: globalLastmodStr },
-    { loc: "/about", changefreq: "monthly", priority: "0.6", lastmod: globalLastmodStr },
-    { loc: "/recovery", changefreq: "monthly", priority: "0.7", lastmod: globalLastmodStr },
-    { loc: "/privacy", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
-    { loc: "/terms", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
+    { loc: "/methodology", changefreq: "monthly", priority: "0.8" },
+    { loc: "/report", changefreq: "monthly", priority: "0.7" },
+    { loc: "/about", changefreq: "monthly", priority: "0.6" },
+    { loc: "/recovery", changefreq: "monthly", priority: "0.7" },
+    { loc: "/privacy", changefreq: "yearly", priority: "0.3" },
+    { loc: "/terms", changefreq: "yearly", priority: "0.3" },
     // AI-disclosure page: live, indexable (index,follow + self-canonical),
     // linked from the footer, but historically absent from the sitemap.
     // Trust/transparency page in the same class as privacy/terms.
-    { loc: "/ai-disclosure", changefreq: "yearly", priority: "0.3", lastmod: globalLastmodStr },
+    { loc: "/ai-disclosure", changefreq: "yearly", priority: "0.3" },
     ...AUTHOR_PROFILE_SLUGS.map((slug) => ({
       loc: `/author/${slug}`,
       changefreq: "monthly",
       priority: "0.6",
-      lastmod: globalLastmodStr,
     })),
   ];
 
@@ -780,11 +767,11 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
 
   for (const p of staticPages) {
-    xml += `  <url>\n    <loc>${base}${p.loc}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>\n`;
+    xml += renderSitemapPage(base, p);
   }
 
-  for (let page = 2; page <= investigationPages; page++) {
-    xml += `  <url>\n    <loc>${base}/investigations?page=${page}</loc>\n    <lastmod>${investigationsLastmod}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+  for (const p of buildInvestigationPaginationPages(rows.length)) {
+    xml += renderSitemapPage(base, p);
   }
 
   for (const r of rows) {

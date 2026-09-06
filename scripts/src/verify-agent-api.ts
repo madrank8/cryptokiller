@@ -113,6 +113,99 @@ function validateSchema(url: string, schema: unknown, body: unknown): void {
   }
 }
 
+interface SitemapEntry {
+  loc: string;
+  lastmod?: string;
+}
+
+function parseSitemapEntries(xml: string): SitemapEntry[] {
+  const entries: SitemapEntry[] = [];
+  for (const match of xml.matchAll(/<url>\s*([\s\S]*?)<\/url>/g)) {
+    const body = match[1];
+    const loc = body.match(/<loc>([^<]+)<\/loc>/)?.[1];
+    if (!loc) continue;
+    const lastmod = body.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1];
+    entries.push({ loc, ...(lastmod ? { lastmod } : {}) });
+  }
+  return entries;
+}
+
+function verifySitemapFreshness(entries: SitemapEntry[]): void {
+  const undatedStaticPaths = new Set([
+    "/methodology",
+    "/report",
+    "/about",
+    "/recovery",
+    "/privacy",
+    "/terms",
+    "/ai-disclosure",
+  ]);
+  const entriesByLocation = new Map<string, SitemapEntry>();
+  const today = new Date().toISOString().slice(0, 10);
+  let paginatedInvestigations = 0;
+  let datedPaginatedInvestigations = 0;
+
+  for (const entry of entries) {
+    const url = new URL(entry.loc);
+    const path = url.pathname;
+    entriesByLocation.set(`${path}${url.search}`, entry);
+
+    if (entry.lastmod) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.lastmod)) {
+        fail(`sitemap ${entry.loc} has invalid lastmod "${entry.lastmod}"`);
+      } else if (entry.lastmod > today) {
+        fail(`sitemap ${entry.loc} has future lastmod "${entry.lastmod}"`);
+      }
+    }
+
+    if ((undatedStaticPaths.has(path) || path.startsWith("/author/")) && entry.lastmod) {
+      fail(`sitemap ${path} reuses an unrelated content lastmod "${entry.lastmod}"`);
+    }
+
+    if (path === "/investigations" && url.searchParams.has("page")) {
+      paginatedInvestigations++;
+      if (entry.lastmod) {
+        datedPaginatedInvestigations++;
+        fail(`sitemap ${path}${url.search} reuses hub-wide lastmod "${entry.lastmod}"`);
+      }
+    }
+  }
+
+  const incorrectlyDated = entries.filter((entry) => {
+    const path = new URL(entry.loc).pathname;
+    return (undatedStaticPaths.has(path) || path.startsWith("/author/")) && entry.lastmod;
+  });
+  if (incorrectlyDated.length === 0) {
+    pass("static trust and author sitemap entries omit unrelated lastmod dates");
+  }
+
+  if (paginatedInvestigations === 0) {
+    console.log("  INFO  current dataset has no paginated investigation entries; fixture policy check covers them");
+  } else if (datedPaginatedInvestigations === 0) {
+    pass(`${paginatedInvestigations} paginated investigation entries omit untrackable lastmod dates`);
+  }
+
+  for (const path of ["/", "/investigations"]) {
+    const entry = entriesByLocation.get(path);
+    if (!entry) {
+      fail(`sitemap is missing sliced review hub ${path}`);
+    } else if (entry.lastmod) {
+      fail(`sitemap sliced review hub ${path} has untrackable lastmod ${entry.lastmod}`);
+    } else {
+      pass(`sitemap sliced review hub ${path} omits untrackable lastmod`);
+    }
+  }
+
+  const blogEntry = entriesByLocation.get("/blog");
+  if (!blogEntry) {
+    fail("sitemap is missing blog hub /blog");
+  } else if (!blogEntry.lastmod) {
+    fail("sitemap blog hub /blog is missing its data-driven lastmod");
+  } else {
+    pass(`sitemap blog hub /blog keeps data-driven lastmod ${blogEntry.lastmod}`);
+  }
+}
+
 interface OpenApiOperation {
   operationId?: string;
   parameters?: Array<{ name: string; in: string; schema?: { enum?: string[] } }>;
@@ -278,6 +371,21 @@ async function main(): Promise<void> {
       pass(`GET ${urlPath} -> 404 (documented: no translation for that locale/slug)`);
     } else {
       fail(`GET ${urlPath} -> ${r.status} (${op.operationId ?? rawPath})`);
+    }
+  }
+
+  // ── Step 5: sitemap lastmod integrity ──
+  console.log("\nStep 5: sitemap lastmod integrity");
+  const sitemapUrl = `${specServerBase}/sitemap.xml`;
+  const sitemap = await get(sitemapUrl);
+  if (expectStatus(sitemapUrl, sitemap, 200)) {
+    expectContentType(sitemapUrl, sitemap, "application/xml");
+    const sitemapEntries = parseSitemapEntries(sitemap.text);
+    if (sitemapEntries.length === 0) {
+      fail(`${sitemapUrl} contains no parseable <url> entries`);
+    } else {
+      pass(`${sitemapUrl} contains ${sitemapEntries.length} parseable <url> entries`);
+      verifySitemapFreshness(sitemapEntries);
     }
   }
 
