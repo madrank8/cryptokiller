@@ -7,7 +7,12 @@ async function main() {
   if (!res.ok) throw new Error(`sitemap fetch failed: ${res.status}`);
   const xml = await res.text();
   const urls = Array.from(xml.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1].trim());
-  console.log(`[indexnow] parsed ${urls.length} urls from ${SITEMAP}`);
+  console.log(`[indexnow] parsed ${urls.length} sitemap URLs`);
   console.log(JSON.stringify(await submitUrls(urls), null, 2));
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch(() => {
+  console.error(
+    "[indexnow-backfill] failed; request details and credentials were intentionally omitted",
+  );
+  process.exit(1);
+});

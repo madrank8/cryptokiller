@@ -41,3 +41,16 @@ publish, gated on `status === "published"`. The scheduled bulk
 `supabase-sync.ts` deliberately does NOT ping — it re-runs every ~15 min over
 all reviews and would flood IndexNow with recrawl requests for unchanged pages.
 Keep pings on the event-driven path only.
+
+## Verify ownership on the built SSR server
+The normal crypto-review development workflow runs the Vite client server only.
+It does not execute the Express ownership route; probing `{key}.txt` through
+that preview returns the SPA shell and creates a false ownership failure.
+
+**Why:** The ownership handler is a production SSR server route, so a
+client-only preview cannot prove its status, content type, or exact body.
+
+**How to apply:** Use the full agent API verifier (which builds and starts the
+SSR bundle with a placeholder key), or start the built SSR bundle temporarily
+and run the secret-safe live verifier against localhost. Never print the real
+key or key-derived path while diagnosing ownership.

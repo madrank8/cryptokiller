@@ -4,7 +4,7 @@
 - [crypto-review tier/funnel guards](crypto-review-tier-funnel-guards.md) — frame_as_scam NOT NULL so ?? fallback never fires; score-gated UI uses tierFromScore; dedup tie-break must match the filter metric.
 - [crypto-review SSR $-pattern hazard](crypto-review-ssr-replace-pattern.md) — applyMeta/SSR shell injection MUST use replace(pattern, () => value); replacement strings let `$`-content ($&/$'/$`) splice/duplicate the document.
 - [Stale lib .d.ts after a merge](merge-stale-lib-dts.md) — post-merge "Property X does not exist" on generated types is stale composite-lib dist; run `pnpm run typecheck:libs`.
-- [IndexNow ↔ sitemap canonical URLs](indexnow-canonical-urls.md) — pinged URLs must be byte-identical to sitemap; build via shared canonical-urls.ts; INDEXNOW_KEY env must match crypto-review's hosted key file; bulk sync must NOT ping.
+- [IndexNow ↔ sitemap canonical URLs](indexnow-canonical-urls.md) — use shared builders; key is runtime-only; verify ownership on built SSR, not Vite preview; bulk sync must not ping.
 - [crypto-review server/scripts typecheck gap](crypto-review-server-typecheck.md) — package typecheck only covers src/**; server/ & scripts/ are esbuild/tsx type-stripped, verify them with a targeted tsc + runtime smoke.
 - [crypto-review cache-freshness policy](crypto-review-cache-freshness.md) — DB-backed dynamic pages (renderPage returns lastModified) send max-age=0 must-revalidate; static keep SWR; homepage revalidating is intentional.
 - [crypto-review SSR review render paths](crypto-review-ssr-review-paths.md) — reviews SSR via two mutually-exclusive branches (full_article vs legacy); current data uses legacy, so per-review SSR additions must cover BOTH.
