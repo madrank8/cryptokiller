@@ -182,6 +182,23 @@ async function main(): Promise<void> {
   await waitForHttp(`http://127.0.0.1:${WEB_PORT}/.well-known/api-catalog`, "crypto-review SSR");
   await verifyIndexNowOwnership(`http://127.0.0.1:${WEB_PORT}`);
 
+  // Browser-level lockstep: verify the visible recent-ad cards and the live
+  // Review.hasPart JSON-LD after first-byte SSR, hydration, SPA away/back, and
+  // a translated review route. Browser API requests are routed to the local
+  // api-server by the Playwright script; the document stays on the SSR origin.
+  await run(
+    "verify browser ad-evidence lockstep",
+    "pnpm",
+    ["run", "verify:ad-evidence:browser"],
+    {
+      cwd: path.join(ROOT, "scripts"),
+      env: {
+        VERIFY_BASE_URL: `http://127.0.0.1:${WEB_PORT}`,
+        VERIFY_API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
+      },
+    },
+  );
+
   // Step 4: run the actual drift check against the local servers.
   await run("verify-agent-api", "pnpm", ["run", "verify:agent-api"], {
     cwd: path.join(ROOT, "scripts"),

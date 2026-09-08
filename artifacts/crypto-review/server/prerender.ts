@@ -1632,7 +1632,7 @@ async function renderReview(
             const ctaHref = safeHttpUrlSsr(ad.ctaUrl);
             if (ctaHref) foot.push(`<a href="${esc(ctaHref)}" target="_blank" rel="${esc(ad.ctaRel || "nofollow noopener")}" class="ra-cta">${esc(ad.ctaLabel ?? "View Facebook post")} <span aria-hidden="true">→</span></a>`);
             if (foot.length) parts.push(`<div class="ra-foot">${foot.join("")}</div>`);
-            return `<article class="recent-ad">${parts.join("")}</article>`;
+            return `<article class="recent-ad" data-ad-evidence-id="${esc(`#ad-evidence-${ad.id}`)}">${parts.join("")}</article>`;
           })
           .join("");
         const subtitle = `${recentAds.length} ad ${recentAds.length === 1 ? "creative" : "creatives"} detected${

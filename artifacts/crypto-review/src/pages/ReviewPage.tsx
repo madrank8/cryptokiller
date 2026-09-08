@@ -444,6 +444,7 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
           return (
             <article
               key={ad.id}
+              data-ad-evidence-id={`#ad-evidence-${ad.id}`}
               className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-slate-700 transition-colors flex flex-col gap-3"
             >
               <div className="flex flex-wrap items-center gap-2 text-[11px]">

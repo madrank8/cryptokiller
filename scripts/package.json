@@ -10,11 +10,13 @@
     "gsc:summary": "tsx ./src/gsc-summary.ts",
     "verify:agent-api": "tsx ./src/verify-agent-api.ts",
     "verify:agent-api:ci": "tsx ./src/verify-agent-api-ci.ts",
+    "verify:ad-evidence:browser": "tsx ./src/verify-ad-evidence-browser.ts",
     "github:sync": "tsx ./src/github-sync.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "playwright-core": "^1.63.0",
     "tsx": "catalog:"
   },
   "dependencies": {
