@@ -9,6 +9,27 @@ export interface SitemapPage {
   lastmod?: string;
 }
 
+export interface SitemapAlternate {
+  hreflang: string;
+  href: string;
+}
+
+export interface SitemapUrlEntry {
+  loc: string;
+  lastmod?: string;
+  changefreq?: string;
+  priority?: string;
+  alternates?: readonly SitemapAlternate[];
+}
+
+export interface SitemapIndexEntry {
+  loc: string;
+  lastmod?: string;
+}
+
+export const SITEMAP_URL_LIMIT = 5_000;
+export const SITEMAP_CACHE_CONTROL = "public, max-age=0, s-maxage=3600";
+
 type DateValue = Date | string | null | undefined;
 
 export interface SitemapHubLastmods {
@@ -58,6 +79,38 @@ export function buildStaticSitemapPages(
   });
 }
 
+export function sitemapShardCount(
+  itemCount: number,
+  includeEmptyShard = false,
+): number {
+  if (!Number.isSafeInteger(itemCount) || itemCount < 0) {
+    throw new Error(`Invalid sitemap item count: ${itemCount}`);
+  }
+  if (itemCount === 0) return includeEmptyShard ? 1 : 0;
+  return Math.ceil(itemCount / SITEMAP_URL_LIMIT);
+}
+
+export function sitemapShardNumbers(
+  itemCount: number,
+  includeEmptyShard = false,
+): number[] {
+  return Array.from(
+    { length: sitemapShardCount(itemCount, includeEmptyShard) },
+    (_, index) => index + 1,
+  );
+}
+
+export function sitemapShardOffset(shardNumber: number): number {
+  if (!Number.isSafeInteger(shardNumber) || shardNumber < 1) {
+    throw new Error(`Invalid sitemap shard number: ${shardNumber}`);
+  }
+  const offset = (shardNumber - 1) * SITEMAP_URL_LIMIT;
+  if (!Number.isSafeInteger(offset)) {
+    throw new Error(`Sitemap shard offset is too large: ${shardNumber}`);
+  }
+  return offset;
+}
+
 function toDateOnly(value: DateValue): string | undefined {
   return value ? new Date(value).toISOString().split("T")[0] : undefined;
 }
@@ -103,10 +156,68 @@ export function buildInvestigationPaginationPages(reviewCount: number): SitemapP
 }
 
 export function renderSitemapPage(base: string, page: SitemapPage): string {
-  let xml = `  <url>\n    <loc>${base}${page.loc}</loc>\n`;
-  if (page.lastmod) {
-    xml += `    <lastmod>${page.lastmod}</lastmod>\n`;
+  return renderSitemapUrl({
+    loc: `${base}${page.loc}`,
+    ...(page.lastmod ? { lastmod: page.lastmod } : {}),
+    changefreq: page.changefreq,
+    priority: page.priority,
+  });
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function xmlUrl(url: string): string {
+  return escapeXml(encodeURI(url));
+}
+
+export function renderSitemapUrl(entry: SitemapUrlEntry): string {
+  let xml = `  <url>\n    <loc>${xmlUrl(entry.loc)}</loc>\n`;
+  if (entry.lastmod) xml += `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n`;
+  if (entry.changefreq) {
+    xml += `    <changefreq>${escapeXml(entry.changefreq)}</changefreq>\n`;
   }
-  xml += `    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
+  if (entry.priority) {
+    xml += `    <priority>${escapeXml(entry.priority)}</priority>\n`;
+  }
+  for (const alternate of entry.alternates ?? []) {
+    xml += `    <xhtml:link rel="alternate" hreflang="${escapeXml(alternate.hreflang)}" href="${xmlUrl(alternate.href)}"/>\n`;
+  }
+  xml += "  </url>\n";
   return xml;
+}
+
+export function renderSitemapUrlSet(
+  entries: readonly SitemapUrlEntry[],
+): string {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
+    ...entries.map(renderSitemapUrl),
+    "</urlset>",
+  ].join("\n");
+}
+
+export function renderSitemapIndex(
+  entries: readonly SitemapIndexEntry[],
+): string {
+  const children = entries.map((entry) => {
+    let xml = `  <sitemap>\n    <loc>${xmlUrl(entry.loc)}</loc>\n`;
+    if (entry.lastmod) {
+      xml += `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n`;
+    }
+    return `${xml}  </sitemap>`;
+  });
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...children,
+    "</sitemapindex>",
+  ].join("\n");
 }

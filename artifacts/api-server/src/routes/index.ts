@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import sitemapRouter from "./sitemap";
 import reviewsRouter from "./reviews";
 import syncRouter from "./sync";
 import supabaseSyncRouter from "./supabase-sync";
@@ -12,6 +13,7 @@ import adminMaintenanceRouter from "./admin-maintenance";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(sitemapRouter);
 router.use(reviewsRouter);
 router.use(syncRouter);
 router.use(supabaseSyncRouter);

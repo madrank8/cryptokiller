@@ -369,6 +369,39 @@ function parseSitemapLocations(xml: string): string[] {
   });
 }
 
+function parseSitemapIndexLocations(xml: string): string[] {
+  const root = xml.match(
+    /^\s*<\?xml\b[\s\S]*?\?>\s*<sitemapindex\b[^>]*>([\s\S]*)<\/sitemapindex>\s*$/i,
+  );
+  assert.ok(root, "root sitemap XML must contain one well-formed <sitemapindex>");
+  const innerXml = root[1];
+  const sitemapPattern =
+    /<sitemap\b[^>]*>[\s\S]*?<\/sitemap>/gi;
+  const sitemapBlocks = Array.from(
+    innerXml.matchAll(sitemapPattern),
+    (match) => match[0],
+  );
+  const unparsed = innerXml.replace(sitemapPattern, "").trim();
+  assert.equal(
+    unparsed,
+    "",
+    `sitemap index contains malformed content: ${unparsed.slice(0, 120)}`,
+  );
+  assert.ok(sitemapBlocks.length > 0, "sitemap index contains no children");
+  return sitemapBlocks.map((block, index) => {
+    const locations = Array.from(
+      block.matchAll(/<loc>([\s\S]*?)<\/loc>/gi),
+      (match) => match[1].trim(),
+    );
+    assert.equal(
+      locations.length,
+      1,
+      `sitemap index child ${index + 1} must contain exactly one <loc>`,
+    );
+    return decodeXml(locations[0]);
+  });
+}
+
 async function fetchText(url: string, redirect: RequestRedirect): Promise<{
   response: Response;
   body: string;
@@ -441,7 +474,7 @@ async function main(): Promise<void> {
     `static sitemap path(s) missing from frontend router: ${missingFromFrontend.join(", ")}`,
   );
 
-  const { response: sitemapResponse, body: sitemapXml } = await fetchText(
+  const { response: sitemapResponse, body: sitemapIndexXml } = await fetchText(
     `${API_BASE_URL}/api/sitemap.xml`,
     "manual",
   );
@@ -457,7 +490,44 @@ async function main(): Promise<void> {
     /^(?:application|text)\/xml\b/i,
     `sitemap endpoint returned non-XML content type: ${sitemapContentType || "missing"}`,
   );
-  const sitemapLocations = parseSitemapLocations(sitemapXml);
+  const sitemapChildren = parseSitemapIndexLocations(sitemapIndexXml);
+  assert.equal(
+    new Set(sitemapChildren).size,
+    sitemapChildren.length,
+    "sitemap index children must be unique",
+  );
+  const coreChildren = sitemapChildren.filter((location) => {
+    try {
+      return new URL(location).pathname === "/api/sitemaps/core.xml";
+    } catch {
+      return false;
+    }
+  });
+  assert.equal(
+    coreChildren.length,
+    1,
+    `sitemap index must contain exactly one core child, found ${coreChildren.length}`,
+  );
+  const canonicalCoreUrl = new URL(coreChildren[0]);
+  const localCoreUrl = new URL(
+    `${canonicalCoreUrl.pathname}${canonicalCoreUrl.search}`,
+    API_BASE_URL,
+  ).toString();
+  const { response: coreResponse, body: coreXml } = await fetchText(
+    localCoreUrl,
+    "manual",
+  );
+  assert.equal(
+    coreResponse.status,
+    200,
+    `core sitemap endpoint returned HTTP ${coreResponse.status}`,
+  );
+  assert.match(
+    coreResponse.headers.get("content-type") ?? "",
+    /^(?:application|text)\/xml\b/i,
+    "core sitemap endpoint must return XML",
+  );
+  const sitemapLocations = parseSitemapLocations(coreXml);
   assertNoDuplicates(
     sitemapLocations.map((location) => {
       try {

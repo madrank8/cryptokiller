@@ -12,7 +12,13 @@ type AuditResult = {
   reason?: string;
 };
 
-const BASE_URL = (process.env.SSR_AUDIT_BASE_URL ?? "https://cryptokiller.org").replace(/\/+$/, "");
+const CANONICAL_ORIGIN = "https://cryptokiller.org";
+const BASE_URL = (
+  process.env.SSR_AUDIT_BASE_URL ?? CANONICAL_ORIGIN
+).replace(/\/+$/, "");
+const API_BASE_URL = (
+  process.env.SSR_AUDIT_API_BASE_URL ?? BASE_URL
+).replace(/\/+$/, "");
 const GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 const HOMEPAGE_REVIEW_LINK_TARGET = 20;
 const INVESTIGATIONS_PAGE_SIZE = 50;
@@ -37,7 +43,50 @@ function uniq(values: string[]): string[] {
 
 function extractLocsFromSitemap(xml: string): string[] {
   const matches = [...xml.matchAll(/<loc>(.*?)<\/loc>/gi)];
-  return matches.map((m) => m[1].trim()).filter(Boolean);
+  return matches
+    .map((m) =>
+      m[1]
+        .trim()
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'"),
+    )
+    .filter(Boolean);
+}
+
+async function collectSitemapUrls(rootUrl: string): Promise<string[]> {
+  const pending = [rootUrl];
+  const visited = new Set<string>();
+  const urls: string[] = [];
+  while (pending.length > 0) {
+    const candidate = new URL(pending.shift()!, BASE_URL);
+    const key = `${candidate.pathname}${candidate.search}`;
+    if (visited.has(key)) {
+      throw new Error(`duplicate or cyclic sitemap child ${key}`);
+    }
+    visited.add(key);
+    const { status, text } = await fetchText(`${API_BASE_URL}${key}`);
+    if (status !== 200) {
+      throw new Error(`sitemap child ${key} returned ${status}`);
+    }
+    const locations = extractLocsFromSitemap(text);
+    if (/<sitemapindex\b/i.test(text)) {
+      if (locations.length === 0) {
+        throw new Error(`sitemap index ${key} contains no children`);
+      }
+      pending.push(...locations);
+    } else if (/<urlset\b/i.test(text)) {
+      urls.push(...locations);
+    } else {
+      throw new Error(`unexpected sitemap root at ${key}`);
+    }
+  }
+  if (new Set(urls).size !== urls.length) {
+    throw new Error("flattened sitemap contains duplicate canonical URLs");
+  }
+  return urls;
 }
 
 type HtmlAnchor = {
@@ -221,7 +270,17 @@ async function fetchText(url: string): Promise<{ status: number; text: string }>
 function normalizeUrl(input: string): string {
   const u = new URL(input);
   const path = u.pathname === "/" ? "/" : u.pathname.replace(/\/+$/, "");
-  return `${u.origin}${path}`;
+  return `${u.origin}${path}${u.search}`;
+}
+
+function verifyCanonicalNormalizationFixture(): void {
+  const hub = `${CANONICAL_ORIGIN}/investigations`;
+  const pageTwo = `${hub}?page=2`;
+  if (normalizeUrl(hub) === normalizeUrl(pageTwo)) {
+    throw new Error(
+      "canonical normalization must preserve pagination query parameters",
+    );
+  }
 }
 
 function extractCanonicalHref(html: string): string | null {
@@ -360,13 +419,17 @@ function schemaTemplatePass(path: string, typeSet: Set<string>): boolean {
 }
 
 function auditPage(url: string, status: number, html: string): AuditResult {
-  const pathname = new URL(url).pathname;
+  const parsedUrl = new URL(url);
+  const pathname = parsedUrl.pathname;
   const wordCount = stripHtmlToWords(html);
   const hasJsonLd = /<script[^>]*type=["']application\/ld\+json["'][^>]*>/i.test(html);
   const hasBase44Leak = html.includes("crypto-killer.base44.app");
   const hasSsrMarkers = html.includes('data-ssr="1"') || html.includes('data-ssr-jsonld="1"');
   const canonicalHref = extractCanonicalHref(html);
-  const canonicalOk = !!canonicalHref && normalizeUrl(canonicalHref) === normalizeUrl(url);
+  const expectedCanonical = `${CANONICAL_ORIGIN}${pathname}${parsedUrl.search}`;
+  const canonicalOk =
+    !!canonicalHref &&
+    normalizeUrl(canonicalHref) === normalizeUrl(expectedCanonical);
   const nodes = extractJsonLdNodes(html);
   const typeSet = new Set(nodes.map(nodeType).filter((x): x is string => !!x));
   const schemaTemplateOk = schemaTemplatePass(pathname, typeSet);
@@ -434,20 +497,22 @@ function auditPage(url: string, status: number, html: string): AuditResult {
 }
 
 async function main(): Promise<void> {
+  verifyCanonicalNormalizationFixture();
   const robotsUrl = `${BASE_URL}/robots.txt`;
-  const sitemapUrl = `${BASE_URL}/sitemap.xml`;
+  const sitemapUrl =
+    API_BASE_URL === BASE_URL
+      ? `${BASE_URL}/sitemap.xml`
+      : `${API_BASE_URL}/api/sitemap.xml`;
 
   const routes: string[] = [...STATIC_PATHS];
   let sitemapPaths: string[] = [];
 
   try {
-    const { status, text } = await fetchText(sitemapUrl);
-    if (status === 200) {
-      sitemapPaths = extractLocsFromSitemap(text)
-        .filter((u) => u.startsWith(BASE_URL))
-        .map((u) => u.replace(BASE_URL, ""));
-      routes.push(...sitemapPaths);
-    }
+    sitemapPaths = (await collectSitemapUrls(sitemapUrl)).map((location) => {
+      const parsed = new URL(location);
+      return `${parsed.pathname}${parsed.search}`;
+    });
+    routes.push(...sitemapPaths);
   } catch {
     // Non-fatal: static routes are still audited.
   }
@@ -486,7 +551,17 @@ async function main(): Promise<void> {
   const robotsHasContentSignal = /^Content-Signal:\s*search=yes,\s*ai-input=yes,\s*ai-train=yes\s*$/m.test(
     robots.text,
   );
-  const robotsOk = robots.status === 200 && robotsHasContentSignal;
+  const sitemapDirectives = Array.from(
+    robots.text.matchAll(/^Sitemap:\s*(\S+)\s*$/gim),
+    (match) => match[1],
+  );
+  const robotsHasCanonicalSitemap =
+    sitemapDirectives.length === 1 &&
+    sitemapDirectives[0] === "https://cryptokiller.org/api/sitemap.xml";
+  const robotsOk =
+    robots.status === 200 &&
+    robotsHasContentSignal &&
+    robotsHasCanonicalSitemap;
   const discoveryFailures = await auditDiscoveryLinks(sitemapPaths);
 
   const failed = results.filter((r) => !r.passed);
@@ -499,6 +574,7 @@ async function main(): Promise<void> {
   if (!robotsOk) {
     console.log(
       `FAIL robots.txt status=${robots.status} contentSignal=${robotsHasContentSignal}`,
+      `canonicalSitemap=${robotsHasCanonicalSitemap}`,
     );
   }
 

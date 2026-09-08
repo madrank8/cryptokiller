@@ -56,6 +56,8 @@ function rewriteToBase(href: string): string {
 interface FetchResult {
   status: number;
   contentType: string;
+  cacheControl: string;
+  location: string;
   body: unknown;
   text: string;
 }
@@ -72,7 +74,14 @@ async function get(url: string): Promise<FetchResult> {
   } catch {
     /* non-JSON body; callers check contentType */
   }
-  return { status: res.status, contentType: res.headers.get("content-type") ?? "", body, text };
+  return {
+    status: res.status,
+    contentType: res.headers.get("content-type") ?? "",
+    cacheControl: res.headers.get("cache-control") ?? "",
+    location: res.headers.get("location") ?? "",
+    body,
+    text,
+  };
 }
 
 function expectStatus(url: string, r: FetchResult, expected: number): boolean {
@@ -118,14 +127,153 @@ interface SitemapEntry {
   lastmod?: string;
 }
 
+function decodeXml(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
 function parseSitemapEntries(xml: string): SitemapEntry[] {
   const entries: SitemapEntry[] = [];
-  for (const match of xml.matchAll(/<url>\s*([\s\S]*?)<\/url>/g)) {
+  for (const match of xml.matchAll(/<url\b[^>]*>\s*([\s\S]*?)<\/url>/gi)) {
     const body = match[1];
-    const loc = body.match(/<loc>([^<]+)<\/loc>/)?.[1];
+    const loc = body.match(/<loc>([^<]+)<\/loc>/i)?.[1];
     if (!loc) continue;
-    const lastmod = body.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1];
-    entries.push({ loc, ...(lastmod ? { lastmod } : {}) });
+    const lastmod = body.match(/<lastmod>([^<]+)<\/lastmod>/i)?.[1];
+    entries.push({
+      loc: decodeXml(loc.trim()),
+      ...(lastmod ? { lastmod: decodeXml(lastmod.trim()) } : {}),
+    });
+  }
+  return entries;
+}
+
+function parseSitemapChildren(xml: string): string[] {
+  return Array.from(
+    xml.matchAll(
+      /<sitemap\b[^>]*>[\s\S]*?<loc>([^<]+)<\/loc>[\s\S]*?<\/sitemap>/gi,
+    ),
+    (match) => decodeXml(match[1].trim()),
+  );
+}
+
+function rewriteSitemapToApi(loc: string): string {
+  const parsed = new URL(loc);
+  if (API_ORIGIN_OVERRIDE) {
+    return `${API_ORIGIN_OVERRIDE}${parsed.pathname}${parsed.search}`;
+  }
+  return rewriteToBase(loc);
+}
+
+async function getXml(url: string): Promise<FetchResult> {
+  const res = await fetch(url, {
+    headers: { Accept: "application/xml, text/xml" },
+    redirect: "manual",
+  });
+  const text = await res.text();
+  return {
+    status: res.status,
+    contentType: res.headers.get("content-type") ?? "",
+    cacheControl: res.headers.get("cache-control") ?? "",
+    location: res.headers.get("location") ?? "",
+    body: null,
+    text,
+  };
+}
+
+async function collectSitemapEntries(rootUrl: string): Promise<SitemapEntry[]> {
+  const pending = [{ canonical: `${CANONICAL_ORIGIN}/api/sitemap.xml`, fetchUrl: rootUrl }];
+  const visited = new Set<string>();
+  const entries: SitemapEntry[] = [];
+  let rootWasIndex = false;
+
+  while (pending.length > 0) {
+    const current = pending.shift()!;
+    const canonical = new URL(current.canonical);
+    const key = `${canonical.pathname}${canonical.search}`;
+    if (visited.has(key)) {
+      fail(`sitemap index contains a duplicate or cyclic child ${key}`);
+      continue;
+    }
+    visited.add(key);
+    const response = await getXml(current.fetchUrl);
+    if (response.status !== 200) {
+      fail(`${key} -> ${response.status} (expected 200)`);
+      continue;
+    }
+    if (!/^(?:application|text)\/xml\b/i.test(response.contentType)) {
+      fail(`${key} has non-XML content-type "${response.contentType}"`);
+      continue;
+    }
+    if (API_ORIGIN_OVERRIDE) {
+      if (
+        !/(?:^|,\s*)s-maxage=3600(?:,|$)/i.test(response.cacheControl) ||
+        /immutable/i.test(response.cacheControl)
+      ) {
+        fail(
+          `${key} cache policy "${response.cacheControl}" must express one-hour shared caching without immutable`,
+        );
+      } else {
+        pass(`${key} uses one-hour shared caching without immutable`);
+      }
+    }
+
+    if (/<sitemapindex\b/i.test(response.text)) {
+      if (key === "/api/sitemap.xml") rootWasIndex = true;
+      const children = parseSitemapChildren(response.text);
+      if (children.length === 0) {
+        fail(`${key} sitemap index contains no child sitemaps`);
+        continue;
+      }
+      const uniqueChildren = new Set(children);
+      if (uniqueChildren.size !== children.length) {
+        fail(`${key} sitemap index contains duplicate child locations`);
+      } else {
+        pass(`${key} exposes ${children.length} unique child sitemaps`);
+      }
+      for (const child of children) {
+        const childUrl = new URL(child);
+        if (
+          childUrl.origin !== CANONICAL_ORIGIN ||
+          !childUrl.pathname.startsWith("/api/sitemaps/")
+        ) {
+          fail(`${key} has non-canonical child ${child}`);
+          continue;
+        }
+        pending.push({
+          canonical: child,
+          fetchUrl: rewriteSitemapToApi(child),
+        });
+      }
+      continue;
+    }
+
+    if (!/<urlset\b/i.test(response.text)) {
+      fail(`${key} has neither a sitemapindex nor urlset root`);
+      continue;
+    }
+    const childEntries = parseSitemapEntries(response.text);
+    if (childEntries.length > 5_000) {
+      fail(`${key} contains ${childEntries.length} URLs (limit 5,000)`);
+    } else {
+      pass(`${key} contains ${childEntries.length} URLs (limit 5,000)`);
+    }
+    entries.push(...childEntries);
+  }
+
+  if (!rootWasIndex) {
+    fail("/api/sitemap.xml is not a sitemap index");
+  } else {
+    pass("/api/sitemap.xml is a sitemap index, not a monolithic URL set");
+  }
+  const locations = entries.map((entry) => entry.loc);
+  if (new Set(locations).size !== locations.length) {
+    fail("flattened sitemap contains duplicate canonical page URLs");
+  } else {
+    pass(`flattened sitemap contains ${locations.length} unique page URLs`);
   }
   return entries;
 }
@@ -377,15 +525,27 @@ async function main(): Promise<void> {
   // ── Step 5: sitemap lastmod integrity ──
   console.log("\nStep 5: sitemap lastmod integrity");
   const sitemapUrl = `${specServerBase}/sitemap.xml`;
-  const sitemap = await get(sitemapUrl);
-  if (expectStatus(sitemapUrl, sitemap, 200)) {
-    expectContentType(sitemapUrl, sitemap, "application/xml");
-    const sitemapEntries = parseSitemapEntries(sitemap.text);
-    if (sitemapEntries.length === 0) {
-      fail(`${sitemapUrl} contains no parseable <url> entries`);
+  const sitemapEntries = await collectSitemapEntries(sitemapUrl);
+  if (sitemapEntries.length === 0) {
+    fail(`${sitemapUrl} exposes no page URLs through its child sitemaps`);
+  } else {
+    verifySitemapFreshness(sitemapEntries);
+  }
+
+  const apiOrigin = API_ORIGIN_OVERRIDE ?? new URL(specServerBase).origin;
+  const aliases = new Map([
+    [`${apiOrigin}/sitemap.xml`, "/api/sitemap.xml"],
+    [`${BASE}/sitemap.xml`, "/api/sitemap.xml"],
+    [`${BASE}/ai-sitemap.xml`, "/api/sitemap.xml"],
+  ]);
+  for (const [alias, expectedLocation] of aliases) {
+    const response = await getXml(alias);
+    if (response.status !== 301 || response.location !== expectedLocation) {
+      fail(
+        `${alias} must 301 to ${expectedLocation}; got ${response.status} ${response.location || "(no Location)"}`,
+      );
     } else {
-      pass(`${sitemapUrl} contains ${sitemapEntries.length} parseable <url> entries`);
-      verifySitemapFreshness(sitemapEntries);
+      pass(`${alias} -> 301 ${expectedLocation}`);
     }
   }
 

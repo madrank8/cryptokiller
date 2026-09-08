@@ -182,6 +182,22 @@ async function main(): Promise<void> {
   await waitForHttp(`http://127.0.0.1:${WEB_PORT}/.well-known/api-catalog`, "crypto-review SSR");
   await verifyIndexNowOwnership(`http://127.0.0.1:${WEB_PORT}`);
 
+  // Recursively flatten the sitemap index and compare every child URL,
+  // lastmod, locale alternate cluster, shard boundary, cache header, and root
+  // redirect against the database and static registries.
+  await run(
+    "verify sitemap index contract",
+    "pnpm",
+    ["run", "verify:sitemap-index"],
+    {
+      cwd: API_DIR,
+      env: {
+        VERIFY_BASE_URL: `http://127.0.0.1:${WEB_PORT}`,
+        VERIFY_API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
+      },
+    },
+  );
+
   // Compare literal frontend routes with the API's production sitemap
   // registry, then reject missing/duplicate entries, redirects, noindex pages,
   // and canonical drift against the built servers.

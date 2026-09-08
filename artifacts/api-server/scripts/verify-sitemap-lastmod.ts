@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import {
+  SITEMAP_CACHE_CONTROL,
+  SITEMAP_URL_LIMIT,
   buildInvestigationPaginationPages,
   buildSitemapHubLastmods,
+  renderSitemapIndex,
   INVESTIGATIONS_ITEMS_PER_PAGE,
   renderSitemapPage,
+  renderSitemapUrlSet,
+  sitemapShardNumbers,
 } from "../src/lib/sitemap-pages.ts";
 
 const initialHubDates = buildSitemapHubLastmods({
@@ -65,6 +70,67 @@ assert.doesNotMatch(
 assert.match(fixtureXml, /<loc>https:\/\/cryptokiller\.org\/investigations\?page=2<\/loc>/);
 assert.match(fixtureXml, /<loc>https:\/\/cryptokiller\.org\/investigations\?page=3<\/loc>/);
 
+const boundaryCases = [
+  { itemCount: 0, includeEmpty: true, expected: [1] },
+  { itemCount: 0, includeEmpty: false, expected: [] },
+  { itemCount: 5_000, includeEmpty: true, expected: [1] },
+  { itemCount: 5_001, includeEmpty: true, expected: [1, 2] },
+  { itemCount: 10_001, includeEmpty: true, expected: [1, 2, 3] },
+] as const;
+for (const fixture of boundaryCases) {
+  assert.deepEqual(
+    sitemapShardNumbers(fixture.itemCount, fixture.includeEmpty),
+    fixture.expected,
+    `${fixture.itemCount} records must produce deterministic 5,000-URL shard boundaries`,
+  );
+}
+
+const syntheticEntries = Array.from({ length: 10_001 }, (_, index) => ({
+  loc: `https://cryptokiller.org/review/synthetic-${index + 1}`,
+  lastmod: "2026-01-01",
+}));
+const syntheticShards = sitemapShardNumbers(syntheticEntries.length).map(
+  (shardNumber) =>
+    syntheticEntries.slice(
+      (shardNumber - 1) * SITEMAP_URL_LIMIT,
+      shardNumber * SITEMAP_URL_LIMIT,
+    ),
+);
+assert.deepEqual(
+  syntheticShards.map((entries) => entries.length),
+  [5_000, 5_000, 1],
+);
+const renderedShards = syntheticShards.map(renderSitemapUrlSet);
+assert.ok(
+  renderedShards.every(
+    (xml) => Array.from(xml.matchAll(/<url>/g)).length <= SITEMAP_URL_LIMIT,
+  ),
+  "every rendered child sitemap must stay at or below the 5,000 URL contract",
+);
+assert.deepEqual(
+  renderedShards.flatMap((xml) =>
+    Array.from(xml.matchAll(/<loc>([^<]+)<\/loc>/g), (match) => match[1]),
+  ),
+  syntheticEntries.map((entry) => entry.loc),
+  "sharding must preserve every canonical URL exactly once and in stable order",
+);
+const syntheticIndexEntries = syntheticShards.map((_, index) => ({
+  loc: `https://cryptokiller.org/api/sitemaps/reviews/${index + 1}.xml`,
+}));
+assert.equal(
+  renderSitemapIndex(syntheticIndexEntries),
+  renderSitemapIndex(syntheticIndexEntries),
+  "sitemap index rendering must be deterministic",
+);
+assert.equal(
+  Array.from(
+    renderSitemapIndex(syntheticIndexEntries).matchAll(/<sitemap>/g),
+  ).length,
+  3,
+);
+assert.match(SITEMAP_CACHE_CONTROL, /(?:^|,\s*)s-maxage=3600(?:,|$)/);
+assert.doesNotMatch(SITEMAP_CACHE_CONTROL, /immutable/i);
+
 console.log(
-  "Sitemap lastmod policy verified: sliced review hubs and pages omit untrackable dates.",
+  "Sitemap policy verified: truthful dates, deterministic 5,000-URL shards, complete boundary coverage, and one-hour shared caching.",
 );
