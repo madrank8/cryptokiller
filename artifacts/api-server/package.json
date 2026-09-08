@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify:sitemap-static-routes": "node --experimental-strip-types --no-warnings=ExperimentalWarning ./scripts/verify-sitemap-static-routes.ts",
     "verify:sitemap-lastmod": "node --experimental-strip-types --no-warnings=ExperimentalWarning ./scripts/verify-sitemap-lastmod.ts"
   },
   "dependencies": {

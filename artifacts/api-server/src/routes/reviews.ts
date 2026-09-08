@@ -23,6 +23,7 @@ import { sanitizeInlineHtml, sanitizeRichHtml } from "../lib/html-sanitizer";
 import { getRecentAdsForBrand } from "../lib/supabase-recent-ads";
 import {
   buildInvestigationPaginationPages,
+  buildStaticSitemapPages,
   buildSitemapHubLastmods,
   renderSitemapPage,
   type SitemapPage,
@@ -714,19 +715,11 @@ router.get("/sitemap.xml", async (_req, res): Promise<void> => {
   // are sorted/truncated review views that lack page-revision timestamps.
   // Trust pages and author profiles also lack page-specific revision metadata.
   const staticPages: SitemapPage[] = [
-    { loc: "/", changefreq: "daily", priority: "1.0", lastmod: homepageLastmod },
-    { loc: "/investigations", changefreq: "daily", priority: "0.9", lastmod: investigationsLastmod },
-    { loc: "/blog", changefreq: "daily", priority: "0.8", lastmod: blogLastmod },
-    { loc: "/methodology", changefreq: "monthly", priority: "0.8" },
-    { loc: "/report", changefreq: "monthly", priority: "0.7" },
-    { loc: "/about", changefreq: "monthly", priority: "0.6" },
-    { loc: "/recovery", changefreq: "monthly", priority: "0.7" },
-    { loc: "/privacy", changefreq: "yearly", priority: "0.3" },
-    { loc: "/terms", changefreq: "yearly", priority: "0.3" },
-    // AI-disclosure page: live, indexable (index,follow + self-canonical),
-    // linked from the footer, but historically absent from the sitemap.
-    // Trust/transparency page in the same class as privacy/terms.
-    { loc: "/ai-disclosure", changefreq: "yearly", priority: "0.3" },
+    ...buildStaticSitemapPages({
+      homepageLastmod,
+      investigationsLastmod,
+      blogLastmod,
+    }),
     ...AUTHOR_PROFILE_SLUGS.map((slug) => ({
       loc: `/author/${slug}`,
       changefreq: "monthly",

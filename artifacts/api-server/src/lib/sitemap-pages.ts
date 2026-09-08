@@ -17,6 +17,47 @@ export interface SitemapHubLastmods {
   blogLastmod?: string;
 }
 
+/**
+ * Literal, indexable routes declared by the frontend router.
+ *
+ * Parameterized review/blog/author routes are emitted from published data and
+ * intentionally do not belong here. Keeping this registry beside the sitemap
+ * renderer gives validation a pure source of truth without importing the
+ * database-backed reviews router.
+ */
+export const STATIC_SITEMAP_PAGE_DEFINITIONS = [
+  { loc: "/", changefreq: "daily", priority: "1.0" },
+  { loc: "/investigations", changefreq: "daily", priority: "0.9" },
+  { loc: "/blog", changefreq: "daily", priority: "0.8" },
+  { loc: "/methodology", changefreq: "monthly", priority: "0.8" },
+  { loc: "/report", changefreq: "monthly", priority: "0.7" },
+  { loc: "/about", changefreq: "monthly", priority: "0.6" },
+  { loc: "/recovery", changefreq: "monthly", priority: "0.7" },
+  { loc: "/privacy", changefreq: "yearly", priority: "0.3" },
+  { loc: "/terms", changefreq: "yearly", priority: "0.3" },
+  { loc: "/ai-disclosure", changefreq: "yearly", priority: "0.3" },
+] as const satisfies readonly SitemapPage[];
+
+export const STATIC_SITEMAP_PATHS = STATIC_SITEMAP_PAGE_DEFINITIONS.map(
+  ({ loc }) => loc,
+);
+
+export function buildStaticSitemapPages(
+  lastmods: SitemapHubLastmods,
+): SitemapPage[] {
+  return STATIC_SITEMAP_PAGE_DEFINITIONS.map((definition) => {
+    const lastmod =
+      definition.loc === "/"
+        ? lastmods.homepageLastmod
+        : definition.loc === "/investigations"
+          ? lastmods.investigationsLastmod
+          : definition.loc === "/blog"
+            ? lastmods.blogLastmod
+            : undefined;
+    return lastmod ? { ...definition, lastmod } : { ...definition };
+  });
+}
+
 function toDateOnly(value: DateValue): string | undefined {
   return value ? new Date(value).toISOString().split("T")[0] : undefined;
 }

@@ -182,6 +182,22 @@ async function main(): Promise<void> {
   await waitForHttp(`http://127.0.0.1:${WEB_PORT}/.well-known/api-catalog`, "crypto-review SSR");
   await verifyIndexNowOwnership(`http://127.0.0.1:${WEB_PORT}`);
 
+  // Compare literal frontend routes with the API's production sitemap
+  // registry, then reject missing/duplicate entries, redirects, noindex pages,
+  // and canonical drift against the built servers.
+  await run(
+    "verify static sitemap route parity",
+    "pnpm",
+    ["run", "verify:sitemap-static-routes"],
+    {
+      cwd: API_DIR,
+      env: {
+        VERIFY_BASE_URL: `http://127.0.0.1:${WEB_PORT}`,
+        VERIFY_API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
+      },
+    },
+  );
+
   // Browser-level lockstep: verify the visible recent-ad cards and the live
   // Review.hasPart JSON-LD after first-byte SSR, hydration, SPA away/back, and
   // a translated review route. Browser API requests are routed to the local

@@ -15,3 +15,4 @@
 - [DEX team source-link policy](dex-team-source-links.md) — most guessed individual DEX team URLs 404; use only live profiles, otherwise link the team directory.
 - [Sitemap lastmod truthfulness](sitemap-lastmod-truthfulness.md) — use only changes rendered on that URL; omit dates for sorted page slices without persisted revision history.
 - [Playwright callbacks under tsx](playwright-tsx-evaluate.md) — keep browser-realm callbacks self-contained; nested named helpers may serialize as a missing `__name`.
+- [Parsing TSX route declarations](tsx-route-parsing.md) — source guards must read brace-depth-zero attrs; whole-tag regex can mistake nested child props for router paths.
