@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { CAPTURED_ADS_TITLE, capturedAdsSummary, lastRecordedUtc, weeklyCreativesSummary, WEEKLY_CREATIVES_NOTE } from "../lib/adEvidencePresentation";
 import { useParams, Link } from "wouter";
 import { useGetReview, useGetRelatedReviews, useGetReviewTranslation } from "@workspace/api-client-react";
 import type { ReviewSource, GeoTarget, FaqItem, RedFlag, VisualMeta, FunnelStage, KeyFinding, ContentImage, ReviewFull, ReviewFullTranslated, RecentAd, AdEvidence } from "@workspace/api-client-react";
@@ -385,16 +386,6 @@ function geoFlag(geo: string | null | undefined): string {
   return String.fromCodePoint(A + code.charCodeAt(0) - 65, A + code.charCodeAt(1) - 65);
 }
 
-function relativeDaysAgo(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "";
-  const days = Math.floor((Date.now() - t) / 86400000);
-  if (days <= 0) return "today";
-  if (days === 1) return "1d ago";
-  return `${days}d ago`;
-}
-
 function truncate(text: string, n: number): string {
   if (text.length <= n) return text;
   return text.slice(0, n).replace(/\s+\S*$/, "") + "…";
@@ -425,11 +416,10 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
     >
       <header className="mb-5">
         <h2 id="recent-ads-heading" className="text-lg sm:text-xl font-black text-white tracking-tight">
-          Ads scraped this week
+          {CAPTURED_ADS_TITLE}
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          {ads.length} ad {ads.length === 1 ? "creative" : "creatives"} detected
-          {countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""} · last 7 days
+          {capturedAdsSummary(ads.length, countryCount)}
         </p>
       </header>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -463,7 +453,7 @@ function RecentAdsGrid({ ads }: { ads: RecentAd[] }) {
                   </span>
                 )}
                 <time dateTime={ad.lastSeenAt} className="ml-auto text-slate-500">
-                  {relativeDaysAgo(ad.lastSeenAt)}
+                  {lastRecordedUtc(ad.lastSeenAt)}
                 </time>
               </div>
               <h3 className="text-sm font-semibold text-white leading-snug line-clamp-2">
@@ -605,31 +595,18 @@ function AdEvidenceSection({
 }
 
 function VelocityWidget({ velocity, platformName }: { velocity: number; platformName: string }) {
-  const trend = velocity >= 30 ? "Surging" : velocity >= 10 ? "Rising" : "Stable";
-  const trendColor = velocity >= 30 ? "text-red-400" : velocity >= 10 ? "text-amber-400" : "text-green-400";
-  const pulseColor = velocity >= 30 ? "bg-red-500" : velocity >= 10 ? "bg-amber-500" : "bg-green-500";
-
   return (
     <div className="rounded-xl bg-slate-900/60 border border-slate-800 p-5">
       <div className="flex items-center gap-2 mb-3">
         <Activity className="h-5 w-5 text-orange-400" />
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Ad Velocity</span>
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Weekly ad count</span>
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="relative flex h-3 w-3">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pulseColor} opacity-75`} />
-            <span className={`relative inline-flex rounded-full h-3 w-3 ${pulseColor}`} />
-          </span>
-          <span className="text-2xl font-black text-white">{velocity}</span>
-          <span className="text-sm text-slate-400">new ads this week</span>
+          <span className="text-lg font-bold text-white">{weeklyCreativesSummary(velocity)}</span>
         </div>
-        <Badge className={`${trendColor} bg-slate-800 border-slate-700 text-xs ml-auto`}>
-          <TrendingUp className="h-3 w-3 mr-1" />
-          {trend}
-        </Badge>
       </div>
-      <p className="text-xs text-slate-500 mt-2">{platformName} ad campaign activity in the last 7 days</p>
+      <p className="text-xs text-slate-500 mt-2">{platformName}: {WEEKLY_CREATIVES_NOTE}</p>
     </div>
   );
 }

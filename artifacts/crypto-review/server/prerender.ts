@@ -1,5 +1,6 @@
 // build-cache-bust: 2026-05-19T11:40Z
 import { eq, and, desc, sql, asc, count, ne } from "drizzle-orm";
+import { CAPTURED_ADS_TITLE, capturedAdsSummary, lastRecordedUtc, weeklyCreativesSummary, WEEKLY_CREATIVES_NOTE } from "../src/lib/adEvidencePresentation.js";
 import {
   db,
   reviewsTable,
@@ -553,7 +554,25 @@ async function renderHome(): Promise<RenderResult> {
     )
     .limit(HOMEPAGE_LATEST_REVIEW_LINKS);
 
-  const latestRenderedUpdate = recent.reduce<Date | undefined>((latest, review) => {
+  // Match the interactive featured cards' score ordering, including tie breaks
+  // inherited from the published review list. Keep latest-discovery links intact.
+  const featured = await db
+    .select({
+      slug: reviewsTable.slug,
+      platformName: platformsTable.name,
+      threatScore: reviewsTable.threatScore,
+      updatedAt: reviewsTable.updatedAt,
+    })
+    .from(reviewsTable)
+    .innerJoin(platformsTable, eq(reviewsTable.platformId, platformsTable.id))
+    .where(eq(reviewsTable.status, "published"))
+    .orderBy(desc(reviewsTable.threatScore), asc(reviewsTable.investigationDate), asc(reviewsTable.slug))
+    .limit(8);
+  const featuredList = featured.map((r) =>
+    `<li><a href="/review/${esc(r.slug)}">${esc(r.platformName)}</a> — Investigation · Threat ${r.threatScore}/100</li>`,
+  ).join("");
+
+  const latestRenderedUpdate = [...recent, ...featured].reduce<Date | undefined>((latest, review) => {
     const updatedAt = new Date(review.updatedAt);
     return !latest || updatedAt > latest ? updatedAt : latest;
   }, undefined);
@@ -566,7 +585,7 @@ async function renderHome(): Promise<RenderResult> {
   const recentList = recent
     .map(
       (r) =>
-        `<li><a href="/review/${esc(r.slug)}">${esc(r.platformName)}</a> — Threat ${r.threatScore}/100. ${esc(truncate(substituteListRowText(r.verdict, r) || "Confirmed scam", 140))}</li>`,
+        `<li><a href="/review/${esc(r.slug)}">${esc(r.platformName)}</a> — Threat ${r.threatScore}/100. ${esc(truncate(substituteListRowText(r.verdict, r) || "Investigation", 140))}</li>`,
     )
     .join("");
 
@@ -575,8 +594,9 @@ async function renderHome(): Promise<RenderResult> {
 <p>CryptoKiller is an independent crypto scam intelligence platform. We currently track <strong>${reviewCount.toLocaleString()} published investigations</strong> across pig butchering, rug pulls, phishing, fake exchanges, AI trading bot scams, and deepfake celebrity endorsement schemes.</p>
 <h2>How CryptoKiller works</h2>
 <p>Each investigation combines real-time ad surveillance, blockchain forensics, and OSINT to produce an evidence-based threat score from 0 to 100. Every score is auditable and links to the underlying ad creatives, registration patterns, and red flags.</p>
-<h2>Recently published investigations</h2>
-<ul>${recentList}</ul>
+<section aria-labelledby="featured-investigations-heading"><h2 id="featured-investigations-heading">Featured Investigations</h2><p>Investigations ranked by published threat score</p><ul>${featuredList}</ul></section>
+<section data-latest-investigations><h2>Recently published investigations</h2>
+<ul>${recentList}</ul></section>
 <h2>As seen on</h2>
 <p>CryptoKiller's launch of its real-time global scam database was covered by ${PRESS_COVERAGE.map((p) => `<a href="${esc(p.href)}" rel="nofollow noopener noreferrer" target="_blank">${esc(p.name)}</a>`).join(", ")}.</p>
 ${analystDirectoryHtml(TEAM_PREVIEW, "team-heading", "Meet the team")}
@@ -1520,7 +1540,7 @@ async function renderReview(
   if (row.countriesTargeted) stats.push(`<li><strong>${row.countriesTargeted}</strong> countries targeted</li>`);
   if (row.daysActive) stats.push(`<li>Active for <strong>${row.daysActive}</strong> days</li>`);
   if (row.celebritiesAbused) stats.push(`<li><strong>${row.celebritiesAbused}</strong> celebrities impersonated</li>`);
-  if (row.weeklyVelocity) stats.push(`<li><strong>${row.weeklyVelocity}</strong> new ad creatives in the last 7 days</li>`);
+  const weeklyAdCountHtml = `<section data-weekly-ad-count><h2>Weekly ad count</h2><p>${esc(weeklyCreativesSummary(row.weeklyVelocity ?? 0))}</p><p>${esc(platformName)}: ${esc(WEEKLY_CREATIVES_NOTE)}</p></section>`;
 
   // Render multi-paragraph fields by splitting on newlines
   const paragraphize = (txt: string): string =>
@@ -1580,15 +1600,6 @@ async function renderReview(
     if (!/^[A-Z]{2}$/.test(code)) return "";
     return String.fromCodePoint(0x1f1e6 + code.charCodeAt(0) - 65, 0x1f1e6 + code.charCodeAt(1) - 65);
   };
-  const daysAgoSsr = (iso: string | null): string => {
-    if (!iso) return "";
-    const t = Date.parse(iso);
-    if (!Number.isFinite(t)) return "";
-    const days = Math.floor((Date.now() - t) / 86400000);
-    if (days <= 0) return "today";
-    if (days === 1) return "1d ago";
-    return `${days}d ago`;
-  };
   const truncateSsr = (txt: string, n: number): string =>
     txt.length <= n ? txt : txt.slice(0, n).replace(/\s+\S*$/, "") + "…";
   // Same protocol allowlist as the CSR component (safeHttpUrl in ReviewPage.tsx).
@@ -1617,7 +1628,7 @@ async function renderReview(
             if (ad.geo) meta.push(`<span class="ra-geo"><span aria-hidden="true">${flag}</span> <strong>${esc(ad.geo)}</strong></span>`);
             meta.push(`<span class="ra-badge">${ad.isVideo ? "Video" : "Image"}</span>`);
             if (ad.language) meta.push(`<span class="ra-badge ra-lang">${esc(ad.language)}</span>`);
-            meta.push(`<time datetime="${esc(ad.lastSeenAt)}" class="ra-date">${esc(daysAgoSsr(ad.lastSeenAt))}</time>`);
+            meta.push(`<time datetime="${esc(ad.lastSeenAt)}" class="ra-date">${esc(lastRecordedUtc(ad.lastSeenAt))}</time>`);
             parts.push(`<div class="ra-meta">${meta.join("")}</div>`);
             parts.push(`<h3 class="ra-offer">${esc(truncateSsr(ad.offer, 60))}</h3>`);
             if (ad.celebrity) parts.push(`<div class="ra-celeb"><span aria-hidden="true">🎭 </span>${esc(ad.celebrity)}</div>`);
@@ -1635,10 +1646,8 @@ async function renderReview(
             return `<article class="recent-ad" data-ad-evidence-id="${esc(`#ad-evidence-${ad.id}`)}">${parts.join("")}</article>`;
           })
           .join("");
-        const subtitle = `${recentAds.length} ad ${recentAds.length === 1 ? "creative" : "creatives"} detected${
-          countryCount > 0 ? ` across ${countryCount} ${countryCount === 1 ? "country" : "countries"}` : ""
-        } · last 7 days`;
-        return `<section aria-labelledby="recent-ads-heading" class="recent-ads"><header><h2 id="recent-ads-heading">Ads scraped this week</h2><p class="ra-sub">${esc(subtitle)}</p></header><div class="recent-ads-grid">${cards}</div></section>`;
+        const subtitle = capturedAdsSummary(recentAds.length, countryCount);
+        return `<section aria-labelledby="recent-ads-heading" class="recent-ads"><header><h2 id="recent-ads-heading">${CAPTURED_ADS_TITLE}</h2><p class="ra-sub">${esc(subtitle)}</p></header><div class="recent-ads-grid">${cards}</div></section>`;
       })()
     : "";
 
@@ -2000,6 +2009,7 @@ ${aiDisclosureHtml}
 ${fullArticleBodyHtml}
 </article>
 ${recentAdsHtml}
+${weeklyAdCountHtml}
 ${adEvidenceHtml}
 ${relatedInvestigationsHtml}
 ${preferredSourceHtml()}
@@ -2027,6 +2037,7 @@ ${redFlagsHtml}
 ${contentImageByPlacement("section-2")}
 ${funnelStagesHtml}
 ${recentAdsHtml}
+${weeklyAdCountHtml}
 ${adEvidenceHtml}
 ${visualsHtml}
 ${celebritiesHtml}

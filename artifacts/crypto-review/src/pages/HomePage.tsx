@@ -328,7 +328,7 @@ function HeroSection({ reviews }: { reviews: ReviewSummary[] }) {
   );
 }
 
-function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesTargeted, celebritiesAbused, daysActive }: ReviewSummary) {
+function FeaturedInvestigationCard({ slug, platformName, threatScore, adCreatives, countriesTargeted, celebritiesAbused }: ReviewSummary) {
   const isExtreme = threatScore >= 90;
   const isHigh = threatScore >= 70;
 
@@ -342,9 +342,6 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
   // WCAG: white clears 4.5:1 on the dark red-600 chip; the lighter orange/amber
   // chips need near-black text to clear 4.5:1.
   const scoreText = isExtreme ? "text-white" : "text-slate-950";
-
-  const trend = daysActive > 400 ? "Stable" : daysActive > 100 ? "Rising" : "Surging";
-  const trendColor = trend === "Surging" ? "text-red-400 bg-red-950/50 border-red-900/40" : trend === "Rising" ? "text-orange-400 bg-orange-950/50 border-orange-900/40" : "text-amber-400 bg-amber-950/50 border-amber-900/40";
 
   return (
     <a href={`/review/${slug}`} className="group block">
@@ -361,12 +358,9 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
             <div className="min-w-0 flex-1 pt-0.5">
               <h3 className="text-white font-bold text-lg leading-tight group-hover:text-red-400 transition-colors truncate">{platformName}</h3>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <Badge className="bg-red-600/20 text-red-400 border border-red-900/30 text-[10px] font-bold px-1.5 py-0">
-                  Confirmed Scam
+                <Badge className="bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-bold px-1.5 py-0">
+                  Investigation
                 </Badge>
-                <span className={`text-[10px] font-bold border rounded-full px-2 py-0 ${trendColor}`}>
-                  {trend}
-                </span>
               </div>
             </div>
           </div>
@@ -380,12 +374,7 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
             <span className="flex items-center gap-1"><BarChart2 className="h-3 w-3 text-slate-600" />{adCreatives.toLocaleString()} ads</span>
           </div>
 
-          {/* status */}
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-red-400 font-semibold">Active</span>
-            </span>
+          <div className="flex justify-end">
             <ArrowRight className="h-4 w-4 text-slate-600 group-hover:text-red-400 group-hover:translate-x-0.5 transition-all" />
           </div>
         </div>
@@ -394,7 +383,7 @@ function TrendingCard({ slug, platformName, threatScore, adCreatives, countriesT
   );
 }
 
-function TrendingScams({ reviews, isLoading }: { reviews: ReviewSummary[] | undefined; isLoading: boolean }) {
+function FeaturedInvestigations({ reviews, isLoading }: { reviews: ReviewSummary[] | undefined; isLoading: boolean }) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -408,8 +397,8 @@ function TrendingScams({ reviews, isLoading }: { reviews: ReviewSummary[] | unde
     <section className="container mx-auto px-4 max-w-6xl py-16">
       <div className="flex items-end justify-between mb-8">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-white mb-1">Trending Scams</h2>
-          <p className="text-slate-500 text-sm">Highest threat scores right now</p>
+          <h2 className="text-2xl md:text-3xl font-black text-white mb-1">Featured Investigations</h2>
+          <p className="text-slate-500 text-sm">Investigations ranked by published threat score</p>
         </div>
         <a href="/investigations" className="text-red-400 text-sm font-semibold hover:text-red-300 transition-colors flex items-center gap-1">
           View all <ChevronRight className="h-3.5 w-3.5" />
@@ -419,7 +408,7 @@ function TrendingScams({ reviews, isLoading }: { reviews: ReviewSummary[] | unde
         {reviews
           .sort((a, b) => b.threatScore - a.threatScore)
           .slice(0, 8)
-          .map((r) => <TrendingCard key={r.id} {...r} />)}
+          .map((r) => <FeaturedInvestigationCard key={r.id} {...r} />)}
       </div>
     </section>
   );
@@ -570,7 +559,7 @@ export default function HomePage() {
 
   // Resolve `{{stat:KEY}}` tokens in list-row prose (verdict) against each
   // row's own review_stats fields before any child (ticker, hero search,
-  // trending, latest) renders it.
+  // featured, latest) renders it.
   const reviews = useMemo(
     () => rawReviews?.map((r) => substituteStatTokensInReview(r)),
     [rawReviews],
@@ -694,7 +683,7 @@ export default function HomePage() {
         <LiveFeedTicker reviews={reviews ?? []} />
         <HeroSection reviews={reviews ?? []} />
         <TrustBar />
-        <TrendingScams reviews={reviews} isLoading={isLoading} />
+        <FeaturedInvestigations reviews={reviews} isLoading={isLoading} />
         <LatestReviews reviews={reviews} />
         <WarningBanner />
         <HowItWorks />

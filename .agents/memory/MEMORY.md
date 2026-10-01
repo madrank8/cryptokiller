@@ -17,3 +17,4 @@
 - [Playwright callbacks under tsx](playwright-tsx-evaluate.md) — keep browser-realm callbacks self-contained; nested named helpers may serialize as a missing `__name`.
 - [Parsing TSX route declarations](tsx-route-parsing.md) — source guards must read brace-depth-zero attrs; whole-tag regex can mistake nested child props for router paths.
 - [Node strip-types workspace imports](node-strip-types-workspace-imports.md) — scripts importing workspace packages with directory exports need tsx; Node’s strip-types ESM resolver can reject them.
+- [Evidence presentation scope](evidence-presentation-scope.md) — neutral capture/count labels must not silently rewrite stored editorial findings; report contradictions separately.

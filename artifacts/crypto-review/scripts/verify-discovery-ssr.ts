@@ -165,10 +165,14 @@ async function main(): Promise<void> {
   const home = await renderPage("/");
   assert.equal(home.status, 200);
   assert.deepEqual(
-    reviewSlugs(home.bodyHtml),
+    reviewSlugs(home.bodyHtml.match(/<section data-latest-investigations>[\s\S]*?<\/section>/)?.[0] ?? ""),
     newestReviewSlugs,
     "homepage raw HTML must expose the newest published review slice",
   );
+  const featured = home.bodyHtml.match(/<section aria-labelledby="featured-investigations-heading">[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.deepEqual(reviewSlugs(featured), threatSortedSlugs.slice(0, 8), "SSR featured investigations must match the interactive score ordering");
+  assert.match(featured, /Featured Investigations/);
+  assert.doesNotMatch(featured, /Confirmed Scam|Active|Rising|Surging/);
 
   const investigations = await renderPage("/investigations");
   assert.equal(investigations.status, 200);
